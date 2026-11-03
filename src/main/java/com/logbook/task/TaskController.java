@@ -26,7 +26,6 @@ public class TaskController {
             request.summary(), request.obstacle(), id);
 
         if (rowsAffected > 0) {
-            // Di kontrak aslinya balikin DayDto, tapi buat simplifikasi kita balikin message sukses
             return ResponseEntity.ok(Map.of("message", "Task berhasil diubah"));
         } else {
             return ResponseEntity.status(404).body(Map.of("message", "Task tidak ditemukan"));

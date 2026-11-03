@@ -19,7 +19,6 @@ public class ExampleController {
 
     @GetMapping
     public Map<String, List<Map<String, Object>>> getExamples() {
-        // Mengambil data contoh dari 3 tabel sesuai ERD
         String queryCards = "SELECT * FROM example_cards ORDER BY sort_order";
         String queryEntries = "SELECT * FROM example_entries ORDER BY sort_order";
         String queryTips = "SELECT title, body FROM writing_tips ORDER BY sort_order";
