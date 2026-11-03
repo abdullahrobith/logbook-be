@@ -17,4 +17,18 @@ public interface ProjectRepository extends JpaRepository<Project, Long> {
                    "WHERE pm.user_id = :userId AND pm.left_at IS NULL " +
                    "ORDER BY pm.last_used_at DESC", nativeQuery = true)
     List<ProjectDto> findProjectsByUserId(@Param("userId") Long userId);
+
+        @Query(value = """
+        SELECT EXISTS (
+            SELECT 1
+            FROM project_members pm
+            WHERE pm.project_id = :projectId
+            AND pm.user_id = :userId
+            AND pm.left_at IS NULL
+        )
+        """, nativeQuery = true)
+    boolean existsActiveProjectForUser(
+        @Param("projectId") Long projectId,
+        @Param("userId") Long userId
+    );
 }

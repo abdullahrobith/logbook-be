@@ -1,4 +1,3 @@
-
 package com.logbook.entity;
 
 import jakarta.persistence.*;
@@ -37,6 +36,9 @@ public class LogTask {
     @Column(nullable = false)
     private String summary;
 
+    @Column(columnDefinition = "text")
+    private String obstacle;
+
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;
 
@@ -55,6 +57,7 @@ public class LogTask {
             LocalTime startTime,
             Short durationMinutes,
             String summary,
+            String obstacle,
             OffsetDateTime createdAt,
             OffsetDateTime updatedAt
     ) {
@@ -66,11 +69,35 @@ public class LogTask {
         this.startTime = startTime;
         this.durationMinutes = durationMinutes;
         this.summary = summary;
+        this.obstacle = obstacle;
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
     }
 
+    public void update(
+            Long projectId,
+            Short taskTypeId,
+            Short workStatusId,
+            String ticket,
+            LocalTime startTime,
+            Short durationMinutes,
+            String summary,
+            String obstacle,
+            OffsetDateTime updatedAt
+    ) {
+        this.projectId = projectId;
+        this.taskTypeId = taskTypeId;
+        this.workStatusId = workStatusId;
+        this.ticket = ticket;
+        this.startTime = startTime;
+        this.durationMinutes = durationMinutes;
+        this.summary = summary;
+        this.obstacle = obstacle;
+        this.updatedAt = updatedAt;
+    }
+
     public Long getId() { return id; }
+    public DailyLog getDailyLog() { return dailyLog; }
     public Long getProjectId() { return projectId; }
     public Short getTaskTypeId() { return taskTypeId; }
     public Short getWorkStatusId() { return workStatusId; }
@@ -78,4 +105,7 @@ public class LogTask {
     public LocalTime getStartTime() { return startTime; }
     public Short getDurationMinutes() { return durationMinutes; }
     public String getSummary() { return summary; }
+    public String getObstacle() { return obstacle; }
+    public OffsetDateTime getCreatedAt() { return createdAt; }
+    public OffsetDateTime getUpdatedAt() { return updatedAt; }
 }

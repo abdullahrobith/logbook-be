@@ -20,9 +20,15 @@ public class MasterDataController {
 
     @GetMapping
     public Map<String, List<Map<String, Object>>> getMasterData() {
-        List<Map<String, Object>> types = jdbcTemplate.queryForList("SELECT id, name FROM task_types ORDER BY id");
-        List<Map<String, Object>> statuses = jdbcTemplate.queryForList("SELECT id, name FROM work_statuses ORDER BY id");
-        List<Map<String, Object>> durations = jdbcTemplate.queryForList("SELECT minutes, label FROM duration_options ORDER BY minutes");
+        List<Map<String, Object>> types = jdbcTemplate.queryForList(
+                "SELECT id, name FROM task_types WHERE is_active = true ORDER BY sort_order"
+        );
+        List<Map<String, Object>> statuses = jdbcTemplate.queryForList(
+                "SELECT id, name FROM work_statuses ORDER BY sort_order"
+        );
+        List<Map<String, Object>> durations = jdbcTemplate.queryForList(
+                "SELECT minutes, label FROM duration_options WHERE is_active = true ORDER BY sort_order"
+        );
 
 
         return Map.of(

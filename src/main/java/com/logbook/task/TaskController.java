@@ -1,51 +1,40 @@
 package com.logbook.task;
 
-import org.springframework.http.ResponseEntity;
-import org.springframework.jdbc.core.JdbcTemplate;
+import com.logbook.dto.DailyLogResponse;
+import com.logbook.dto.LogTaskRequest;
+import com.logbook.service.AuthService;
+import com.logbook.service.LogTaskService;
+import jakarta.servlet.http.HttpSession;
+import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
-import java.util.Map;
 
 @RestController
 @RequestMapping("/api/tasks")
 public class TaskController {
 
-    private final JdbcTemplate jdbcTemplate;
+    private final LogTaskService logTaskService;
+    private final AuthService authService;
 
-    public TaskController(JdbcTemplate jdbcTemplate) {
-        this.jdbcTemplate = jdbcTemplate;
+    public TaskController(LogTaskService logTaskService, AuthService authService) {
+        this.logTaskService = logTaskService;
+        this.authService = authService;
     }
 
-    // API PUT: Ubah Task
     @PutMapping("/{id}")
-    public ResponseEntity<?> updateTask(@PathVariable Long id, @RequestBody TaskRequestDto request) {
-        String sql = "UPDATE log_tasks SET project_id = ?, task_type_id = ?, work_status_id = ?, ticket = ?, start_time = CAST(? AS time), duration_minutes = ?, summary = ?, obstacle = ? WHERE id = ?";
-        
-        int rowsAffected = jdbcTemplate.update(sql, 
-            request.project_id(), request.task_type_id(), request.work_status_id(),
-            request.ticket(), request.start_time(), request.duration_minutes(),
-            request.summary(), request.obstacle(), id);
-
-        if (rowsAffected > 0) {
-            return ResponseEntity.ok(Map.of("message", "Task berhasil diubah"));
-        } else {
-            return ResponseEntity.status(404).body(Map.of("message", "Task tidak ditemukan"));
-        }
+    public DailyLogResponse.TaskResponse updateTask(
+            @PathVariable Long id,
+            @Valid @RequestBody LogTaskRequest request,
+            HttpSession session
+    ) {
+        Long userId = authService.requireUserId(session);
+        return logTaskService.updateTask(userId, id, request);
     }
 
-    // API DELETE: Hapus Task
     @DeleteMapping("/{id}")
-    public ResponseEntity<?> deleteTask(@PathVariable Long id) {
-        // Cek dulu apakah task ini ada
-        String checkSql = "SELECT COUNT(*) FROM log_tasks WHERE id = ?";
-        Integer count = jdbcTemplate.queryForObject(checkSql, Integer.class, id);
-
-        if (count == null || count == 0) {
-            return ResponseEntity.status(404).body(Map.of("message", "Task tidak ditemukan"));
-        }
-
-        // Hapus task
-        String deleteSql = "DELETE FROM log_tasks WHERE id = ?";
-        jdbcTemplate.update(deleteSql, id);
-        return ResponseEntity.ok(Map.of("message", "Task berhasil dihapus"));
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deleteTask(@PathVariable Long id, HttpSession session) {
+        Long userId = authService.requireUserId(session);
+        logTaskService.deleteTask(userId, id);
     }
 }

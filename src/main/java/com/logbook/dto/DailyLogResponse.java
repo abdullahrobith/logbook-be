@@ -126,7 +126,8 @@ public record DailyLogResponse(
             String ticket,
             LocalTime startTime,
             Short durationMinutes,
-            String summary
+            String summary,
+            String obstacle
     ) {
         public static TaskResponse from(LogTask task) {
             return new TaskResponse(
@@ -137,7 +138,8 @@ public record DailyLogResponse(
                     task.getTicket(),
                     task.getStartTime(),
                     task.getDurationMinutes(),
-                    task.getSummary()
+                    task.getSummary(),
+                    task.getObstacle()
             );
         }
     }

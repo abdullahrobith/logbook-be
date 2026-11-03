@@ -1,13 +1,13 @@
-
 package com.logbook.dto;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Positive;
+
 import java.time.LocalTime;
 
-public record CreateLogTaskRequest(
+public record LogTaskRequest(
 
         @NotNull(message = "Project ID wajib diisi")
         @Positive(message = "Project ID harus lebih dari 0")
@@ -34,7 +34,9 @@ public record CreateLogTaskRequest(
         Short durationMinutes,
 
         @NotBlank(message = "Ringkasan wajib diisi")
-        String summary
+        String summary,
+
+        String obstacle
 
 ) {
 }

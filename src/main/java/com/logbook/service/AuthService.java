@@ -33,12 +33,20 @@ public class AuthService {
         return UserResponse.from(user);
     }
 
-    @Transactional(readOnly = true)
-    public UserResponse me(HttpSession session) {
+    public Long requireUserId(HttpSession session) {
         Object value = session.getAttribute(SESSION_USER_ID);
         if (!(value instanceof Long userId)) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Belum login");
+            throw new ResponseStatusException(
+                    HttpStatus.UNAUTHORIZED,
+                    "Silakan login terlebih dahulu"
+            );
         }
+        return userId;
+    }
+
+    @Transactional(readOnly = true)
+    public UserResponse me(HttpSession session) {
+        Long userId = requireUserId(session);
 
         return userRepository
                 .findByIdAndActiveTrue(userId)

@@ -21,7 +21,7 @@ public class ExampleController {
     public Map<String, List<Map<String, Object>>> getExamples() {
         String queryCards = "SELECT * FROM example_cards ORDER BY sort_order";
         String queryEntries = "SELECT * FROM example_entries ORDER BY sort_order";
-        String queryTips = "SELECT title, body FROM writing_tips ORDER BY sort_order";
+        String queryTips = "SELECT title, body FROM writing_tips WHERE is_active = true ORDER BY sort_order";
 
         List<Map<String, Object>> cards = jdbcTemplate.queryForList(queryCards);
         List<Map<String, Object>> entries = jdbcTemplate.queryForList(queryEntries);
