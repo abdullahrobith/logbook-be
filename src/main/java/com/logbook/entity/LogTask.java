@@ -1,3 +1,4 @@
+
 package com.logbook.entity;
 
 import jakarta.persistence.*;
@@ -41,6 +42,33 @@ public class LogTask {
 
     @Column(name = "updated_at", nullable = false)
     private OffsetDateTime updatedAt;
+
+    public LogTask() {
+    }
+
+    public LogTask(
+            DailyLog dailyLog,
+            Long projectId,
+            Short taskTypeId,
+            Short workStatusId,
+            String ticket,
+            LocalTime startTime,
+            Short durationMinutes,
+            String summary,
+            OffsetDateTime createdAt,
+            OffsetDateTime updatedAt
+    ) {
+        this.dailyLog = dailyLog;
+        this.projectId = projectId;
+        this.taskTypeId = taskTypeId;
+        this.workStatusId = workStatusId;
+        this.ticket = ticket;
+        this.startTime = startTime;
+        this.durationMinutes = durationMinutes;
+        this.summary = summary;
+        this.createdAt = createdAt;
+        this.updatedAt = updatedAt;
+    }
 
     public Long getId() { return id; }
     public Long getProjectId() { return projectId; }
