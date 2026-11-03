@@ -19,7 +19,7 @@ public class ProjectController {
     @GetMapping
     public ResponseEntity<List<ProjectDto>> getProjects() {
         // Sementara kita pakai ID 1 dulu buat ngetes (nanti diganti dengan ID dari Login)
-        Long currentUserId = 3L; 
+        Long currentUserId = 1L; 
         
         List<ProjectDto> projects = repository.findProjectsByUserId(currentUserId);
         return ResponseEntity.ok(projects);
