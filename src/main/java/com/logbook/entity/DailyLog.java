@@ -39,6 +39,25 @@ public class DailyLog {
     @OrderBy("startTime ASC")
     private List<LogTask> tasks = new ArrayList<>();
 
+    public DailyLog() {
+    }
+
+    public DailyLog(
+            Long userId,
+            LocalDate logDate,
+            Short workScheduleId,
+            String status,
+            OffsetDateTime createdAt,
+            OffsetDateTime updatedAt
+    ) {
+        this.userId = userId;
+        this.logDate = logDate;
+        this.workScheduleId = workScheduleId;
+        this.status = status;
+        this.createdAt = createdAt;
+        this.updatedAt = updatedAt;
+    }
+
     public Long getId() { return id; }
     public Long getUserId() { return userId; }
     public LocalDate getLogDate() { return logDate; }

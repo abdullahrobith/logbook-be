@@ -5,6 +5,7 @@ import com.logbook.service.AuthService;
 import com.logbook.service.DailyLogService;
 import jakarta.servlet.http.HttpSession;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
@@ -30,5 +31,17 @@ public class DailyLogController {
     ) {
         Long userId = authService.requireUserId(session);
         return dailyLogService.getDailyLog(userId, date);
+    }
+
+    @PostMapping
+    @ResponseStatus(HttpStatus.OK)
+    public DailyLogResponse createDailyLog(
+            @RequestParam
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+            LocalDate date,
+            HttpSession session
+    ) {
+        Long userId = authService.requireUserId(session);
+        return dailyLogService.createDailyLog(userId, date);
     }
 }
