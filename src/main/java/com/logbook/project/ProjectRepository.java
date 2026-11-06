@@ -15,6 +15,7 @@ public interface ProjectRepository extends JpaRepository<Project, Long> {
                    "JOIN projects p ON pm.project_id = p.id " +
                    "JOIN clients c ON p.client_id = c.id " +
                    "WHERE pm.user_id = :userId AND pm.left_at IS NULL " +
+                   "AND p.is_active = true AND c.is_active = true " +
                    "ORDER BY pm.last_used_at DESC", nativeQuery = true)
     List<ProjectDto> findProjectsByUserId(@Param("userId") Long userId);
 
@@ -22,9 +23,13 @@ public interface ProjectRepository extends JpaRepository<Project, Long> {
         SELECT EXISTS (
             SELECT 1
             FROM project_members pm
+            JOIN projects p ON p.id = pm.project_id
+            JOIN clients c ON c.id = p.client_id
             WHERE pm.project_id = :projectId
             AND pm.user_id = :userId
             AND pm.left_at IS NULL
+            AND p.is_active = true
+            AND c.is_active = true
         )
         """, nativeQuery = true)
     boolean existsActiveProjectForUser(

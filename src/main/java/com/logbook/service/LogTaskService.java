@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.LocalTime;
 import java.time.OffsetDateTime;
 import java.util.Set;
 
@@ -19,6 +20,9 @@ import java.util.Set;
 public class LogTaskService {
 
     private static final String STATUS_DRAF = "DRAF";
+    private static final short MIN_DURATION_MINUTES = 5;
+    private static final short MAX_DURATION_MINUTES = 1440;
+    private static final int MAX_CONCURRENT_TASKS = 3;
 
     private static final Set<Short> VALID_WORK_STATUS_IDS =
             Set.of((short) 1, (short) 2, (short) 3);
@@ -58,6 +62,12 @@ public class LogTaskService {
 
         requireDraft(dailyLog);
         validateRequest(userId, request);
+        validateConcurrentTaskLimit(
+                dailyLog,
+                request.startTime(),
+                request.durationMinutes(),
+                null
+        );
 
         OffsetDateTime now = OffsetDateTime.now();
         LogTask logTask = new LogTask(
@@ -87,6 +97,12 @@ public class LogTaskService {
 
         requireDraft(logTask.getDailyLog());
         validateRequest(userId, request);
+        validateConcurrentTaskLimit(
+                logTask.getDailyLog(),
+                request.startTime(),
+                request.durationMinutes(),
+                logTask.getId()
+        );
 
         logTask.update(
                 request.projectId(),
@@ -136,6 +152,23 @@ public class LogTaskService {
             );
         }
 
+        if (request.taskTypeId() == null
+                || !logTaskRepository.existsActiveTaskType(request.taskTypeId())) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Jenis task tidak tersedia"
+            );
+        }
+
+        if (request.durationMinutes() == null
+                || request.durationMinutes() < MIN_DURATION_MINUTES
+                || request.durationMinutes() > MAX_DURATION_MINUTES) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Durasi harus antara 5 dan 1440 menit"
+            );
+        }
+
         boolean projectAvailable = projectRepository.existsActiveProjectForUser(
                 request.projectId(),
                 userId
@@ -145,6 +178,35 @@ public class LogTaskService {
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
                     "Proyek tidak tersedia untuk pengguna ini"
+            );
+        }
+    }
+
+    private void validateConcurrentTaskLimit(
+            DailyLog dailyLog,
+            LocalTime startTime,
+            Short durationMinutes,
+            Long excludedTaskId
+    ) {
+        long start = startTime.toSecondOfDay();
+        long end = start + durationMinutes * 60L;
+
+        long overlappingTasks = dailyLog.getTasks().stream()
+                .filter(task -> excludedTaskId == null
+                        || !excludedTaskId.equals(task.getId()))
+                .filter(task -> {
+                    long otherStart = task.getStartTime().toSecondOfDay();
+                    long otherEnd = otherStart
+                            + task.getDurationMinutes() * 60L;
+                    return start < otherEnd && otherStart < end;
+                })
+                .count();
+
+        if (overlappingTasks >= MAX_CONCURRENT_TASKS) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Maksimal 3 task dapat berjalan pada waktu yang bersamaan. "
+                            + "Ubah jam atau durasi task terlebih dahulu."
             );
         }
     }

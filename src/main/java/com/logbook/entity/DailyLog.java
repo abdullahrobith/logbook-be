@@ -58,6 +58,18 @@ public class DailyLog {
         this.updatedAt = updatedAt;
     }
 
+    public void submit(OffsetDateTime now) {
+        this.status = "TERKIRIM";
+        this.submittedAt = now;
+        this.updatedAt = now;
+    }
+
+    public void withdraw(OffsetDateTime now) {
+        this.status = "DRAF";
+        this.submittedAt = null;
+        this.updatedAt = now;
+    }
+
     public Long getId() { return id; }
     public Long getUserId() { return userId; }
     public LocalDate getLogDate() { return logDate; }

@@ -44,4 +44,22 @@ public class DailyLogController {
         Long userId = authService.requireUserId(session);
         return dailyLogService.createDailyLog(userId, date);
     }
+
+    @PostMapping("/{dailyLogId}/submit")
+    public DailyLogResponse submitDailyLog(
+            @PathVariable Long dailyLogId,
+            HttpSession session
+    ) {
+        Long userId = authService.requireUserId(session);
+        return dailyLogService.submitDailyLog(userId, dailyLogId);
+    }
+
+    @PostMapping("/{dailyLogId}/withdraw")
+    public DailyLogResponse withdrawDailyLog(
+            @PathVariable Long dailyLogId,
+            HttpSession session
+    ) {
+        Long userId = authService.requireUserId(session);
+        return dailyLogService.withdrawDailyLog(userId, dailyLogId);
+    }
 }

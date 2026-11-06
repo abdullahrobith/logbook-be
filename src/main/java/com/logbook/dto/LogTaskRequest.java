@@ -1,5 +1,7 @@
 package com.logbook.dto;
 
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
@@ -30,7 +32,8 @@ public record LogTaskRequest(
         LocalTime startTime,
 
         @NotNull(message = "Durasi wajib diisi")
-        @Positive(message = "Durasi harus lebih dari 0 menit")
+        @Min(value = 5, message = "Durasi minimal 5 menit")
+        @Max(value = 1440, message = "Durasi maksimal 1440 menit")
         Short durationMinutes,
 
         @NotBlank(message = "Ringkasan wajib diisi")

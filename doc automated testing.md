@@ -38,7 +38,7 @@ Pengujian manual dilakukan menggunakan Postman terhadap 10 endpoint backend.
 | 9 | GET | `/api/tasks/master-data` | Mendapatkan data master task | Berhasil |
 | 10 | GET | `/api/examples` | Mendapatkan data contoh penulisan logbook | Berhasil |
 
-Seluruh 10 endpoint telah diuji secara manual menggunakan Postman dan memberikan hasil sesuai dengan skenario pengujian.
+Seluruh 10 endpoint telah diuji secara manual menggunakan Postman dan memberikan hasil sesuai dengan skenario pengujian. Endpoint `POST /api/daily-logs/{dailyLogId}/submit` dan `POST /api/daily-logs/{dailyLogId}/withdraw` ditambahkan setelah pengujian manual awal dan diverifikasi melalui integration test.
 
 ## 4. Unit Testing
 
@@ -71,7 +71,7 @@ Pengujian dilakukan untuk memastikan validasi data pada request penambahan dan p
 | 4 | Work Status ID tidak boleh kosong | Lulus |
 | 5 | Format ticket harus sesuai ketentuan | Lulus |
 | 6 | Start time tidak boleh kosong | Lulus |
-| 7 | Durasi harus bernilai positif | Lulus |
+| 7 | Durasi harus berada pada rentang 5-1440 menit | Lulus |
 | 8 | Summary tidak boleh kosong | Lulus |
 
 Total: **8 test, seluruhnya lulus.**
@@ -87,11 +87,32 @@ Pengujian dilakukan untuk memastikan logika bisnis pada proses pengelolaan task.
 | 3 | Pengguna tidak memiliki akses terhadap Daily Log | Lulus |
 | 4 | Task tidak dapat dibuat jika Daily Log bukan berstatus DRAF | Lulus |
 | 5 | Work Status tidak valid | Lulus |
-| 6 | Project bukan milik pengguna | Lulus |
-| 7 | Task tidak dapat dihapus jika Daily Log bukan berstatus DRAF | Lulus |
-| 8 | Berhasil menghapus task | Lulus |
+| 6 | Task Type tidak valid atau tidak aktif | Lulus |
+| 7 | Durasi di luar rentang 5-1440 menit | Lulus |
+| 8 | Project bukan milik pengguna | Lulus |
+| 9 | Task tidak dapat dihapus jika Daily Log bukan berstatus DRAF | Lulus |
+| 10 | Berhasil menghapus task | Lulus |
 
-Total: **8 test, seluruhnya lulus.**
+Total: **10 test, seluruhnya lulus.**
+
+### 4.4 DailyLogServiceTest
+
+Pengujian dilakukan untuk memastikan logika pembuatan dan pengiriman Daily Log.
+
+| No. | Skenario Pengujian | Hasil |
+|---|---|---|
+| 1 | Membuat Daily Log baru berstatus DRAF dengan work schedule default | Lulus |
+| 2 | Mengembalikan Daily Log yang sudah ada tanpa membuat duplikat | Lulus |
+| 3 | Mengirim Daily Log DRAF yang memiliki task | Lulus |
+| 4 | Pengiriman ulang Daily Log TERKIRIM bersifat idempotent | Lulus |
+| 5 | Pengiriman gagal jika Daily Log tidak memiliki task | Lulus |
+| 6 | Pengiriman gagal jika Daily Log tidak ditemukan | Lulus |
+| 7 | Menarik kembali Daily Log TERKIRIM menjadi DRAF | Lulus |
+| 8 | Penarikan ulang Daily Log DRAF bersifat idempotent | Lulus |
+| 9 | Penarikan gagal jika status Daily Log tidak dapat ditarik | Lulus |
+| 10 | Penarikan gagal jika Daily Log tidak ditemukan | Lulus |
+
+Total: **10 test, seluruhnya lulus.**
 
 ## 5. Integration Testing
 
@@ -109,45 +130,48 @@ Pengujian menggunakan database `logbook` dengan konfigurasi transaksi `@Transact
 | 4 | Mendapatkan Daily Log berdasarkan tanggal | Lulus |
 | 5 | Membuat task baru | Lulus |
 | 6 | Membuat, memperbarui, dan menghapus task dalam satu alur | Lulus |
-| 7 | Mendapatkan daftar project | Lulus |
-| 8 | Mendapatkan data master task | Lulus |
-| 9 | Mendapatkan data contoh penulisan logbook | Lulus |
-| 10 | Mengakses endpoint project tanpa login | Lulus |
-| 11 | Login menggunakan email tidak terdaftar | Lulus |
-| 12 | Login menggunakan email kosong | Lulus |
-| 13 | Mengakses informasi pengguna tanpa login | Lulus |
-| 14 | Mengakses Daily Log tanpa login | Lulus |
-| 15 | Membuat task tanpa login | Lulus |
-| 16 | Memperbarui task tanpa login | Lulus |
-| 17 | Menghapus task tanpa login | Lulus |
-| 18 | Membuat task pada Daily Log yang tidak ditemukan | Lulus |
-| 19 | Memperbarui task yang tidak ditemukan | Lulus |
-| 20 | Menghapus task yang tidak ditemukan | Lulus |
-| 21 | Membuat task dengan Work Status tidak valid | Lulus |
-| 22 | Membuat task dengan format ticket tidak valid | Lulus |
-| 23 | Mengakses Daily Log tanpa parameter tanggal | Lulus |
+| 7 | Mengirim Daily Log dan mendapatkan status TERKIRIM | Lulus |
+| 8 | Menarik kembali Daily Log menjadi DRAF | Lulus |
+| 9 | Mendapatkan daftar project | Lulus |
+| 10 | Mendapatkan data master task | Lulus |
+| 11 | Mendapatkan data contoh penulisan logbook | Lulus |
+| 12 | Mengakses endpoint project tanpa login | Lulus |
+| 13 | Login menggunakan email tidak terdaftar | Lulus |
+| 14 | Login menggunakan email kosong | Lulus |
+| 15 | Mengakses informasi pengguna tanpa login | Lulus |
+| 16 | Mengakses Daily Log tanpa login | Lulus |
+| 17 | Membuat task tanpa login | Lulus |
+| 18 | Memperbarui task tanpa login | Lulus |
+| 19 | Menghapus task tanpa login | Lulus |
+| 20 | Membuat task pada Daily Log yang tidak ditemukan | Lulus |
+| 21 | Memperbarui task yang tidak ditemukan | Lulus |
+| 22 | Menghapus task yang tidak ditemukan | Lulus |
+| 23 | Membuat task dengan Work Status tidak valid | Lulus |
+| 24 | Membuat task dengan format ticket tidak valid | Lulus |
+| 25 | Mengakses Daily Log tanpa parameter tanggal | Lulus |
 
-Total: **23 test, seluruhnya lulus.**
+Total: **25 test, seluruhnya lulus.**
 
 ## 6. Rekapitulasi Hasil Pengujian
 
-Berdasarkan hasil eksekusi perintah `.\mvnw.cmd clean test` pada 4 November 2026, diperoleh hasil sebagai berikut.
+Berdasarkan hasil eksekusi perintah `.\mvnw.cmd test` pada 6 November 2026, diperoleh hasil sebagai berikut.
 
 | Komponen Pengujian | Jumlah Test | Failures | Errors | Status |
-|---|---:|---:|---:|---|
+|---|---|---:|---:|---|
 | DailyLogResponseTest | 6 | 0 | 0 | Lulus |
 | LogTaskRequestTest | 8 | 0 | 0 | Lulus |
-| LogTaskServiceTest | 8 | 0 | 0 | Lulus |
-| LogbookApiIntegrationTest | 23 | 0 | 0 | Lulus |
+| LogTaskServiceTest | 10 | 0 | 0 | Lulus |
+| DailyLogServiceTest | 10 | 0 | 0 | Lulus |
+| LogbookApiIntegrationTest | 25 | 0 | 0 | Lulus |
 | LogbookBeApplicationTests | 1 | 0 | 0 | Lulus |
-| **Total** | **46** | **0** | **0** | **Lulus** |
+| **Total** | **60** | **0** | **0** | **Lulus** |
 
 ### 6.1 Kesimpulan Hasil Pengujian
 
 Berdasarkan pengujian yang telah dilakukan, diperoleh hasil:
 
-- Sebanyak 10 endpoint API telah diuji secara manual menggunakan Postman.
-- Sebanyak 46 automated test berhasil dijalankan.
+- Sebanyak 10 endpoint API telah diuji secara manual menggunakan Postman, sedangkan endpoint pengiriman dan penarikan Daily Log diverifikasi melalui integration test.
+- Sebanyak 60 automated test berhasil dijalankan.
 - Seluruh unit test dan integration test berhasil dilewati.
 - Tidak ditemukan failures maupun errors pada eksekusi pengujian otomatis.
 
@@ -155,6 +179,6 @@ Dengan demikian, backend Logbook berhasil melewati seluruh skenario pengujian ya
 
 ## 7. Kesimpulan
 
-Pengujian backend Logbook telah dilakukan melalui tiga pendekatan, yaitu manual testing, unit testing, dan integration testing. Pengujian manual terhadap 10 endpoint API berhasil dilakukan menggunakan Postman, sedangkan pengujian otomatis menghasilkan 46 test dengan 0 failures dan 0 errors.
+Pengujian backend Logbook telah dilakukan melalui tiga pendekatan, yaitu manual testing, unit testing, dan integration testing. Pengujian manual terhadap 10 endpoint API berhasil dilakukan menggunakan Postman, endpoint pengiriman dan penarikan Daily Log diverifikasi melalui integration test, dan pengujian otomatis menghasilkan 60 test dengan 0 failures dan 0 errors.
 
 Hasil tersebut menunjukkan bahwa komponen backend yang telah diuji berjalan sesuai dengan skenario pengujian yang tersedia. Meskipun demikian, hasil ini belum menjamin seluruh kemungkinan kondisi sistem telah diuji sehingga pengembangan cakupan pengujian tetap diperlukan.

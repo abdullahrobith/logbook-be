@@ -31,6 +31,7 @@ class LogbookApiIntegrationTest {
 
     private static final String EMAIL = "rina.talent@contoh.id";
     private static final String DAILY_LOG_ID = "3";
+    private static final String SUBMITTED_DAILY_LOG_ID = "1";
     private static final String DAILY_LOG_DATE = "2026-10-29";
 
     private String validTaskJson() {
@@ -155,6 +156,30 @@ class LogbookApiIntegrationTest {
                         .session(session)
         )
         .andExpect(status().isOk());
+    }
+
+    @Test
+    void submitDailyLogShouldReturnSubmittedStatus() throws Exception {
+        mockMvc.perform(
+                post("/api/daily-logs/{dailyLogId}/submit", DAILY_LOG_ID)
+                        .session(session)
+        )
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.id").value(Integer.parseInt(DAILY_LOG_ID)))
+        .andExpect(jsonPath("$.status").value("TERKIRIM"))
+        .andExpect(jsonPath("$.submittedAt").isNotEmpty());
+    }
+
+    @Test
+    void withdrawDailyLogShouldReturnDraftStatus() throws Exception {
+        mockMvc.perform(
+                post("/api/daily-logs/{dailyLogId}/withdraw", SUBMITTED_DAILY_LOG_ID)
+                        .session(session)
+        )
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.id").value(Integer.parseInt(SUBMITTED_DAILY_LOG_ID)))
+        .andExpect(jsonPath("$.status").value("DRAF"))
+        .andExpect(jsonPath("$.submittedAt").isEmpty());
     }
 
     // ==========================================
@@ -402,7 +427,35 @@ class LogbookApiIntegrationTest {
                                 }
                                 """)
         )
-        .andExpect(status().isBadRequest());
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.message").value("Format tiket tidak valid. Contoh: ABC-154"))
+        .andExpect(jsonPath("$.fieldErrors.ticket").value("Format tiket tidak valid. Contoh: ABC-154"));
+    }
+
+    @Test
+    void createFourthOverlappingTaskShouldReturnBadRequest() throws Exception {
+        mockMvc.perform(
+                post("/api/daily-logs/{dailyLogId}/tasks", DAILY_LOG_ID)
+                        .session(session)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                    "projectId": 1,
+                                    "taskTypeId": 1,
+                                    "workStatusId": 1,
+                                    "ticket": "TEST-104",
+                                    "startTime": "09:30",
+                                    "durationMinutes": 30,
+                                    "summary": "Task keempat pada jam yang sama",
+                                    "obstacle": "Tidak ada"
+                                }
+                                """)
+        )
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.message").value(
+                "Maksimal 3 task dapat berjalan pada waktu yang bersamaan. "
+                        + "Ubah jam atau durasi task terlebih dahulu."
+        ));
     }
 
     @Test

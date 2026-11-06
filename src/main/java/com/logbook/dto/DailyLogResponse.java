@@ -6,6 +6,7 @@ import com.logbook.entity.LogTask;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -17,6 +18,7 @@ public record DailyLogResponse(
         Long userId,
         LocalDate logDate,
         String status,
+        OffsetDateTime submittedAt,
         Integer totalDurationMinutes,
         List<ProjectResponse> projects,
         List<TaskResponse> tasks
@@ -59,6 +61,7 @@ public record DailyLogResponse(
                 dailyLog.getUserId(),
                 dailyLog.getLogDate(),
                 dailyLog.getStatus(),
+                dailyLog.getSubmittedAt(),
                 totalDuration,
                 projects,
                 tasks
