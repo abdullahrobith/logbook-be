@@ -9,9 +9,14 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 @RestController
 @RequestMapping("/api/projects")
 public class ProjectController {
+
+    private static final Logger logger = LoggerFactory.getLogger(ProjectController.class);
 
     private final ProjectRepository repository;
     private final AuthService authService;
@@ -23,9 +28,28 @@ public class ProjectController {
 
     @GetMapping
     public ResponseEntity<List<ProjectDto>> getProjects(HttpSession session) {
-        Long currentUserId = authService.requireUserId(session);
 
-        List<ProjectDto> projects = repository.findProjectsByUserId(currentUserId);
-        return ResponseEntity.ok(projects);
+        logger.trace("Memulai method getProjects()");
+
+        try {
+            Long currentUserId = authService.requireUserId(session);
+            
+
+            logger.debug("Mengambil data proyek untuk User ID: {}", currentUserId);
+
+            List<ProjectDto> projects = repository.findProjectsByUserId(currentUserId);
+            
+            logger.info("Berhasil mengambil {} data proyek", projects.size());
+            return ResponseEntity.ok(projects);
+
+        } catch (Exception e) {
+            if (e.getMessage() != null && e.getMessage().contains("401")) {
+                logger.warn("Gagal mengambil proyek: User belum login atau sesi habis");
+            } else {
+                logger.error("Gagal mengambil data proyek: {}", e.getMessage(), e);
+            }
+            
+            throw e; 
+        }
     }
 }
