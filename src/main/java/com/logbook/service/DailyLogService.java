@@ -16,7 +16,7 @@ public class DailyLogService {
 
     private static final short DEFAULT_WORK_SCHEDULE_ID = 1;
     private static final String STATUS_DRAFT = "DRAF";
-    private static final String STATUS_SUBMITTED = "TERKIRIM";
+    private static final String STATUS_WAITING = "MENUNGGU";
 
     private final DailyLogRepository dailyLogRepository;
 
@@ -66,7 +66,7 @@ public class DailyLogService {
                         "Daily log tidak ditemukan"
                 ));
 
-        if (STATUS_SUBMITTED.equalsIgnoreCase(dailyLog.getStatus())) {
+        if (STATUS_WAITING.equalsIgnoreCase(dailyLog.getStatus())) {
             return DailyLogResponse.from(dailyLog);
         }
 
@@ -100,7 +100,7 @@ public class DailyLogService {
             return DailyLogResponse.from(dailyLog);
         }
 
-        if (!STATUS_SUBMITTED.equalsIgnoreCase(dailyLog.getStatus())) {
+        if (!STATUS_WAITING.equalsIgnoreCase(dailyLog.getStatus())) {
             throw new ResponseStatusException(
                     HttpStatus.CONFLICT,
                     "Daily log tidak dapat ditarik pada status saat ini"

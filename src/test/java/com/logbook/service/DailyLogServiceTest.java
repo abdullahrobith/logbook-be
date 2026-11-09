@@ -101,7 +101,7 @@ class DailyLogServiceTest {
     void submitDailyLogShouldBeIdempotentWhenAlreadySubmitted() {
         LocalDate date = LocalDate.of(2026, 11, 5);
         DailyLog dailyLog = draftLog(10L, date, List.of());
-        when(dailyLog.getStatus()).thenReturn("TERKIRIM");
+        when(dailyLog.getStatus()).thenReturn("MENUNGGU");
         when(dailyLogRepository.findByIdAndUserId(10L, 1L))
                 .thenReturn(Optional.of(dailyLog));
 
@@ -145,7 +145,7 @@ class DailyLogServiceTest {
     void withdrawDailyLogShouldMarkDraftWhenSubmitted() {
         LocalDate date = LocalDate.of(2026, 11, 5);
         DailyLog dailyLog = draftLog(10L, date, List.of());
-        when(dailyLog.getStatus()).thenReturn("TERKIRIM");
+        when(dailyLog.getStatus()).thenReturn("MENUNGGU");
         when(dailyLogRepository.findByIdAndUserId(10L, 1L))
                 .thenReturn(Optional.of(dailyLog));
         when(dailyLogRepository.save(dailyLog)).thenReturn(dailyLog);
