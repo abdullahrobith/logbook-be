@@ -166,7 +166,7 @@ class LogbookApiIntegrationTest {
         )
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.id").value(Integer.parseInt(DAILY_LOG_ID)))
-        .andExpect(jsonPath("$.status").value("TERKIRIM"))
+        .andExpect(jsonPath("$.status").value("MENUNGGU"))
         .andExpect(jsonPath("$.submittedAt").isNotEmpty());
     }
 

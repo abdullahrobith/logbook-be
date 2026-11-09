@@ -19,6 +19,10 @@ public record DailyLogResponse(
         LocalDate logDate,
         String status,
         OffsetDateTime submittedAt,
+        String rejectionReason,
+        Long decidedByUserId,
+        OffsetDateTime decidedAt,
+        boolean autoSubmitted,
         Integer totalDurationMinutes,
         List<ProjectResponse> projects,
         List<TaskResponse> tasks
@@ -62,6 +66,10 @@ public record DailyLogResponse(
                 dailyLog.getLogDate(),
                 dailyLog.getStatus(),
                 dailyLog.getSubmittedAt(),
+                dailyLog.getRejectionReason(),
+                dailyLog.getDecidedByUserId(),
+                dailyLog.getDecidedAt(),
+                dailyLog.isAutoSubmitted(),
                 totalDuration,
                 projects,
                 tasks

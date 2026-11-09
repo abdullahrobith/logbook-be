@@ -1,5 +1,3 @@
-BEGIN;
-
 DO $$
 BEGIN
     IF EXISTS (
@@ -42,5 +40,3 @@ BEGIN
     END IF;
 END
 $$;
-
-COMMIT;

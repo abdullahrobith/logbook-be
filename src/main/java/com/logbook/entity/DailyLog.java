@@ -29,6 +29,18 @@ public class DailyLog {
     @Column(name = "submitted_at")
     private OffsetDateTime submittedAt;
 
+    @Column(name = "rejection_reason", length = 1000)
+    private String rejectionReason;
+
+    @Column(name = "decided_by_user_id")
+    private Long decidedByUserId;
+
+    @Column(name = "decided_at")
+    private OffsetDateTime decidedAt;
+
+    @Column(name = "auto_submitted", nullable = false)
+    private boolean autoSubmitted;
+
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;
 
@@ -59,8 +71,9 @@ public class DailyLog {
     }
 
     public void submit(OffsetDateTime now) {
-        this.status = "TERKIRIM";
+        this.status = "MENUNGGU";
         this.submittedAt = now;
+        this.autoSubmitted = false;
         this.updatedAt = now;
     }
 
@@ -76,6 +89,10 @@ public class DailyLog {
     public Short getWorkScheduleId() { return workScheduleId; }
     public String getStatus() { return status; }
     public OffsetDateTime getSubmittedAt() { return submittedAt; }
+    public String getRejectionReason() { return rejectionReason; }
+    public Long getDecidedByUserId() { return decidedByUserId; }
+    public OffsetDateTime getDecidedAt() { return decidedAt; }
+    public boolean isAutoSubmitted() { return autoSubmitted; }
     public OffsetDateTime getCreatedAt() { return createdAt; }
     public OffsetDateTime getUpdatedAt() { return updatedAt; }
     public List<LogTask> getTasks() { return tasks; }
