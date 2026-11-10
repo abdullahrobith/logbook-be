@@ -1,8 +1,10 @@
 package com.logbook.controller;
 
 import com.logbook.dto.LoginRequest;
+import com.logbook.dto.RoleResponse;
 import com.logbook.dto.UserResponse;
 import com.logbook.service.AuthService;
+import com.logbook.service.RoleService;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;
@@ -17,13 +19,16 @@ import org.springframework.web.bind.annotation.*;
 public class AuthController {
 
     private final AuthService authService;
+    private final RoleService roleService;
     private final String sessionCookieName;
 
     public AuthController(
             AuthService authService,
+            RoleService roleService,
             @Value("${server.servlet.session.cookie.name:LOGBOOK_SESSION}") String sessionCookieName
     ) {
         this.authService = authService;
+        this.roleService = roleService;
         this.sessionCookieName = sessionCookieName;
     }
 
@@ -35,6 +40,15 @@ public class AuthController {
     @GetMapping("/me")
     public UserResponse me(HttpSession session) {
         return authService.me(session);
+    }
+
+    /**
+     * Informasi peran pengguna saat ini, dihitung dari data pada setiap
+     * permintaan. Frontend memakai endpoint ini untuk menyusun menu per peran.
+     */
+    @GetMapping("/roles")
+    public RoleResponse roles(HttpSession session) {
+        return roleService.currentRoles(session);
     }
 
     @PostMapping("/logout")

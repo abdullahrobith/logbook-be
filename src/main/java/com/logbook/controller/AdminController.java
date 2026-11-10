@@ -2,6 +2,8 @@ package com.logbook.controller;
 
 import io.swagger.v3.oas.annotations.tags.Tag;
 import com.logbook.dto.AdminImportResponse;
+import com.logbook.service.RoleService;
+import jakarta.servlet.http.HttpSession;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
@@ -28,13 +30,20 @@ import java.util.UUID;
 public class AdminController {
 
     private final JdbcTemplate jdbcTemplate;
+    private final RoleService roleService;
 
-    public AdminController(JdbcTemplate jdbcTemplate) {
+    public AdminController(JdbcTemplate jdbcTemplate, RoleService roleService) {
         this.jdbcTemplate = jdbcTemplate;
+        this.roleService = roleService;
     }
 
     @PostMapping("/import")
-    public ResponseEntity<AdminImportResponse> importUsers(@RequestParam("file") MultipartFile file) {
+    public ResponseEntity<AdminImportResponse> importUsers(
+            @RequestParam("file") MultipartFile file,
+            HttpSession session
+    ) {
+        roleService.requireAdmin(session);
+
         log.info("Menerima request import CSV dari Admin");
 
         if (file.isEmpty()) {

@@ -1,6 +1,10 @@
 package com.logbook.dto;
 
 import com.logbook.entity.User;
+import com.logbook.security.Role;
+
+import java.util.Collection;
+import java.util.List;
 
 public record UserResponse(
         Long id,
@@ -9,9 +13,10 @@ public record UserResponse(
         String jenis,
         String emailAtasan,
         boolean admin,
-        boolean mustChangePassword
+        boolean mustChangePassword,
+        List<String> roles
 ) {
-    public static UserResponse from(User user) {
+    public static UserResponse from(User user, Collection<Role> roles) {
         return new UserResponse(
                 user.getId(),
                 user.getEmail(),
@@ -19,7 +24,8 @@ public record UserResponse(
                 user.getJenis(),
                 user.getEmailAtasan(),
                 user.isAdmin(),
-                user.isMustChangePassword()
+                user.isMustChangePassword(),
+                roles.stream().map(Enum::name).toList()
         );
     }
 }

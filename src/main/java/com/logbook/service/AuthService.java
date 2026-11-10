@@ -15,9 +15,11 @@ public class AuthService {
     public static final String SESSION_USER_ID = "userId";
 
     private final UserRepository userRepository;
+    private final RoleService roleService;
 
-    public AuthService(UserRepository userRepository) {
+    public AuthService(UserRepository userRepository, RoleService roleService) {
         this.userRepository = userRepository;
+        this.roleService = roleService;
     }
 
     @Transactional(readOnly = true)
@@ -30,7 +32,7 @@ public class AuthService {
                 ));
 
         session.setAttribute(SESSION_USER_ID, user.getId());
-        return UserResponse.from(user);
+        return UserResponse.from(user, roleService.rolesOf(user));
     }
 
     public Long requireUserId(HttpSession session) {
@@ -48,13 +50,14 @@ public class AuthService {
     public UserResponse me(HttpSession session) {
         Long userId = requireUserId(session);
 
-        return userRepository
+        User user = userRepository
                 .findByIdAndActiveTrue(userId)
-                .map(UserResponse::from)
                 .orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.UNAUTHORIZED,
                         "Sesi tidak valid"
                 ));
+
+        return UserResponse.from(user, roleService.rolesOf(user));
     }
 
     public void logout(HttpSession session) {

@@ -80,7 +80,7 @@ public record DailyLogResponse(
      * Menghitung total durasi berdasarkan union rentang waktu.
      * Rentang waktu yang saling bertumpang tindih hanya dihitung sekali.
      */
-    private static int calculateUnionDuration(List<LogTask> tasks) {
+    public static int calculateUnionDuration(List<LogTask> tasks) {
         if (tasks == null || tasks.isEmpty()) {
             return 0;
         }

@@ -4,8 +4,10 @@ import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.LinkedHashMap;
@@ -43,6 +45,26 @@ public class ApiExceptionHandler {
 
         return ResponseEntity.status(status)
                 .body(new ApiErrorResponse(message));
+    }
+
+    @ExceptionHandler(MissingServletRequestParameterException.class)
+    public ResponseEntity<ApiErrorResponse> handleMissingParameter(
+            MissingServletRequestParameterException exception
+    ) {
+        return ResponseEntity.badRequest()
+                .body(new ApiErrorResponse(
+                        "Parameter " + exception.getParameterName() + " wajib diisi"
+                ));
+    }
+
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<ApiErrorResponse> handleTypeMismatch(
+            MethodArgumentTypeMismatchException exception
+    ) {
+        return ResponseEntity.badRequest()
+                .body(new ApiErrorResponse(
+                        "Nilai parameter " + exception.getName() + " tidak valid"
+                ));
     }
 
     public record ValidationErrorResponse(
