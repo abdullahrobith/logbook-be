@@ -1,6 +1,8 @@
 package com.logbook.project;
 
 import com.logbook.service.AuthService;
+
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpSession;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -14,6 +16,7 @@ import org.slf4j.LoggerFactory;
 
 @RestController
 @RequestMapping("/api/projects")
+@Tag(name = "Talent API", description = "Endpoint untuk Talent (Proyek, Task, Log Book)")
 public class ProjectController {
 
     private static final Logger logger = LoggerFactory.getLogger(ProjectController.class);

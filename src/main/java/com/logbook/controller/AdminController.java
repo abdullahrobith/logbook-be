@@ -1,5 +1,6 @@
 package com.logbook.controller;
 
+import io.swagger.v3.oas.annotations.tags.Tag;
 import com.logbook.dto.AdminImportResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.csv.CSVFormat;
@@ -23,6 +24,7 @@ import java.util.UUID;
 @Slf4j
 @RestController
 @RequestMapping("/api/admin/users")
+@Tag(name = "Admin API", description = "Endpoint khusus HR/Admin (Impor CSV, Libur, Cuti)")
 public class AdminController {
 
     private final JdbcTemplate jdbcTemplate;

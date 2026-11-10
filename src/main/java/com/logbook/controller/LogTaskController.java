@@ -5,6 +5,7 @@ import com.logbook.dto.DailyLogResponse;
 import com.logbook.dto.LogTaskRequest;
 import com.logbook.service.AuthService;
 import com.logbook.service.LogTaskService;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -14,6 +15,7 @@ import org.springframework.web.bind.annotation.*;
 @Slf4j
 @RestController
 @RequestMapping("/api/daily-logs/{dailyLogId}/tasks")
+@Tag(name = "Talent API", description = "Endpoint untuk manajemen Task Log Book")
 public class LogTaskController {
 
     private final LogTaskService logTaskService;
