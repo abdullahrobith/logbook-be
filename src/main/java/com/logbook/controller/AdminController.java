@@ -1,5 +1,6 @@
 package com.logbook.controller;
 
+import java.time.LocalDate;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import com.logbook.dto.AdminImportResponse;
 import com.logbook.service.RoleService;
@@ -25,7 +26,7 @@ import java.util.UUID;
 
 @Slf4j
 @RestController
-@RequestMapping("/api/admin/users")
+@RequestMapping("/api/admin")
 @Tag(name = "Admin API", description = "Endpoint khusus HR/Admin (Impor CSV, Libur, Cuti)")
 public class AdminController {
 
@@ -37,7 +38,10 @@ public class AdminController {
         this.roleService = roleService;
     }
 
-    @PostMapping("/import")
+    // ====================
+    // 1. API IMPORT CSV 
+    // ====================
+    @PostMapping("/users/import")
     public ResponseEntity<AdminImportResponse> importUsers(
             @RequestParam("file") MultipartFile file,
             HttpSession session
@@ -91,7 +95,7 @@ public class AdminController {
                 updated++;
             } else {
                 String tempPassword = UUID.randomUUID().toString().substring(0, 8);
-                String passwordHash = "BCryptHashPlaceholder_" + tempPassword; // Sementara, nanti sesuaikan dengan BCrypt beneran
+                String passwordHash = "BCryptHashPlaceholder_" + tempPassword;
 
                 jdbcTemplate.update(
                     "INSERT INTO users (email, full_name, password_hash, must_change_password) VALUES (?, ?, ?, true)",
@@ -108,7 +112,103 @@ public class AdminController {
         }
 
         log.info("Import CSV selesai: {} user baru dibuat, {} user diupdate", created, updated);
-
         return ResponseEntity.ok(new AdminImportResponse(created, updated, tempPasswords));
+    }
+
+
+    // ==========================================
+    // 2. API CRUD LIBUR NASIONAL (HOLIDAYS)
+    // ==========================================
+    @GetMapping("/holidays")
+    public ResponseEntity<List<Map<String, Object>>> getHolidays(HttpSession session) {
+        roleService.requireAdmin(session);
+        log.info("Menerima request GET untuk daftar Libur Nasional");
+        List<Map<String, Object>> holidays = jdbcTemplate.queryForList("SELECT * FROM holidays ORDER BY date");
+        return ResponseEntity.ok(holidays);
+    }
+
+    @PostMapping("/holidays")
+    public ResponseEntity<?> addHoliday(@RequestBody Map<String, String> request, HttpSession session) {
+        roleService.requireAdmin(session);
+        String date = request.get("date");
+        String name = request.get("name");
+        log.info("Menerima request POST untuk tambah Libur Nasional: {}", name);
+
+        if (date == null || name == null) {
+            log.warn("Validasi gagal: Tanggal atau Nama libur kosong");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Tanggal dan Nama wajib diisi");
+        }
+
+        jdbcTemplate.update("INSERT INTO holidays (date, name) VALUES (?, ?) ON CONFLICT (date) DO UPDATE SET name = EXCLUDED.name", LocalDate.parse(date), name);
+        log.info("Berhasil menambahkan Libur Nasional: {}", name);
+        return ResponseEntity.ok(Map.of("message", "Libur nasional berhasil disimpan"));
+    }
+
+    @DeleteMapping("/holidays/{date}")
+    public ResponseEntity<?> deleteHoliday(@PathVariable String date, HttpSession session) {
+        roleService.requireAdmin(session);
+        log.info("Menerima request DELETE untuk Libur Nasional tanggal: {}", date);
+        int rows = jdbcTemplate.update("DELETE FROM holidays WHERE date = ?", LocalDate.parse(date));
+        
+        if (rows == 0) {
+            log.warn("Gagal hapus: Libur Nasional tanggal {} tidak ditemukan", date);
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Libur nasional tidak ditemukan");
+        }
+        log.info("Berhasil menghapus Libur Nasional tanggal: {}", date);
+        return ResponseEntity.ok(Map.of("message", "Libur nasional berhasil dihapus"));
+    }
+
+
+    // ==========================================
+    // 3. API CRUD CUTI (LEAVES)
+    // ==========================================
+    @GetMapping("/leaves")
+    public ResponseEntity<List<Map<String, Object>>> getLeaves(HttpSession session) {
+        roleService.requireAdmin(session);
+        log.info("Menerima request GET untuk daftar Cuti Talent");
+        String query = "SELECT l.id, l.user_id, u.full_name, l.from_date, l.to_date FROM leaves l JOIN users u ON l.user_id = u.id ORDER BY l.from_date";
+        List<Map<String, Object>> leaves = jdbcTemplate.queryForList(query);
+        return ResponseEntity.ok(leaves);
+    }
+
+    @PostMapping("/leaves")
+    public ResponseEntity<?> addLeave(@RequestBody Map<String, String> request, HttpSession session) {
+        roleService.requireAdmin(session);
+        String userIdStr = request.get("userId");
+        String fromDate = request.get("fromDate");
+        String toDate = request.get("toDate");
+        log.info("Menerima request POST untuk tambah Cuti User ID: {}", userIdStr);
+
+        if (userIdStr == null || fromDate == null || toDate == null) {
+            log.warn("Validasi gagal: Data cuti tidak lengkap");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Data cuti tidak lengkap");
+        }
+
+        Long userId = Long.parseLong(userIdStr);
+        LocalDate start = LocalDate.parse(fromDate);
+        LocalDate end = LocalDate.parse(toDate);
+
+        if (start.isAfter(end)) {
+            log.warn("Validasi gagal: Tanggal mulai cuti melebihi tanggal selesai");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Tanggal mulai tidak boleh melebihi tanggal selesai");
+        }
+
+        jdbcTemplate.update("INSERT INTO leaves (user_id, from_date, to_date) VALUES (?, ?, ?)", userId, start, end);
+        log.info("Berhasil menambahkan Cuti untuk User ID: {}", userId);
+        return ResponseEntity.ok(Map.of("message", "Cuti berhasil disimpan"));
+    }
+
+    @DeleteMapping("/leaves/{id}")
+    public ResponseEntity<?> deleteLeave(@PathVariable Long id, HttpSession session) {
+        roleService.requireAdmin(session);
+        log.info("Menerima request DELETE untuk Cuti ID: {}", id);
+        int rows = jdbcTemplate.update("DELETE FROM leaves WHERE id = ?", id);
+        
+        if (rows == 0) {
+            log.warn("Gagal hapus: Cuti ID {} tidak ditemukan", id);
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Cuti tidak ditemukan");
+        }
+        log.info("Berhasil menghapus Cuti ID: {}", id);
+        return ResponseEntity.ok(Map.of("message", "Cuti berhasil dihapus"));
     }
 }
