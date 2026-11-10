@@ -3,10 +3,12 @@ package com.logbook.exception;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.web.method.annotation.HandlerMethodValidationException;
 import java.util.Map;
 
 @Slf4j 
@@ -15,13 +17,17 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<?> handleValidationExceptions(MethodArgumentNotValidException ex) {
-        String errorMessage = ex.getBindingResult().getFieldErrors().get(0).getDefaultMessage();
+        FieldError fieldError = ex.getBindingResult().getFieldError();
         
-        log.warn("Validasi gagal: {}", errorMessage);
+        String fieldName = (fieldError != null) ? fieldError.getField() : "unknown";
+        String errorMessage = (fieldError != null) ? fieldError.getDefaultMessage() : "Validasi gagal";
+
+        log.warn("Validasi gagal pada field '{}': {}", fieldName, errorMessage);
         
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of(
             "code", 400,
             "status", "BAD_REQUEST",
+            "field", fieldName, 
             "message", errorMessage
         ));
     }
@@ -58,8 +64,8 @@ public class GlobalExceptionHandler {
         ));
     }
 
-    @ExceptionHandler(org.springframework.web.method.annotation.HandlerMethodValidationException.class)
-    public ResponseEntity<?> handleSpringValidationException(org.springframework.web.method.annotation.HandlerMethodValidationException ex) {
+    @ExceptionHandler(HandlerMethodValidationException.class)
+    public ResponseEntity<?> handleSpringValidationException(HandlerMethodValidationException ex) {
         log.warn("Validasi Spring gagal: {}", ex.getMessage());
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of(
             "code", 400,
