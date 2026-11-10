@@ -1,5 +1,6 @@
 package com.logbook.service;
 
+import lombok.extern.slf4j.Slf4j;
 import com.logbook.dto.DailyLogResponse;
 import com.logbook.dto.LogTaskRequest;
 import com.logbook.entity.DailyLog;
@@ -16,6 +17,7 @@ import java.time.LocalTime;
 import java.time.OffsetDateTime;
 import java.util.Set;
 
+@Slf4j
 @Service
 public class LogTaskService {
 
@@ -47,27 +49,22 @@ public class LogTaskService {
             Long dailyLogId,
             LogTaskRequest request
     ) {
+        log.info("Memproses pembuatan task baru untuk User ID: {} di Daily Log ID: {}", userId, dailyLogId);
+
         DailyLog dailyLog = dailyLogRepository.findById(dailyLogId)
-                .orElseThrow(() -> new ResponseStatusException(
-                        HttpStatus.NOT_FOUND,
-                        "Daily log tidak ditemukan"
-                ));
+                .orElseThrow(() -> {
+                    log.warn("Gagal membuat task: Daily Log ID {} tidak ditemukan", dailyLogId);
+                    return new ResponseStatusException(HttpStatus.NOT_FOUND, "Daily log tidak ditemukan");
+                });
 
         if (!dailyLog.getUserId().equals(userId)) {
-            throw new ResponseStatusException(
-                    HttpStatus.FORBIDDEN,
-                    "Daily log bukan milik pengguna ini"
-            );
+            log.warn("Gagal membuat task: User ID {} bukan pemilik Daily Log ID {}", userId, dailyLogId);
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Daily log bukan milik pengguna ini");
         }
 
         requireDraft(dailyLog);
         validateRequest(userId, request);
-        validateConcurrentTaskLimit(
-                dailyLog,
-                request.startTime(),
-                request.durationMinutes(),
-                null
-        );
+        validateConcurrentTaskLimit(dailyLog, request.startTime(), request.durationMinutes(), null);
 
         OffsetDateTime now = OffsetDateTime.now();
         LogTask logTask = new LogTask(
@@ -84,7 +81,10 @@ public class LogTaskService {
                 now
         );
 
-        return DailyLogResponse.TaskResponse.from(logTaskRepository.save(logTask));
+        LogTask savedTask = logTaskRepository.save(logTask);
+        log.info("Berhasil membuat task baru dengan ID: {} untuk Daily Log ID: {}", savedTask.getId(), dailyLogId);
+        
+        return DailyLogResponse.TaskResponse.from(savedTask);
     }
 
     @Transactional
@@ -93,6 +93,8 @@ public class LogTaskService {
             Long taskId,
             LogTaskRequest request
     ) {
+        log.info("Memproses update task ID: {} untuk User ID: {}", taskId, userId);
+        
         LogTask logTask = findOwnedTask(userId, taskId);
 
         requireDraft(logTask.getDailyLog());
@@ -116,27 +118,35 @@ public class LogTaskService {
                 OffsetDateTime.now()
         );
 
-        return DailyLogResponse.TaskResponse.from(logTaskRepository.save(logTask));
+        LogTask updatedTask = logTaskRepository.save(logTask);
+        log.info("Berhasil mengupdate task ID: {}", updatedTask.getId());
+        
+        return DailyLogResponse.TaskResponse.from(updatedTask);
     }
 
     @Transactional
     public void deleteTask(Long userId, Long taskId) {
+        log.info("Memproses penghapusan task ID: {} untuk User ID: {}", taskId, userId);
+        
         LogTask logTask = findOwnedTask(userId, taskId);
 
         requireDraft(logTask.getDailyLog());
         logTaskRepository.delete(logTask);
+        
+        log.info("Berhasil menghapus task ID: {}", taskId);
     }
 
     private LogTask findOwnedTask(Long userId, Long taskId) {
         return logTaskRepository.findByIdAndUserId(taskId, userId)
-                .orElseThrow(() -> new ResponseStatusException(
-                        HttpStatus.NOT_FOUND,
-                        "Task tidak ditemukan"
-                ));
+                .orElseThrow(() -> {
+                    log.warn("Gagal: Task ID {} tidak ditemukan atau bukan milik User ID {}", taskId, userId);
+                    return new ResponseStatusException(HttpStatus.NOT_FOUND, "Task tidak ditemukan");
+                });
     }
 
     private void requireDraft(DailyLog dailyLog) {
         if (!STATUS_DRAF.equalsIgnoreCase(dailyLog.getStatus())) {
+            log.warn("Validasi gagal: Daily Log ID {} berstatus {}, bukan DRAF", dailyLog.getId(), dailyLog.getStatus());
             throw new ResponseStatusException(
                     HttpStatus.CONFLICT,
                     "Task hanya dapat diubah pada Daily Log berstatus DRAF"
@@ -146,6 +156,7 @@ public class LogTaskService {
 
     private void validateRequest(Long userId, LogTaskRequest request) {
         if (!VALID_WORK_STATUS_IDS.contains(request.workStatusId())) {
+            log.warn("Validasi gagal: Work Status ID {} tidak valid", request.workStatusId());
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
                     "Status pekerjaan harus Selesai, Berjalan, atau Tertahan"
@@ -154,6 +165,7 @@ public class LogTaskService {
 
         if (request.taskTypeId() == null
                 || !logTaskRepository.existsActiveTaskType(request.taskTypeId())) {
+            log.warn("Validasi gagal: Task Type ID {} tidak tersedia", request.taskTypeId());
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
                     "Jenis task tidak tersedia"
@@ -163,6 +175,7 @@ public class LogTaskService {
         if (request.durationMinutes() == null
                 || request.durationMinutes() < MIN_DURATION_MINUTES
                 || request.durationMinutes() > MAX_DURATION_MINUTES) {
+            log.warn("Validasi gagal: Durasi {} menit di luar batas (5-1440 menit)", request.durationMinutes());
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
                     "Durasi harus antara 5 dan 1440 menit"
@@ -175,6 +188,7 @@ public class LogTaskService {
         );
 
         if (!projectAvailable) {
+            log.warn("Validasi gagal: Project ID {} tidak tersedia untuk User ID {}", request.projectId(), userId);
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
                     "Proyek tidak tersedia untuk pengguna ini"
@@ -203,6 +217,7 @@ public class LogTaskService {
                 .count();
 
         if (overlappingTasks >= MAX_CONCURRENT_TASKS) {
+            log.warn("Validasi gagal: Maksimal task bersamaan ({}) terlampaui pada Daily Log ID {}", MAX_CONCURRENT_TASKS, dailyLog.getId());
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
                     "Maksimal 3 task dapat berjalan pada waktu yang bersamaan. "
@@ -215,7 +230,6 @@ public class LogTaskService {
         if (ticket == null) {
             return null;
         }
-
         String trimmed = ticket.trim();
         return trimmed.isEmpty() ? null : trimmed;
     }
@@ -224,7 +238,6 @@ public class LogTaskService {
         if (obstacle == null) {
             return null;
         }
-
         String trimmed = obstacle.trim();
         return trimmed.isEmpty() ? null : trimmed;
     }
