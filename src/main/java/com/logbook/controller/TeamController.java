@@ -7,6 +7,7 @@ import com.logbook.service.DailyLogService;
 import com.logbook.service.RoleService;
 import com.logbook.service.TeamService;
 import jakarta.servlet.http.HttpSession;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -19,6 +20,7 @@ import java.util.List;
 /**
  * API halaman Tim untuk atasan dan admin.
  */
+@Slf4j
 @RestController
 @RequestMapping("/api/team")
 public class TeamController {
@@ -40,6 +42,7 @@ public class TeamController {
     @GetMapping
     public List<TeamMemberResponse> getTeam(HttpSession session) {
         User actor = roleService.requireSupervisorOrAdmin(session);
+        log.info("Menerima request GET daftar tim oleh User ID {} ({})", actor.getId(), actor.getEmail());
         return teamService.getTeam(actor);
     }
 
@@ -53,6 +56,8 @@ public class TeamController {
     ) {
         User actor = roleService.requireSupervisorOrAdmin(session);
         User member = roleService.requireCanViewTalent(actor, userId);
+        log.info("Menerima request GET Daily Log User ID {} tanggal {} oleh User ID {} ({})",
+                member.getId(), date, actor.getId(), actor.getEmail());
         return dailyLogService.getDailyLog(member.getId(), date);
     }
 }

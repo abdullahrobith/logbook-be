@@ -8,12 +8,14 @@ import com.logbook.service.AuthService;
 import com.logbook.service.DailyLogService;
 import com.logbook.service.RoleService;
 import jakarta.servlet.http.HttpSession;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
 
+@Slf4j
 @RestController
 @RequestMapping("/api/daily-logs")
 public class DailyLogController {
@@ -43,6 +45,7 @@ public class DailyLogController {
             HttpSession session
     ) {
         Long userId = authService.requireUserId(session);
+        log.info("Menerima request GET Daily Log tanggal {} untuk User ID {}", date, userId);
         return dailyLogService.getDailyLog(userId, date);
     }
 
@@ -60,6 +63,8 @@ public class DailyLogController {
     ) {
         User actor = roleService.requireCurrentUser(session);
         User talent = roleService.requireCanViewTalent(actor, userId);
+        log.info("Menerima request GET Daily Log User ID {} tanggal {} oleh User ID {} ({})",
+                talent.getId(), date, actor.getId(), actor.getEmail());
         return dailyLogService.getDailyLog(talent.getId(), date);
     }
 
@@ -72,6 +77,7 @@ public class DailyLogController {
             HttpSession session
     ) {
         Long userId = authService.requireUserId(session);
+        log.info("Menerima request POST untuk membuat Daily Log tanggal {} untuk User ID {}", date, userId);
         return dailyLogService.createDailyLog(userId, date);
     }
 
@@ -81,6 +87,7 @@ public class DailyLogController {
             HttpSession session
     ) {
         Long userId = authService.requireUserId(session);
+        log.info("Menerima request POST submit Daily Log ID: {} oleh User ID {}", dailyLogId, userId);
         return dailyLogService.submitDailyLog(userId, dailyLogId);
     }
 
@@ -90,6 +97,7 @@ public class DailyLogController {
             HttpSession session
     ) {
         Long userId = authService.requireUserId(session);
+        log.info("Menerima request POST withdraw Daily Log ID: {} oleh User ID {}", dailyLogId, userId);
         return dailyLogService.withdrawDailyLog(userId, dailyLogId);
     }
 
@@ -103,6 +111,7 @@ public class DailyLogController {
             HttpSession session
     ) {
         User actor = roleService.requireCurrentUser(session);
+        log.info("Menerima request POST approve Daily Log ID: {} oleh User ID {}", dailyLogId, actor.getId());
         return approvalService.approve(actor, dailyLogId);
     }
 
@@ -117,6 +126,7 @@ public class DailyLogController {
             HttpSession session
     ) {
         User actor = roleService.requireCurrentUser(session);
+        log.info("Menerima request POST reject Daily Log ID: {} oleh User ID {}", dailyLogId, actor.getId());
         return approvalService.reject(
                 actor,
                 dailyLogId,
@@ -135,6 +145,7 @@ public class DailyLogController {
             HttpSession session
     ) {
         User actor = roleService.requireCurrentUser(session);
+        log.info("Menerima request POST pengajuan perbaikan Daily Log ID: {} oleh User ID {}", dailyLogId, actor.getId());
         return approvalService.requestRevision(
                 actor,
                 dailyLogId,
@@ -152,6 +163,7 @@ public class DailyLogController {
             HttpSession session
     ) {
         User actor = roleService.requireCurrentUser(session);
+        log.info("Menerima request POST persetujuan perbaikan Daily Log ID: {} oleh User ID {}", dailyLogId, actor.getId());
         return approvalService.approveRevision(actor, dailyLogId);
     }
 }

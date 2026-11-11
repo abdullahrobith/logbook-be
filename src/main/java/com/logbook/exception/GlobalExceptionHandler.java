@@ -24,15 +24,24 @@ public class GlobalExceptionHandler {
         String fieldName = (fieldError != null) ? fieldError.getField() : "unknown";
         String errorMessage = (fieldError != null) ? fieldError.getDefaultMessage() : "Validasi gagal";
 
+        // Semua field yang gagal dikumpulkan agar frontend bisa menandai kolom
+        // form yang salah (kontrak yang dibaca apiClient.ts).
+        Map<String, String> fieldErrors = new java.util.LinkedHashMap<>();
+        for (FieldError error : ex.getBindingResult().getFieldErrors()) {
+            fieldErrors.putIfAbsent(error.getField(), error.getDefaultMessage());
+        }
+
         log.warn("Validasi gagal pada field '{}': {}", fieldName, errorMessage);
         
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of(
-            "code", 400,
-            "status", "BAD_REQUEST",
-            "field", fieldName, 
-            "message", errorMessage,
-            "timestamp", OffsetDateTime.now().toString()
-        ));
+        Map<String, Object> body = new java.util.LinkedHashMap<>();
+        body.put("code", 400);
+        body.put("status", "BAD_REQUEST");
+        body.put("field", fieldName);
+        body.put("message", errorMessage);
+        body.put("fieldErrors", fieldErrors);
+        body.put("timestamp", OffsetDateTime.now().toString());
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
     }
 
     @ExceptionHandler(ApiException.class)

@@ -5,6 +5,7 @@ import com.logbook.entity.DailyLog;
 import com.logbook.entity.User;
 import com.logbook.repository.DailyLogRepository;
 import com.logbook.repository.UserRepository;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,6 +28,7 @@ import java.util.stream.Collectors;
  * "menunggu" tetap diterima, tetapi nilai di luar status workflow ditolak
  * dengan 400.</p>
  */
+@Slf4j
 @Service
 public class AdminDailyLogService {
 
@@ -63,6 +65,8 @@ public class AdminDailyLogService {
         );
 
         if (dailyLogs.isEmpty()) {
+            log.info("Tidak ada Daily Log yang cocok untuk filter date: {}, userId: {}, status: {}",
+                    date, userId, normalizedStatus);
             return List.of();
         }
 
@@ -75,12 +79,16 @@ public class AdminDailyLogService {
                 .stream()
                 .collect(Collectors.toMap(User::getId, Function.identity()));
 
-        return dailyLogs.stream()
+        List<AdminDailyLogResponse> responses = dailyLogs.stream()
                 .map(dailyLog -> AdminDailyLogResponse.from(
                         dailyLog,
                         users.get(dailyLog.getUserId())
                 ))
                 .toList();
+
+        log.info("Berhasil mengambil {} Daily Log untuk filter date: {}, userId: {}, status: {}",
+                responses.size(), date, userId, normalizedStatus);
+        return responses;
     }
 
     /**
@@ -96,6 +104,7 @@ public class AdminDailyLogService {
         String normalized = status.trim().toUpperCase(Locale.ROOT);
 
         if (!VALID_STATUSES.contains(normalized)) {
+            log.warn("Status filter tidak valid: {}", status);
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
                     "Status tidak valid. Pilihan: " + String.join(", ", VALID_STATUSES)

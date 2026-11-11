@@ -7,6 +7,7 @@ import com.logbook.entity.User;
 import com.logbook.repository.DailyLogRepository;
 import com.logbook.repository.PendingDayCountProjection;
 import com.logbook.repository.UserRepository;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -24,6 +25,7 @@ import java.util.stream.Collectors;
  * dari Daily Log hari ini, sedangkan pendingDays menghitung seluruh Daily Log
  * berstatus MENUNGGU.</p>
  */
+@Slf4j
 @Service
 public class TeamService {
 
@@ -50,6 +52,7 @@ public class TeamService {
                 );
 
         if (members.isEmpty()) {
+            log.info("Tidak ada anggota tim untuk User ID {} ({})", actor.getId(), actor.getEmail());
             return List.of();
         }
 
@@ -71,7 +74,7 @@ public class TeamService {
                         PendingDayCountProjection::getTotal
                 ));
 
-        return members.stream()
+        List<TeamMemberResponse> responses = members.stream()
                 .map(member -> toResponse(
                         member,
                         today,
@@ -79,6 +82,10 @@ public class TeamService {
                         pendingDays.getOrDefault(member.getId(), 0L)
                 ))
                 .toList();
+
+        log.info("Berhasil menyusun {} anggota tim untuk User ID {} ({})",
+                responses.size(), actor.getId(), actor.getEmail());
+        return responses;
     }
 
     private TeamMemberResponse toResponse(
