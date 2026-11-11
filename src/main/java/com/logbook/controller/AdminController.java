@@ -123,7 +123,8 @@ public class AdminController {
     public ResponseEntity<List<Map<String, Object>>> getHolidays(HttpSession session) {
         roleService.requireAdmin(session);
         log.info("Menerima request GET untuk daftar Libur Nasional");
-        List<Map<String, Object>> holidays = jdbcTemplate.queryForList("SELECT * FROM holidays ORDER BY date");
+        // Ganti ORDER BY date menjadi ORDER BY holiday_date
+        List<Map<String, Object>> holidays = jdbcTemplate.queryForList("SELECT * FROM holidays ORDER BY holiday_date");
         return ResponseEntity.ok(holidays);
     }
 
@@ -139,7 +140,12 @@ public class AdminController {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Tanggal dan Nama wajib diisi");
         }
 
-        jdbcTemplate.update("INSERT INTO holidays (date, name) VALUES (?, ?) ON CONFLICT (date) DO UPDATE SET name = EXCLUDED.name", LocalDate.parse(date), name);
+        // Ganti 'date' menjadi 'holiday_date' di query SQL
+        jdbcTemplate.update(
+            "INSERT INTO holidays (holiday_date, name) VALUES (?, ?) ON CONFLICT (holiday_date) DO UPDATE SET name = EXCLUDED.name", 
+            LocalDate.parse(date), 
+            name
+        );
         log.info("Berhasil menambahkan Libur Nasional: {}", name);
         return ResponseEntity.ok(Map.of("message", "Libur nasional berhasil disimpan"));
     }
@@ -148,7 +154,8 @@ public class AdminController {
     public ResponseEntity<?> deleteHoliday(@PathVariable String date, HttpSession session) {
         roleService.requireAdmin(session);
         log.info("Menerima request DELETE untuk Libur Nasional tanggal: {}", date);
-        int rows = jdbcTemplate.update("DELETE FROM holidays WHERE date = ?", LocalDate.parse(date));
+        // Ganti 'date' menjadi 'holiday_date' di query DELETE
+        int rows = jdbcTemplate.update("DELETE FROM holidays WHERE holiday_date = ?", LocalDate.parse(date));
         
         if (rows == 0) {
             log.warn("Gagal hapus: Libur Nasional tanggal {} tidak ditemukan", date);
@@ -193,6 +200,7 @@ public class AdminController {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Tanggal mulai tidak boleh melebihi tanggal selesai");
         }
 
+        // Cek apakah tabel leaves juga berubah struktur. Kalau error, cek kolomnya di pgAdmin.
         jdbcTemplate.update("INSERT INTO leaves (user_id, from_date, to_date) VALUES (?, ?, ?)", userId, start, end);
         log.info("Berhasil menambahkan Cuti untuk User ID: {}", userId);
         return ResponseEntity.ok(Map.of("message", "Cuti berhasil disimpan"));
