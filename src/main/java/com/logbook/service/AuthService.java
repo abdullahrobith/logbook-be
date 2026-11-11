@@ -32,6 +32,7 @@ public class AuthService {
                 ));
 
         session.setAttribute(SESSION_USER_ID, user.getId());
+        session.setAttribute("email", user.getEmail());
         return UserResponse.from(user, roleService.rolesOf(user));
     }
 

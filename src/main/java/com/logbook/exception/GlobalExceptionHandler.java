@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.method.annotation.HandlerMethodValidationException;
+import jakarta.servlet.http.HttpSession;
 
 import java.time.OffsetDateTime;
 import java.util.Map;
@@ -17,14 +18,32 @@ import java.util.Map;
 @RestControllerAdvice 
 public class GlobalExceptionHandler {
 
+    // Fungsi bantuan untuk narik email dari session
+    private String getUserEmail(HttpSession session) {
+        if (session != null) {
+            // CATATAN: Tanya PIC 3, nama key session-nya apa? "email", "userEmail", atau "user"?
+            // Gue coba tarik dari "email" dan "userEmail" dulu.
+            Object emailAttr = session.getAttribute("email");
+            if (emailAttr == null) {
+                emailAttr = session.getAttribute("userEmail");
+            }
+            if (emailAttr != null) {
+                return emailAttr.toString();
+            }
+        }
+        return "Anonymous";
+    }
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<?> handleValidationExceptions(MethodArgumentNotValidException ex) {
+    public ResponseEntity<?> handleValidationExceptions(MethodArgumentNotValidException ex, HttpSession session) {
         FieldError fieldError = ex.getBindingResult().getFieldError();
         
         String fieldName = (fieldError != null) ? fieldError.getField() : "unknown";
         String errorMessage = (fieldError != null) ? fieldError.getDefaultMessage() : "Validasi gagal";
+        String userEmail = getUserEmail(session);
 
-        log.warn("Validasi gagal pada field '{}': {}", fieldName, errorMessage);
+        // LOG WARN dengan format [User: email]
+        log.warn("[User: {}] Validasi gagal pada field '{}': {}", userEmail, fieldName, errorMessage);
         
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of(
             "code", 400,
@@ -36,8 +55,9 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(ApiException.class)
-    public ResponseEntity<?> handleApiException(ApiException ex) {
-        log.error("Error Bisnis: {} - {}", ex.getStatus().value(), ex.getMessage());
+    public ResponseEntity<?> handleApiException(ApiException ex, HttpSession session) {
+        String userEmail = getUserEmail(session);
+        log.error("[User: {}] Error Bisnis: {} - {}", userEmail, ex.getStatus().value(), ex.getMessage());
         
         return ResponseEntity.status(ex.getStatus()).body(Map.of(
             "code", ex.getStatus().value(),
@@ -48,8 +68,9 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<?> handleAllExceptions(Exception ex) {
-        log.error("Terjadi Error Sistem: {}", ex.getMessage(), ex);
+    public ResponseEntity<?> handleAllExceptions(Exception ex, HttpSession session) {
+        String userEmail = getUserEmail(session);
+        log.error("[User: {}] Terjadi Error Sistem: {}", userEmail, ex.getMessage(), ex);
         
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of(
             "code", 500,
@@ -60,8 +81,9 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(HttpMessageNotReadableException.class)
-    public ResponseEntity<?> handleJsonParseError(HttpMessageNotReadableException ex) {
-        log.warn("Format JSON tidak valid: {}", ex.getMessage());
+    public ResponseEntity<?> handleJsonParseError(HttpMessageNotReadableException ex, HttpSession session) {
+        String userEmail = getUserEmail(session);
+        log.warn("[User: {}] Format JSON tidak valid: {}", userEmail, ex.getMessage());
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of(
             "code", 400,
             "status", "BAD_REQUEST",
@@ -71,8 +93,9 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(HandlerMethodValidationException.class)
-    public ResponseEntity<?> handleSpringValidationException(HandlerMethodValidationException ex) {
-        log.warn("Validasi Spring gagal: {}", ex.getMessage());
+    public ResponseEntity<?> handleSpringValidationException(HandlerMethodValidationException ex, HttpSession session) {
+        String userEmail = getUserEmail(session);
+        log.warn("[User: {}] Validasi Spring gagal: {}", userEmail, ex.getMessage());
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of(
             "code", 400,
             "status", "BAD_REQUEST",
@@ -81,9 +104,10 @@ public class GlobalExceptionHandler {
         ));
     }
 
-     @ExceptionHandler(org.springframework.web.servlet.resource.NoResourceFoundException.class)
-    public ResponseEntity<?> handleNotFound(org.springframework.web.servlet.resource.NoResourceFoundException ex) {
-        log.warn("Endpoint tidak ditemukan: {}", ex.getMessage());
+    @ExceptionHandler(org.springframework.web.servlet.resource.NoResourceFoundException.class)
+    public ResponseEntity<?> handleNotFound(org.springframework.web.servlet.resource.NoResourceFoundException ex, HttpSession session) {
+        String userEmail = getUserEmail(session);
+        log.warn("[User: {}] Endpoint tidak ditemukan: {}", userEmail, ex.getMessage());
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of(
             "code", 404,
             "status", "NOT_FOUND",
@@ -93,8 +117,9 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(org.springframework.web.server.ResponseStatusException.class)
-    public ResponseEntity<?> handleResponseStatusException(org.springframework.web.server.ResponseStatusException ex) {
-        log.warn("Error Status: {} - {}", ex.getStatusCode().value(), ex.getReason());
+    public ResponseEntity<?> handleResponseStatusException(org.springframework.web.server.ResponseStatusException ex, HttpSession session) {
+        String userEmail = getUserEmail(session);
+        log.warn("[User: {}] Error Status: {} - {}", userEmail, ex.getStatusCode().value(), ex.getReason());
         
         return ResponseEntity.status(ex.getStatusCode()).body(Map.of(
             "code", ex.getStatusCode().value(),
