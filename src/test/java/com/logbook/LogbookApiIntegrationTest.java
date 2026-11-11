@@ -49,15 +49,14 @@ class LogbookApiIntegrationTest {
     @Autowired
     private JdbcTemplate jdbcTemplate;
 
-    @Autowired
-<<<<<<< Updated upstream
+      @Autowired
     private DailyLogRepository dailyLogRepository;
 
     @Autowired
     private LogTaskRepository logTaskRepository;
-=======
+
+    @Autowired
     private EntityManager entityManager;
->>>>>>> Stashed changes
 
     private MockHttpSession session;
 
