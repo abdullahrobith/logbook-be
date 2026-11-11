@@ -17,6 +17,7 @@ public class DailyLogService {
     private static final short DEFAULT_WORK_SCHEDULE_ID = 1;
     private static final String STATUS_DRAFT = "DRAF";
     private static final String STATUS_WAITING = "MENUNGGU";
+    private static final String STATUS_REJECTED = "DITOLAK";
 
     private final DailyLogRepository dailyLogRepository;
 
@@ -70,7 +71,10 @@ public class DailyLogService {
             return DailyLogResponse.from(dailyLog);
         }
 
-        if (!STATUS_DRAFT.equalsIgnoreCase(dailyLog.getStatus())) {
+        // DRAF dikirim pertama kali; DITOLAK dikirim ulang setelah diperbaiki
+        // (LBK-KRM-01).
+        if (!STATUS_DRAFT.equalsIgnoreCase(dailyLog.getStatus())
+                && !STATUS_REJECTED.equalsIgnoreCase(dailyLog.getStatus())) {
             throw new ResponseStatusException(
                     HttpStatus.CONFLICT,
                     "Daily log tidak dapat dikirim pada status saat ini"

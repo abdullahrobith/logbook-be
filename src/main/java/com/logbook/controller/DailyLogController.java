@@ -1,7 +1,9 @@
 package com.logbook.controller;
 
 import com.logbook.dto.DailyLogResponse;
+import com.logbook.dto.DecisionRequest;
 import com.logbook.entity.User;
+import com.logbook.service.ApprovalService;
 import com.logbook.service.AuthService;
 import com.logbook.service.DailyLogService;
 import com.logbook.service.RoleService;
@@ -17,15 +19,18 @@ import java.time.LocalDate;
 public class DailyLogController {
 
     private final DailyLogService dailyLogService;
+    private final ApprovalService approvalService;
     private final AuthService authService;
     private final RoleService roleService;
 
     public DailyLogController(
             DailyLogService dailyLogService,
+            ApprovalService approvalService,
             AuthService authService,
             RoleService roleService
     ) {
         this.dailyLogService = dailyLogService;
+        this.approvalService = approvalService;
         this.authService = authService;
         this.roleService = roleService;
     }
@@ -86,5 +91,67 @@ public class DailyLogController {
     ) {
         Long userId = authService.requireUserId(session);
         return dailyLogService.withdrawDailyLog(userId, dailyLogId);
+    }
+
+    /**
+     * Atasan langsung atau admin menyetujui Daily Log anggota timnya. Pelaku
+     * tidak boleh memutuskan Daily Log miliknya sendiri.
+     */
+    @PostMapping("/{dailyLogId}/approve")
+    public DailyLogResponse approveDailyLog(
+            @PathVariable Long dailyLogId,
+            HttpSession session
+    ) {
+        User actor = roleService.requireCurrentUser(session);
+        return approvalService.approve(actor, dailyLogId);
+    }
+
+    /**
+     * Atasan langsung atau admin menolak Daily Log anggota timnya. Alasan
+     * penolakan wajib diisi.
+     */
+    @PostMapping("/{dailyLogId}/reject")
+    public DailyLogResponse rejectDailyLog(
+            @PathVariable Long dailyLogId,
+            @RequestBody(required = false) DecisionRequest request,
+            HttpSession session
+    ) {
+        User actor = roleService.requireCurrentUser(session);
+        return approvalService.reject(
+                actor,
+                dailyLogId,
+                request == null ? null : request.reason()
+        );
+    }
+
+    /**
+     * Talent mengajukan perbaikan atas Daily Log miliknya yang sudah
+     * disetujui. Alasan pengajuan wajib diisi.
+     */
+    @PostMapping("/{dailyLogId}/revision-request")
+    public DailyLogResponse requestRevision(
+            @PathVariable Long dailyLogId,
+            @RequestBody(required = false) DecisionRequest request,
+            HttpSession session
+    ) {
+        User actor = roleService.requireCurrentUser(session);
+        return approvalService.requestRevision(
+                actor,
+                dailyLogId,
+                request == null ? null : request.reason()
+        );
+    }
+
+    /**
+     * Atasan langsung atau admin menyetujui pengajuan perbaikan sehingga hari
+     * itu dibuka kembali sebagai DRAF.
+     */
+    @PostMapping("/{dailyLogId}/approve-revision")
+    public DailyLogResponse approveRevision(
+            @PathVariable Long dailyLogId,
+            HttpSession session
+    ) {
+        User actor = roleService.requireCurrentUser(session);
+        return approvalService.approveRevision(actor, dailyLogId);
     }
 }

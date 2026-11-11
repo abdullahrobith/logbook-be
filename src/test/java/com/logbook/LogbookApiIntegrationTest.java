@@ -8,6 +8,7 @@ import com.logbook.repository.LogTaskRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import jakarta.persistence.EntityManager;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
@@ -32,6 +33,8 @@ import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.hasItems;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -47,10 +50,14 @@ class LogbookApiIntegrationTest {
     private JdbcTemplate jdbcTemplate;
 
     @Autowired
+<<<<<<< Updated upstream
     private DailyLogRepository dailyLogRepository;
 
     @Autowired
     private LogTaskRepository logTaskRepository;
+=======
+    private EntityManager entityManager;
+>>>>>>> Stashed changes
 
     private MockHttpSession session;
 
@@ -1016,6 +1023,395 @@ class LogbookApiIntegrationTest {
                         .session(adminSession)
         )
         .andExpect(status().isBadRequest());
+    }
+
+    // ==========================================
+    // APPROVAL TESTING
+    // ==========================================
+
+    @Test
+    void supervisorCanApproveTeamDailyLog() throws Exception {
+        long dailyLogId = insertDailyLog(2L, LocalDate.of(2026, 12, 20), "MENUNGGU");
+
+        MockHttpSession supervisorSession = loginAsSupervisorOfTalent2(
+                "atasan.approve@contoh.id"
+        );
+        Long supervisorId = userIdOf("atasan.approve@contoh.id");
+
+        mockMvc.perform(
+                post("/api/daily-logs/{dailyLogId}/approve", dailyLogId)
+                        .session(supervisorSession)
+        )
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.status").value("DISETUJUI"))
+        .andExpect(jsonPath("$.decidedByUserId").value(supervisorId.intValue()))
+        .andExpect(jsonPath("$.decidedAt").exists());
+
+        entityManager.flush();
+
+        assertEquals(
+                "DISETUJUI",
+                jdbcTemplate.queryForObject(
+                        "SELECT status FROM daily_logs WHERE id = ?",
+                        String.class,
+                        dailyLogId
+                )
+        );
+        assertEquals(
+                supervisorId,
+                jdbcTemplate.queryForObject(
+                        "SELECT decided_by_user_id FROM daily_logs WHERE id = ?",
+                        Long.class,
+                        dailyLogId
+                )
+        );
+    }
+
+    @Test
+    void supervisorCanRejectTeamDailyLogWithReason() throws Exception {
+        long dailyLogId = insertDailyLog(2L, LocalDate.of(2026, 12, 21), "MENUNGGU");
+
+        MockHttpSession supervisorSession = loginAsSupervisorOfTalent2(
+                "atasan.reject@contoh.id"
+        );
+
+        mockMvc.perform(
+                post("/api/daily-logs/{dailyLogId}/reject", dailyLogId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                    "reason": "  Ringkasan task kurang rinci  "
+                                }
+                                """)
+                        .session(supervisorSession)
+        )
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.status").value("DITOLAK"))
+        .andExpect(jsonPath("$.rejectionReason").value("Ringkasan task kurang rinci"))
+        .andExpect(jsonPath("$.decidedByUserId").exists())
+        .andExpect(jsonPath("$.decidedAt").exists());
+    }
+
+    @Test
+    void rejectWithoutReasonReturnsBadRequest() throws Exception {
+        long dailyLogId = insertDailyLog(2L, LocalDate.of(2026, 12, 22), "MENUNGGU");
+
+        MockHttpSession supervisorSession = loginAsSupervisorOfTalent2(
+                "atasan.reject.kosong@contoh.id"
+        );
+
+        mockMvc.perform(
+                post("/api/daily-logs/{dailyLogId}/reject", dailyLogId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                    "reason": "   "
+                                }
+                                """)
+                        .session(supervisorSession)
+        )
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.message").value("Alasan wajib diisi"));
+
+        mockMvc.perform(
+                post("/api/daily-logs/{dailyLogId}/reject", dailyLogId)
+                        .session(supervisorSession)
+        )
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.message").value("Alasan wajib diisi"));
+
+        assertEquals(
+                "MENUNGGU",
+                jdbcTemplate.queryForObject(
+                        "SELECT status FROM daily_logs WHERE id = ?",
+                        String.class,
+                        dailyLogId
+                )
+        );
+    }
+
+    @Test
+    void nobodyCanDecideOwnDailyLog() throws Exception {
+        long supervisorId = insertTalent("atasan.sendiri@contoh.id", "Atasan Sendiri");
+        jdbcTemplate.update(
+                "UPDATE users SET email_atasan = ? WHERE id = 2",
+                "atasan.sendiri@contoh.id"
+        );
+        long ownDailyLogId = insertDailyLog(
+                supervisorId,
+                LocalDate.of(2026, 12, 23),
+                "MENUNGGU"
+        );
+
+        MockHttpSession supervisorSession = loginAs("atasan.sendiri@contoh.id");
+
+        mockMvc.perform(
+                post("/api/daily-logs/{dailyLogId}/approve", ownDailyLogId)
+                        .session(supervisorSession)
+        )
+        .andExpect(status().isForbidden())
+        .andExpect(jsonPath("$.message").value(
+                "Tidak boleh memutuskan Daily Log milik sendiri"
+        ));
+
+        mockMvc.perform(
+                post("/api/daily-logs/{dailyLogId}/reject", ownDailyLogId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                    "reason": "Mencoba menolak log sendiri"
+                                }
+                                """)
+                        .session(supervisorSession)
+        )
+        .andExpect(status().isForbidden());
+
+        assertEquals(
+                "MENUNGGU",
+                jdbcTemplate.queryForObject(
+                        "SELECT status FROM daily_logs WHERE id = ?",
+                        String.class,
+                        ownDailyLogId
+                )
+        );
+    }
+
+    @Test
+    void talentCannotApproveAnotherTalentDailyLog() throws Exception {
+        long dailyLogId = insertDailyLog(2L, LocalDate.of(2026, 12, 24), "MENUNGGU");
+
+        mockMvc.perform(
+                post("/api/daily-logs/{dailyLogId}/approve", dailyLogId)
+                        .session(session)
+        )
+        .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void supervisorCannotApproveDailyLogOutsideTeam() throws Exception {
+        long dailyLogId = insertDailyLog(2L, LocalDate.of(2026, 12, 25), "MENUNGGU");
+
+        insertUser("atasan.luar@contoh.id", "Atasan Luar", false);
+        MockHttpSession supervisorSession = loginAs("atasan.luar@contoh.id");
+
+        mockMvc.perform(
+                post("/api/daily-logs/{dailyLogId}/approve", dailyLogId)
+                        .session(supervisorSession)
+        )
+        .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void approveRequiresWaitingStatus() throws Exception {
+        long dailyLogId = insertDailyLog(2L, LocalDate.of(2026, 12, 26), "DRAF");
+
+        MockHttpSession supervisorSession = loginAsSupervisorOfTalent2(
+                "atasan.status@contoh.id"
+        );
+
+        mockMvc.perform(
+                post("/api/daily-logs/{dailyLogId}/approve", dailyLogId)
+                        .session(supervisorSession)
+        )
+        .andExpect(status().isConflict());
+    }
+
+    @Test
+    void approveUnknownDailyLogReturnsNotFound() throws Exception {
+        MockHttpSession supervisorSession = loginAsSupervisorOfTalent2(
+                "atasan.tidak.ada@contoh.id"
+        );
+
+        mockMvc.perform(
+                post("/api/daily-logs/{dailyLogId}/approve", 999_999L)
+                        .session(supervisorSession)
+        )
+        .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void approveWithoutLoginReturnsUnauthorized() throws Exception {
+        mockMvc.perform(post("/api/daily-logs/{dailyLogId}/approve", 1L))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void talentCanRequestRevisionForOwnApprovedLog() throws Exception {
+        long dailyLogId = insertDailyLog(1L, LocalDate.of(2026, 12, 27), "DISETUJUI");
+
+        mockMvc.perform(
+                post("/api/daily-logs/{dailyLogId}/revision-request", dailyLogId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                    "reason": "  Ada task rapat yang belum dicatat  "
+                                }
+                                """)
+                        .session(session)
+        )
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.status").value("PERBAIKAN_DIAJUKAN"))
+        .andExpect(jsonPath("$.revisionReason").value(
+                "Ada task rapat yang belum dicatat"
+        ));
+    }
+
+    @Test
+    void requestRevisionWithoutReasonReturnsBadRequest() throws Exception {
+        long dailyLogId = insertDailyLog(1L, LocalDate.of(2026, 12, 28), "DISETUJUI");
+
+        mockMvc.perform(
+                post("/api/daily-logs/{dailyLogId}/revision-request", dailyLogId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}")
+                        .session(session)
+        )
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.message").value("Alasan wajib diisi"));
+    }
+
+    @Test
+    void requestRevisionRequiresApprovedStatus() throws Exception {
+        long dailyLogId = insertDailyLog(1L, LocalDate.of(2026, 12, 29), "MENUNGGU");
+
+        mockMvc.perform(
+                post("/api/daily-logs/{dailyLogId}/revision-request", dailyLogId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                    "reason": "Ingin memperbaiki isi"
+                                }
+                                """)
+                        .session(session)
+        )
+        .andExpect(status().isConflict());
+    }
+
+    @Test
+    void talentCannotRequestRevisionForAnotherTalentLog() throws Exception {
+        long dailyLogId = insertDailyLog(2L, LocalDate.of(2026, 12, 30), "DISETUJUI");
+
+        mockMvc.perform(
+                post("/api/daily-logs/{dailyLogId}/revision-request", dailyLogId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                    "reason": "Mencoba mengubah log orang lain"
+                                }
+                                """)
+                        .session(session)
+        )
+        .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void supervisorCanApproveRevisionAndReopenDraft() throws Exception {
+        long dailyLogId = insertDailyLog(
+                2L,
+                LocalDate.of(2026, 12, 31),
+                "PERBAIKAN_DIAJUKAN"
+        );
+
+        MockHttpSession supervisorSession = loginAsSupervisorOfTalent2(
+                "atasan.perbaikan@contoh.id"
+        );
+        Long supervisorId = userIdOf("atasan.perbaikan@contoh.id");
+
+        mockMvc.perform(
+                post("/api/daily-logs/{dailyLogId}/approve-revision", dailyLogId)
+                        .session(supervisorSession)
+        )
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.status").value("DRAF"))
+        .andExpect(jsonPath("$.decidedByUserId").value(supervisorId.intValue()));
+
+        entityManager.flush();
+
+        assertEquals(
+                "DRAF",
+                jdbcTemplate.queryForObject(
+                        "SELECT status FROM daily_logs WHERE id = ?",
+                        String.class,
+                        dailyLogId
+                )
+        );
+    }
+
+    @Test
+    void approveRevisionRequiresRevisionRequestedStatus() throws Exception {
+        long dailyLogId = insertDailyLog(2L, LocalDate.of(2027, 1, 1), "MENUNGGU");
+
+        MockHttpSession supervisorSession = loginAsSupervisorOfTalent2(
+                "atasan.perbaikan.status@contoh.id"
+        );
+
+        mockMvc.perform(
+                post("/api/daily-logs/{dailyLogId}/approve-revision", dailyLogId)
+                        .session(supervisorSession)
+        )
+        .andExpect(status().isConflict());
+    }
+
+    @Test
+    void rejectedDailyLogCanBeFixedAndResubmitted() throws Exception {
+        long dailyLogId = insertDailyLog(1L, LocalDate.of(2027, 1, 2), "DITOLAK");
+        insertTask(dailyLogId, LocalTime.of(9, 0), 60, "Task yang sudah diperbaiki");
+
+        jdbcTemplate.update(
+                "UPDATE daily_logs SET rejection_reason = ?, decided_by_user_id = 2, "
+                        + "decided_at = CURRENT_TIMESTAMP WHERE id = ?",
+                "Ringkasan kurang rinci",
+                dailyLogId
+        );
+
+        mockMvc.perform(
+                post("/api/daily-logs/{dailyLogId}/submit", dailyLogId)
+                        .session(session)
+        )
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.status").value("MENUNGGU"));
+
+        entityManager.flush();
+
+        assertEquals(
+                "MENUNGGU",
+                jdbcTemplate.queryForObject(
+                        "SELECT status FROM daily_logs WHERE id = ?",
+                        String.class,
+                        dailyLogId
+                )
+        );
+        assertNull(
+                jdbcTemplate.queryForObject(
+                        "SELECT rejection_reason FROM daily_logs WHERE id = ?",
+                        String.class,
+                        dailyLogId
+                )
+        );
+        assertNull(
+                jdbcTemplate.queryForObject(
+                        "SELECT decided_by_user_id FROM daily_logs WHERE id = ?",
+                        Long.class,
+                        dailyLogId
+                )
+        );
+    }
+
+    private MockHttpSession loginAsSupervisorOfTalent2(String email) throws Exception {
+        insertUser(email, "Atasan Tim", false);
+        jdbcTemplate.update(
+                "UPDATE users SET email_atasan = ? WHERE id = 2",
+                email
+        );
+        return loginAs(email);
+    }
+
+    private Long userIdOf(String email) {
+        return jdbcTemplate.queryForObject(
+                "SELECT id FROM users WHERE email = ?",
+                Long.class,
+                email
+        );
     }
 
     private MockHttpSession loginAsAdmin(String email, String fullName) throws Exception {

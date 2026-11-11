@@ -23,7 +23,7 @@ Pengujian dilakukan melalui tiga pendekatan:
 
 ## 3. Manual Testing API
 
-Saat ini backend Logbook memiliki **19 endpoint API**. Sepuluh endpoint diuji secara manual menggunakan Postman, sedangkan sembilan endpoint yang ditambahkan setelah pengujian manual awal diverifikasi melalui integration test.
+Saat ini backend Logbook memiliki **23 endpoint API**. Sepuluh endpoint diuji secara manual menggunakan Postman, sedangkan tiga belas endpoint yang ditambahkan setelah pengujian manual awal diverifikasi melalui integration test.
 
 | No. | Method | Endpoint | Fungsi | Akses | Verifikasi |
 |---|---|---|---|---|---|
@@ -36,16 +36,20 @@ Saat ini backend Logbook memiliki **19 endpoint API**. Sepuluh endpoint diuji se
 | 7 | POST | `/api/daily-logs?date=YYYY-MM-DD` | Membuat Daily Log baru | Pemilik data | Integration test |
 | 8 | POST | `/api/daily-logs/{dailyLogId}/submit` | Mengirim Daily Log untuk persetujuan | Pemilik data | Integration test |
 | 9 | POST | `/api/daily-logs/{dailyLogId}/withdraw` | Menarik kembali Daily Log menjadi DRAF | Pemilik data | Integration test |
-| 10 | POST | `/api/daily-logs/{dailyLogId}/tasks` | Menambahkan task pada Daily Log | Pemilik data | Postman |
-| 11 | PUT | `/api/tasks/{id}` | Memperbarui task | Pemilik data | Postman |
-| 12 | DELETE | `/api/tasks/{id}` | Menghapus task | Pemilik data | Postman |
-| 13 | GET | `/api/team` | Mendapatkan daftar tim dengan status dan total jam hari ini | Atasan (timnya), admin (semua) | Integration test |
-| 14 | GET | `/api/team/{userId}/daily-logs/{date}` | Mendapatkan Daily Log anggota tim pada tanggal tertentu | Atasan (timnya), admin (semua) | Integration test |
-| 15 | POST | `/api/admin/users/import` | Mengimpor pengguna dari CSV | Admin | Integration test |
-| 16 | GET | `/api/admin/daily-logs` | Mendapatkan daftar Daily Log seluruh talent dengan filter tanggal, pengguna, dan status | Admin | Integration test |
-| 17 | GET | `/api/projects` | Mendapatkan daftar project pengguna | Pemilik data | Postman |
-| 18 | GET | `/api/tasks/master-data` | Mendapatkan data master task | Pengguna masuk | Postman |
-| 19 | GET | `/api/examples` | Mendapatkan data contoh penulisan logbook | Pengguna masuk | Postman |
+| 10 | POST | `/api/daily-logs/{dailyLogId}/approve` | Menyetujui Daily Log anggota tim | Atasan (timnya), admin (semua) | Integration test |
+| 11 | POST | `/api/daily-logs/{dailyLogId}/reject` | Menolak Daily Log disertai alasan wajib | Atasan (timnya), admin (semua) | Integration test |
+| 12 | POST | `/api/daily-logs/{dailyLogId}/revision-request` | Mengajukan perbaikan Daily Log yang sudah disetujui | Pemilik data | Integration test |
+| 13 | POST | `/api/daily-logs/{dailyLogId}/approve-revision` | Menyetujui perbaikan dan membuka kembali hari sebagai DRAF | Atasan (timnya), admin (semua) | Integration test |
+| 14 | POST | `/api/daily-logs/{dailyLogId}/tasks` | Menambahkan task pada Daily Log | Pemilik data | Postman |
+| 15 | PUT | `/api/tasks/{id}` | Memperbarui task | Pemilik data | Postman |
+| 16 | DELETE | `/api/tasks/{id}` | Menghapus task | Pemilik data | Postman |
+| 17 | GET | `/api/team` | Mendapatkan daftar tim dengan status dan total jam hari ini | Atasan (timnya), admin (semua) | Integration test |
+| 18 | GET | `/api/team/{userId}/daily-logs/{date}` | Mendapatkan Daily Log anggota tim pada tanggal tertentu | Atasan (timnya), admin (semua) | Integration test |
+| 19 | POST | `/api/admin/users/import` | Mengimpor pengguna dari CSV | Admin | Integration test |
+| 20 | GET | `/api/admin/daily-logs` | Mendapatkan daftar Daily Log seluruh talent dengan filter tanggal, pengguna, dan status | Admin | Integration test |
+| 21 | GET | `/api/projects` | Mendapatkan daftar project pengguna | Pemilik data | Postman |
+| 22 | GET | `/api/tasks/master-data` | Mendapatkan data master task | Pengguna masuk | Postman |
+| 23 | GET | `/api/examples` | Mendapatkan data contoh penulisan logbook | Pengguna masuk | Postman |
 
 Seluruh endpoint telah diverifikasi dan memberikan hasil sesuai dengan skenario pengujian.
 
@@ -175,6 +179,30 @@ Pengujian dilakukan untuk memastikan daftar Daily Log admin, filter opsional, da
 
 Total: **6 test, seluruhnya lulus.**
 
+### 4.8 ApprovalServiceTest
+
+Pengujian dilakukan untuk memastikan keputusan atas Daily Log (setujui, tolak, ajukan perbaikan, setujui perbaikan), aturan alasan wajib, larangan memutuskan Daily Log sendiri, dan pencatatan log INFO berjalan benar.
+
+| No. | Skenario Pengujian | Hasil |
+|---|---|---|
+| 1 | Menyetujui Daily Log MENUNGGU dan mencatat decided_by serta decided_at | Lulus |
+| 2 | Pelaku tidak boleh menyetujui Daily Log miliknya sendiri | Lulus |
+| 3 | Pengguna yang bukan atasan pemilik ditolak | Lulus |
+| 4 | Persetujuan gagal bila status bukan MENUNGGU | Lulus |
+| 5 | Persetujuan gagal bila Daily Log tidak ditemukan | Lulus |
+| 6 | Penolakan wajib memiliki alasan (kosong maupun null) | Lulus |
+| 7 | Penolakan menyimpan alasan yang sudah di-trim dan status DITOLAK | Lulus |
+| 8 | Alasan penolakan lebih dari 1000 karakter ditolak | Lulus |
+| 9 | Pengajuan perbaikan hanya oleh pemilik Daily Log | Lulus |
+| 10 | Pengajuan perbaikan hanya untuk Daily Log berstatus DISETUJUI | Lulus |
+| 11 | Pengajuan perbaikan menyimpan alasan dan status PERBAIKAN_DIAJUKAN | Lulus |
+| 12 | Persetujuan perbaikan membuka kembali hari sebagai DRAF | Lulus |
+| 13 | Persetujuan perbaikan hanya untuk status PERBAIKAN_DIAJUKAN | Lulus |
+| 14 | Persetujuan perbaikan tidak boleh untuk Daily Log sendiri | Lulus |
+| 15 | Setiap keputusan menulis satu log INFO berisi pelaku dan tanggal Daily Log | Lulus |
+
+Total: **15 test, seluruhnya lulus.**
+
 ## 5. Integration Testing
 
 Integration testing dilakukan menggunakan Spring Boot Test dan MockMvc untuk menguji interaksi antara endpoint API, komponen aplikasi, session autentikasi, otorisasi berbasis peran, dan database PostgreSQL.
@@ -240,12 +268,28 @@ Pengujian menggunakan database `logbook` dengan konfigurasi transaksi `@Transact
 | 53 | Filter status yang tidak valid menghasilkan 400 | Lulus |
 | 54 | Filter tanggal yang tidak valid menghasilkan 400 | Lulus |
 | 55 | Filter pengguna yang tidak valid menghasilkan 400 | Lulus |
+| 56 | Atasan dapat menyetujui Daily Log anggota timnya dan keputusan tersimpan | Lulus |
+| 57 | Atasan dapat menolak Daily Log anggota timnya disertai alasan | Lulus |
+| 58 | Penolakan tanpa alasan menghasilkan 400 | Lulus |
+| 59 | Tidak ada yang boleh memutuskan Daily Log miliknya sendiri | Lulus |
+| 60 | Talent tidak dapat menyetujui Daily Log talent lain | Lulus |
+| 61 | Atasan tidak dapat menyetujui Daily Log di luar timnya | Lulus |
+| 62 | Persetujuan hanya untuk Daily Log berstatus MENUNGGU | Lulus |
+| 63 | Persetujuan Daily Log yang tidak ditemukan menghasilkan 404 | Lulus |
+| 64 | Menyetujui Daily Log tanpa login menghasilkan 401 | Lulus |
+| 65 | Talent dapat mengajukan perbaikan atas Daily Log miliknya yang disetujui | Lulus |
+| 66 | Pengajuan perbaikan tanpa alasan menghasilkan 400 | Lulus |
+| 67 | Pengajuan perbaikan hanya untuk Daily Log berstatus DISETUJUI | Lulus |
+| 68 | Talent tidak dapat mengajukan perbaikan atas Daily Log talent lain | Lulus |
+| 69 | Atasan dapat menyetujui perbaikan sehingga hari dibuka kembali sebagai DRAF | Lulus |
+| 70 | Persetujuan perbaikan hanya untuk status PERBAIKAN_DIAJUKAN | Lulus |
+| 71 | Daily Log DITOLAK dapat diperbaiki dan dikirim ulang menjadi MENUNGGU | Lulus |
 
-Total: **55 test, seluruhnya lulus.**
+Total: **71 test, seluruhnya lulus.**
 
 ## 6. Rekapitulasi Hasil Pengujian
 
-Berdasarkan hasil eksekusi perintah `.\mvnw.cmd test` pada 10 November 2026, diperoleh hasil sebagai berikut.
+Berdasarkan hasil eksekusi perintah `.\mvnw.cmd test` pada 11 November 2026, diperoleh hasil sebagai berikut.
 
 | Komponen Pengujian | Jumlah Test | Failures | Errors | Status |
 |---|---|---:|---:|---|
@@ -256,24 +300,26 @@ Berdasarkan hasil eksekusi perintah `.\mvnw.cmd test` pada 10 November 2026, dip
 | RoleServiceTest | 12 | 0 | 0 | Lulus |
 | TeamServiceTest | 4 | 0 | 0 | Lulus |
 | AdminDailyLogServiceTest | 6 | 0 | 0 | Lulus |
-| LogbookApiIntegrationTest | 55 | 0 | 0 | Lulus |
+| ApprovalServiceTest | 15 | 0 | 0 | Lulus |
+| LogbookApiIntegrationTest | 71 | 0 | 0 | Lulus |
 | LogbookBeApplicationTests | 1 | 0 | 0 | Lulus |
-| **Total** | **115** | **0** | **0** | **Lulus** |
+| **Total** | **146** | **0** | **0** | **Lulus** |
 
 ### 6.1 Kesimpulan Hasil Pengujian
 
 Berdasarkan pengujian yang telah dilakukan, diperoleh hasil:
 
-- Sebanyak 19 endpoint API tersedia; 10 endpoint diuji secara manual menggunakan Postman dan 9 endpoint diverifikasi melalui integration test.
-- Sebanyak 115 automated test berhasil dijalankan.
+- Sebanyak 23 endpoint API tersedia; 10 endpoint diuji secara manual menggunakan Postman dan 13 endpoint diverifikasi melalui integration test.
+- Sebanyak 146 automated test berhasil dijalankan.
 - Seluruh unit test dan integration test berhasil dilewati.
 - Tidak ditemukan failures maupun errors pada eksekusi pengujian otomatis.
 - Otorisasi berbasis peran (talent, atasan, admin) telah diuji pada level unit maupun integrasi.
+- Alur persetujuan Daily Log (setujui, tolak, ajukan perbaikan, setujui perbaikan), aturan alasan wajib, larangan memutuskan Daily Log sendiri, dan pencatatan log INFO setiap keputusan telah diuji.
 
-Dengan demikian, backend Logbook berhasil melewati seluruh skenario pengujian yang telah disiapkan. Pengujian tambahan masih dapat dilakukan untuk memperluas cakupan, khususnya pada alur persetujuan Daily Log (approve/reject), pengelolaan hari libur dan cuti, serta kondisi bisnis lainnya.
+Dengan demikian, backend Logbook berhasil melewati seluruh skenario pengujian yang telah disiapkan. Pengujian tambahan masih dapat dilakukan untuk memperluas cakupan, khususnya pada pengelolaan hari libur dan cuti, batas hari pengiriman, serta kondisi bisnis lainnya.
 
 ## 7. Kesimpulan
 
-Pengujian backend Logbook telah dilakukan melalui tiga pendekatan, yaitu manual testing, unit testing, dan integration testing. Pengujian manual terhadap 10 endpoint API berhasil dilakukan menggunakan Postman, 9 endpoint tambahan diverifikasi melalui integration test, dan pengujian otomatis menghasilkan 115 test dengan 0 failures dan 0 errors.
+Pengujian backend Logbook telah dilakukan melalui tiga pendekatan, yaitu manual testing, unit testing, dan integration testing. Pengujian manual terhadap 10 endpoint API berhasil dilakukan menggunakan Postman, 13 endpoint tambahan diverifikasi melalui integration test, dan pengujian otomatis menghasilkan 146 test dengan 0 failures dan 0 errors.
 
 Hasil tersebut menunjukkan bahwa komponen backend yang telah diuji berjalan sesuai dengan skenario pengujian yang tersedia. Meskipun demikian, hasil ini belum menjamin seluruh kemungkinan kondisi sistem telah diuji sehingga pengembangan cakupan pengujian tetap diperlukan.
