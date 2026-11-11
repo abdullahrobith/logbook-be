@@ -1,6 +1,10 @@
 
 package com.logbook;
 
+import com.logbook.entity.DailyLog;
+import com.logbook.entity.LogTask;
+import com.logbook.repository.DailyLogRepository;
+import com.logbook.repository.LogTaskRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -18,6 +22,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.time.OffsetDateTime;
+import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -39,6 +45,12 @@ class LogbookApiIntegrationTest {
 
     @Autowired
     private JdbcTemplate jdbcTemplate;
+
+    @Autowired
+    private DailyLogRepository dailyLogRepository;
+
+    @Autowired
+    private LogTaskRepository logTaskRepository;
 
     private MockHttpSession session;
 
@@ -447,6 +459,33 @@ class LogbookApiIntegrationTest {
 
     @Test
     void createFourthOverlappingTaskShouldReturnBadRequest() throws Exception {
+        DailyLog dailyLog = dailyLogRepository.findById(Long.valueOf(DAILY_LOG_ID))
+                .orElseThrow(() -> new AssertionError("Fixture Daily Log tidak ditemukan."));
+        List<LogTask> tasks = dailyLog.getTasks();
+        logTaskRepository.deleteAll(tasks);
+        logTaskRepository.flush();
+        tasks.clear();
+
+        OffsetDateTime now = OffsetDateTime.now();
+        for (int index = 1; index <= 3; index++) {
+            LogTask task = new LogTask(
+                    dailyLog,
+                    1L,
+                    (short) 1,
+                    (short) 1,
+                    "OVERLAP-" + index,
+                    LocalTime.of(9, 30),
+                    (short) 30,
+                    "Fixture overlap " + index,
+                    null,
+                    now,
+                    now
+            );
+            logTaskRepository.save(task);
+            tasks.add(task);
+        }
+        logTaskRepository.flush();
+
         mockMvc.perform(
                 post("/api/daily-logs/{dailyLogId}/tasks", DAILY_LOG_ID)
                         .session(session)
