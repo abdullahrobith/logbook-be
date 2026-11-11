@@ -16,36 +16,36 @@ import java.util.Map;
 @RestControllerAdvice
 public class ApiExceptionHandler {
 
-    @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<ValidationErrorResponse> handleValidation(
-            MethodArgumentNotValidException exception
-    ) {
-        Map<String, String> fieldErrors = new LinkedHashMap<>();
+//     @ExceptionHandler(MethodArgumentNotValidException.class)
+//     public ResponseEntity<ValidationErrorResponse> handleValidation(
+//             MethodArgumentNotValidException exception
+//     ) {
+//         Map<String, String> fieldErrors = new LinkedHashMap<>();
 
-        for (FieldError fieldError : exception.getBindingResult().getFieldErrors()) {
-            fieldErrors.putIfAbsent(fieldError.getField(), fieldError.getDefaultMessage());
-        }
+//         for (FieldError fieldError : exception.getBindingResult().getFieldErrors()) {
+//             fieldErrors.putIfAbsent(fieldError.getField(), fieldError.getDefaultMessage());
+//         }
 
-        String message = fieldErrors.values().stream()
-                .findFirst()
-                .orElse("Data yang dikirim tidak valid.");
+//         String message = fieldErrors.values().stream()
+//                 .findFirst()
+//                 .orElse("Data yang dikirim tidak valid.");
 
-        return ResponseEntity.badRequest()
-                .body(new ValidationErrorResponse(message, fieldErrors));
-    }
+//         return ResponseEntity.badRequest()
+//                 .body(new ValidationErrorResponse(message, fieldErrors));
+//     }
 
-    @ExceptionHandler(ResponseStatusException.class)
-    public ResponseEntity<ApiErrorResponse> handleResponseStatus(
-            ResponseStatusException exception
-    ) {
-        HttpStatusCode status = exception.getStatusCode();
-        String message = exception.getReason() == null
-                ? "Permintaan tidak dapat diproses."
-                : exception.getReason();
+//     @ExceptionHandler(ResponseStatusException.class)
+//     public ResponseEntity<ApiErrorResponse> handleResponseStatus(
+//             ResponseStatusException exception
+//     ) {
+//         HttpStatusCode status = exception.getStatusCode();
+//         String message = exception.getReason() == null
+//                 ? "Permintaan tidak dapat diproses."
+//                 : exception.getReason();
 
-        return ResponseEntity.status(status)
-                .body(new ApiErrorResponse(message));
-    }
+//         return ResponseEntity.status(status)
+//                 .body(new ApiErrorResponse(message));
+//     }
 
     @ExceptionHandler(MissingServletRequestParameterException.class)
     public ResponseEntity<ApiErrorResponse> handleMissingParameter(

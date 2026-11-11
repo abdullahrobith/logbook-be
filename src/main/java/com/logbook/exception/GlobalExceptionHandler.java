@@ -9,6 +9,8 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.method.annotation.HandlerMethodValidationException;
+
+import java.time.OffsetDateTime;
 import java.util.Map;
 
 @Slf4j 
@@ -28,7 +30,8 @@ public class GlobalExceptionHandler {
             "code", 400,
             "status", "BAD_REQUEST",
             "field", fieldName, 
-            "message", errorMessage
+            "message", errorMessage,
+            "timestamp", OffsetDateTime.now().toString()
         ));
     }
 
@@ -39,7 +42,8 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(ex.getStatus()).body(Map.of(
             "code", ex.getStatus().value(),
             "status", ex.getStatus().name(),
-            "message", ex.getMessage()
+            "message", ex.getMessage(),
+            "timestamp", OffsetDateTime.now().toString()
         ));
     }
 
@@ -50,7 +54,8 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of(
             "code", 500,
             "status", "INTERNAL_SERVER_ERROR",
-            "message", "Terjadi kesalahan pada server. Silakan hubungi admin."
+            "message", "Terjadi kesalahan pada server. Silakan hubungi admin.",
+            "timestamp", OffsetDateTime.now().toString()
         ));
     }
 
@@ -60,7 +65,8 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of(
             "code", 400,
             "status", "BAD_REQUEST",
-            "message", "Format request body tidak valid atau tipe data salah."
+            "message", "Format request body tidak valid atau tipe data salah.",
+            "timestamp", OffsetDateTime.now().toString()
         ));
     }
 
@@ -70,7 +76,31 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of(
             "code", 400,
             "status", "BAD_REQUEST",
-            "message", "Data yang dikirim tidak valid."
+            "message", "Data yang dikirim tidak valid.",
+            "timestamp", OffsetDateTime.now().toString()
+        ));
+    }
+
+     @ExceptionHandler(org.springframework.web.servlet.resource.NoResourceFoundException.class)
+    public ResponseEntity<?> handleNotFound(org.springframework.web.servlet.resource.NoResourceFoundException ex) {
+        log.warn("Endpoint tidak ditemukan: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of(
+            "code", 404,
+            "status", "NOT_FOUND",
+            "message", "Endpoint API tidak ditemukan. Pastikan URL sudah benar.",
+            "timestamp", OffsetDateTime.now().toString()
+        ));
+    }
+
+    @ExceptionHandler(org.springframework.web.server.ResponseStatusException.class)
+    public ResponseEntity<?> handleResponseStatusException(org.springframework.web.server.ResponseStatusException ex) {
+        log.warn("Error Status: {} - {}", ex.getStatusCode().value(), ex.getReason());
+        
+        return ResponseEntity.status(ex.getStatusCode()).body(Map.of(
+            "code", ex.getStatusCode().value(),
+            "status", ex.getStatusCode().toString(),
+            "message", ex.getReason() != null ? ex.getReason() : "Terjadi kesalahan pada permintaan.",
+            "timestamp", java.time.OffsetDateTime.now().toString()
         ));
     }
 }

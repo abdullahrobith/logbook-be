@@ -1,10 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <configuration>
     
-    <property name="LOG_PATTERN" value="%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} [ReqID: %X{requestId}] - %msg%n" />
-
     <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
-        <encoder><pattern>${LOG_PATTERN}</pattern></encoder>
+        <encoder class="net.logstash.logback.encoder.LogstashEncoder" />
     </appender>
 
     <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
@@ -13,7 +11,7 @@
             <fileNamePattern>logs/application-%d{yyyy-MM-dd}.log</fileNamePattern>
             <maxHistory>30</maxHistory>
         </rollingPolicy>
-        <encoder><pattern>${LOG_PATTERN}</pattern></encoder>
+        <encoder class="net.logstash.logback.encoder.LogstashEncoder" />
     </appender>
 
     <springProfile name="dev">

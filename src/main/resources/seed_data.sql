@@ -5,14 +5,16 @@
 -- 1. BIKIN USERS 
 INSERT INTO users (id, email, full_name, jenis, email_atasan, is_admin, password_hash, must_change_password, is_active) VALUES 
 -- Admin (Atasan-nya null, Admin=true)
-(100, 'admin@padepokan.com', 'Admin HR', 'KARYAWAN', null, true, '$2a$10$7EqJtq98hPqEX7fNZaFWoO5S6mI.2T.w76d1G.4h5n6e7r8t9y0u1', false, true),
+(100, 'admin@padepokan.com', 'Bambang Hendrayanto', 'KARYAWAN', null, true, '$2a$10$7EqJtq98hPqEX7fNZaFWoO5S6mI.2T.w76d1G.4h5n6e7r8t9y0u1', false, true),
 -- Atasan (Atasan-nya null, Admin=false)
-(101, 'atasan@padepokan.com', 'Pak Atasan', 'KARYAWAN', null, false, '$2a$10$7EqJtq98hPqEX7fNZaFWoO5S6mI.2T.w76d1G.4h5n6e7r8t9y0u1', false, true),
+(101, 'atasan@padepokan.com', 'Herlina Rastiana', 'KARYAWAN', null, false, '$2a$10$7EqJtq98hPqEX7fNZaFWoO5S6mI.2T.w76d1G.4h5n6e7r8t9y0u1', false, true),
 -- Talent Rina (Atasannya Pak Atasan)
 (1, 'rina@padepokan.com', 'Rina Talent', 'MAGANG', 'atasan@padepokan.com', false, '$2a$10$7EqJtq98hPqEX7fNZaFWoO5S6mI.2T.w76d1G.4h5n6e7r8t9y0u1', false, true),
 -- Talent Budi (Atasannya Pak Atasan)
 (2, 'budi@padepokan.com', 'Budi Talent', 'PKL', 'atasan@padepokan.com', false, '$2a$10$7EqJtq98hPqEX7fNZaFWoO5S6mI.2T.w76d1G.4h5n6e7r8t9y0u1', false, true)
-ON CONFLICT (id) DO NOTHING;
+ON CONFLICT (id) DO UPDATE SET 
+    full_name = EXCLUDED.full_name,
+    jenis = EXCLUDED.jenis;
 
 -- 2. Bikin 2 Client (Perusahaan)
 INSERT INTO clients (id, name, color, is_internal, is_active) VALUES 
