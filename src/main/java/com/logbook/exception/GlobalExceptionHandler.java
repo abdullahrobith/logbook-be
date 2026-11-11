@@ -12,6 +12,7 @@ import org.springframework.web.method.annotation.HandlerMethodValidationExceptio
 import jakarta.servlet.http.HttpSession;
 
 import java.time.OffsetDateTime;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 @Slf4j 
@@ -21,8 +22,6 @@ public class GlobalExceptionHandler {
     // Fungsi bantuan untuk narik email dari session
     private String getUserEmail(HttpSession session) {
         if (session != null) {
-            // CATATAN: Tanya PIC 3, nama key session-nya apa? "email", "userEmail", atau "user"?
-            // Gue coba tarik dari "email" dan "userEmail" dulu.
             Object emailAttr = session.getAttribute("email");
             if (emailAttr == null) {
                 emailAttr = session.getAttribute("userEmail");
@@ -42,16 +41,25 @@ public class GlobalExceptionHandler {
         String errorMessage = (fieldError != null) ? fieldError.getDefaultMessage() : "Validasi gagal";
         String userEmail = getUserEmail(session);
 
-        // LOG WARN dengan format [User: email]
+        // 1. Ambil semua field errors (Punya temenmu)
+        Map<String, String> fieldErrors = new LinkedHashMap<>();
+        for (FieldError error : ex.getBindingResult().getFieldErrors()) {
+            fieldErrors.putIfAbsent(error.getField(), error.getDefaultMessage());
+        }
+
+        // 2. LOG WARN dengan format [User: email] (Punyamu)
         log.warn("[User: {}] Validasi gagal pada field '{}': {}", userEmail, fieldName, errorMessage);
         
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of(
-            "code", 400,
-            "status", "BAD_REQUEST",
-            "field", fieldName, 
-            "message", errorMessage,
-            "timestamp", OffsetDateTime.now().toString()
-        ));
+        // 3. Gabungin response body-nya
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("code", 400);
+        body.put("status", "BAD_REQUEST");
+        body.put("field", fieldName);
+        body.put("message", errorMessage);
+        body.put("fieldErrors", fieldErrors); // Ini buat Frontend
+        body.put("timestamp", OffsetDateTime.now().toString());
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
     }
 
     @ExceptionHandler(ApiException.class)

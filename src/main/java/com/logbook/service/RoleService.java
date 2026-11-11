@@ -5,6 +5,7 @@ import com.logbook.entity.User;
 import com.logbook.repository.UserRepository;
 import com.logbook.security.Role;
 import jakarta.servlet.http.HttpSession;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -17,6 +18,7 @@ import java.util.Set;
  * Menentukan peran pengguna pada setiap permintaan dan menegakkan otorisasi
  * dasar: talent hanya miliknya, atasan hanya timnya, admin semua.
  */
+@Slf4j
 @Service
 public class RoleService {
 
@@ -31,6 +33,7 @@ public class RoleService {
         Object value = session.getAttribute(AuthService.SESSION_USER_ID);
 
         if (!(value instanceof Long userId)) {
+            log.debug("Request tanpa sesi login yang valid");
             throw new ResponseStatusException(
                     HttpStatus.UNAUTHORIZED,
                     "Silakan login terlebih dahulu"
@@ -39,10 +42,13 @@ public class RoleService {
 
         return userRepository
                 .findByIdAndActiveTrue(userId)
-                .orElseThrow(() -> new ResponseStatusException(
-                        HttpStatus.UNAUTHORIZED,
-                        "Sesi tidak valid"
-                ));
+                .orElseThrow(() -> {
+                    log.warn("Sesi tidak valid: User ID {} tidak ditemukan atau tidak aktif", userId);
+                    return new ResponseStatusException(
+                            HttpStatus.UNAUTHORIZED,
+                            "Sesi tidak valid"
+                    );
+                });
     }
 
     @Transactional(readOnly = true)
@@ -112,6 +118,7 @@ public class RoleService {
         User user = requireCurrentUser(session);
 
         if (!user.isAdmin()) {
+            log.warn("Akses admin ditolak untuk User ID {} ({})", user.getId(), user.getEmail());
             throw new ResponseStatusException(
                     HttpStatus.FORBIDDEN,
                     "Hanya admin yang dapat mengakses fitur ini"
@@ -126,6 +133,7 @@ public class RoleService {
         User user = requireCurrentUser(session);
 
         if (!user.isAdmin() && !isSupervisor(user)) {
+            log.warn("Akses atasan/admin ditolak untuk User ID {} ({})", user.getId(), user.getEmail());
             throw new ResponseStatusException(
                     HttpStatus.FORBIDDEN,
                     "Hanya atasan atau admin yang dapat mengakses fitur ini"
@@ -139,12 +147,18 @@ public class RoleService {
     public User requireCanViewTalent(User actor, Long talentUserId) {
         User talent = userRepository
                 .findByIdAndActiveTrue(talentUserId)
-                .orElseThrow(() -> new ResponseStatusException(
-                        HttpStatus.NOT_FOUND,
-                        "Pengguna tidak ditemukan"
-                ));
+                .orElseThrow(() -> {
+                    log.warn("Talent User ID {} tidak ditemukan (diminta oleh User ID {})",
+                            talentUserId, actor.getId());
+                    return new ResponseStatusException(
+                            HttpStatus.NOT_FOUND,
+                            "Pengguna tidak ditemukan"
+                    );
+                });
 
         if (!canViewTalent(actor, talent)) {
+            log.warn("User ID {} ({}) tidak berhak melihat data User ID {}",
+                    actor.getId(), actor.getEmail(), talentUserId);
             throw new ResponseStatusException(
                     HttpStatus.FORBIDDEN,
                     "Tidak memiliki akses ke data pengguna ini"
@@ -158,12 +172,18 @@ public class RoleService {
     public User requireCanDecideTalent(User actor, Long talentUserId) {
         User talent = userRepository
                 .findByIdAndActiveTrue(talentUserId)
-                .orElseThrow(() -> new ResponseStatusException(
-                        HttpStatus.NOT_FOUND,
-                        "Pengguna tidak ditemukan"
-                ));
+                .orElseThrow(() -> {
+                    log.warn("Talent User ID {} tidak ditemukan (diminta oleh User ID {})",
+                            talentUserId, actor.getId());
+                    return new ResponseStatusException(
+                            HttpStatus.NOT_FOUND,
+                            "Pengguna tidak ditemukan"
+                    );
+                });
 
         if (!canDecideTalent(actor, talent)) {
+            log.warn("User ID {} ({}) tidak berwenang memutuskan Daily Log milik User ID {}",
+                    actor.getId(), actor.getEmail(), talentUserId);
             throw new ResponseStatusException(
                     HttpStatus.FORBIDDEN,
                     "Tidak berwenang memutuskan Daily Log pengguna ini"

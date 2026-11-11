@@ -32,6 +32,7 @@ public class TaskController {
             HttpSession session
     ) {
         Long userId = authService.requireUserId(session);
+        log.info("Menerima request PUT untuk update Task ID: {} oleh User ID {}", id, userId);
         return logTaskService.updateTask(userId, id, request);
     }
 
@@ -39,6 +40,7 @@ public class TaskController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deleteTask(@PathVariable Long id, HttpSession session) {
         Long userId = authService.requireUserId(session);
+        log.info("Menerima request DELETE untuk Task ID: {} oleh User ID {}", id, userId);
         logTaskService.deleteTask(userId, id);
     }
 }

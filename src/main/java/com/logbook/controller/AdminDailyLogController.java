@@ -1,9 +1,11 @@
 package com.logbook.controller;
 
 import com.logbook.dto.AdminDailyLogResponse;
+import com.logbook.entity.User;
 import com.logbook.service.AdminDailyLogService;
 import com.logbook.service.RoleService;
 import jakarta.servlet.http.HttpSession;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -16,6 +18,7 @@ import java.util.List;
 /**
  * API admin untuk menelusuri Daily Log seluruh talent.
  */
+@Slf4j
 @RestController
 @RequestMapping("/api/admin/daily-logs")
 public class AdminDailyLogController {
@@ -42,7 +45,9 @@ public class AdminDailyLogController {
             String status,
             HttpSession session
     ) {
-        roleService.requireAdmin(session);
+        User actor = roleService.requireAdmin(session);
+        log.info("Menerima request GET daftar Daily Log admin dari User ID {} ({}) dengan filter date: {}, userId: {}, status: {}",
+                actor.getId(), actor.getEmail(), date, userId, status);
         return adminDailyLogService.list(date, userId, status);
     }
 }

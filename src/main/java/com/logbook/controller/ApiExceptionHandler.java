@@ -1,5 +1,6 @@
 package com.logbook.controller;
 
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
@@ -13,6 +14,7 @@ import org.springframework.web.server.ResponseStatusException;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
+@Slf4j
 @RestControllerAdvice
 public class ApiExceptionHandler {
 
@@ -51,6 +53,7 @@ public class ApiExceptionHandler {
     public ResponseEntity<ApiErrorResponse> handleMissingParameter(
             MissingServletRequestParameterException exception
     ) {
+        log.warn("Parameter request hilang: {}", exception.getParameterName());
         return ResponseEntity.badRequest()
                 .body(new ApiErrorResponse(
                         "Parameter " + exception.getParameterName() + " wajib diisi"
@@ -61,6 +64,7 @@ public class ApiExceptionHandler {
     public ResponseEntity<ApiErrorResponse> handleTypeMismatch(
             MethodArgumentTypeMismatchException exception
     ) {
+        log.warn("Nilai parameter '{}' tidak valid", exception.getName());
         return ResponseEntity.badRequest()
                 .body(new ApiErrorResponse(
                         "Nilai parameter " + exception.getName() + " tidak valid"
