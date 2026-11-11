@@ -166,14 +166,15 @@ public class AdminController {
     }
 
 
-    // ==========================================
+       // ==========================================
     // 3. API CRUD CUTI (LEAVES)
     // ==========================================
     @GetMapping("/leaves")
     public ResponseEntity<List<Map<String, Object>>> getLeaves(HttpSession session) {
         roleService.requireAdmin(session);
         log.info("Menerima request GET untuk daftar Cuti Talent");
-        String query = "SELECT l.id, l.user_id, u.full_name, l.from_date, l.to_date FROM leaves l JOIN users u ON l.user_id = u.id ORDER BY l.from_date";
+        // Ganti from_date & to_date jadi start_date & end_date
+        String query = "SELECT l.id, l.user_id, u.full_name, l.start_date, l.end_date FROM leaves l JOIN users u ON l.user_id = u.id ORDER BY l.start_date";
         List<Map<String, Object>> leaves = jdbcTemplate.queryForList(query);
         return ResponseEntity.ok(leaves);
     }
@@ -200,23 +201,10 @@ public class AdminController {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Tanggal mulai tidak boleh melebihi tanggal selesai");
         }
 
-        // Cek apakah tabel leaves juga berubah struktur. Kalau error, cek kolomnya di pgAdmin.
-        jdbcTemplate.update("INSERT INTO leaves (user_id, from_date, to_date) VALUES (?, ?, ?)", userId, start, end);
+        // Ganti from_date & to_date jadi start_date & end_date di query INSERT
+        jdbcTemplate.update("INSERT INTO leaves (user_id, start_date, end_date) VALUES (?, ?, ?)", userId, start, end);
         log.info("Berhasil menambahkan Cuti untuk User ID: {}", userId);
         return ResponseEntity.ok(Map.of("message", "Cuti berhasil disimpan"));
     }
-
-    @DeleteMapping("/leaves/{id}")
-    public ResponseEntity<?> deleteLeave(@PathVariable Long id, HttpSession session) {
-        roleService.requireAdmin(session);
-        log.info("Menerima request DELETE untuk Cuti ID: {}", id);
-        int rows = jdbcTemplate.update("DELETE FROM leaves WHERE id = ?", id);
-        
-        if (rows == 0) {
-            log.warn("Gagal hapus: Cuti ID {} tidak ditemukan", id);
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Cuti tidak ditemukan");
-        }
-        log.info("Berhasil menghapus Cuti ID: {}", id);
-        return ResponseEntity.ok(Map.of("message", "Cuti berhasil dihapus"));
-    }
 }
+    
