@@ -24,12 +24,18 @@ public record DailyLogResponse(
         Long decidedByUserId,
         OffsetDateTime decidedAt,
         boolean autoSubmitted,
+        boolean editable,
+        OffsetDateTime deadline,
         Integer totalDurationMinutes,
         List<ProjectResponse> projects,
         List<TaskResponse> tasks
 ) {
 
-    public static DailyLogResponse from(DailyLog dailyLog) {
+    public static DailyLogResponse from(
+            DailyLog dailyLog,
+            boolean editable,
+            OffsetDateTime deadline
+    ) {
         List<LogTask> logTasks = dailyLog.getTasks();
 
         List<TaskResponse> tasks = logTasks.stream()
@@ -72,6 +78,8 @@ public record DailyLogResponse(
                 dailyLog.getDecidedByUserId(),
                 dailyLog.getDecidedAt(),
                 dailyLog.isAutoSubmitted(),
+                editable,
+                deadline,
                 totalDuration,
                 projects,
                 tasks

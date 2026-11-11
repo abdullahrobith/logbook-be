@@ -7,6 +7,8 @@ import org.junit.jupiter.api.Test;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -49,6 +51,14 @@ class DailyLogResponseTest {
         return dailyLog;
     }
 
+    private DailyLogResponse response(List<LogTask> tasks) {
+        return DailyLogResponse.from(
+                createDailyLog(tasks),
+                true,
+                OffsetDateTime.of(2026, 10, 30, 0, 0, 0, 0, ZoneOffset.ofHours(7))
+        );
+    }
+
     @Test
     void shouldCalculateTotalDurationWithoutDoubleCountingParallelTasks() {
         List<LogTask> tasks = List.of(
@@ -57,8 +67,7 @@ class DailyLogResponseTest {
                 createTask(3L, 1L, "09:00", (short) 120)
         );
 
-        DailyLogResponse response =
-                DailyLogResponse.from(createDailyLog(tasks));
+        DailyLogResponse response = response(tasks);
 
         // Rentang gabungan 08:00 - 11:00 = 180 menit.
         assertEquals(180, response.totalDurationMinutes());
@@ -73,8 +82,7 @@ class DailyLogResponseTest {
                 createTask(4L, 2L, "13:00", (short) 90)
         );
 
-        DailyLogResponse response =
-                DailyLogResponse.from(createDailyLog(tasks));
+        DailyLogResponse response = response(tasks);
 
         assertEquals(2, response.projects().size());
 
@@ -99,8 +107,7 @@ class DailyLogResponseTest {
                 createTask(3L, 2L, "09:00", (short) 120)
         );
 
-        DailyLogResponse response =
-                DailyLogResponse.from(createDailyLog(tasks));
+        DailyLogResponse response = response(tasks);
 
         // Semua task digabung menjadi satu rentang 08:00 - 11:00.
         assertEquals(180, response.totalDurationMinutes());
@@ -114,16 +121,14 @@ class DailyLogResponseTest {
                 createTask(3L, 1L, "10:00", (short) 60)
         );
 
-        DailyLogResponse response =
-                DailyLogResponse.from(createDailyLog(tasks));
+        DailyLogResponse response = response(tasks);
 
         assertEquals(180, response.totalDurationMinutes());
     }
 
     @Test
     void shouldReturnZeroWhenThereAreNoTasks() {
-        DailyLogResponse response =
-                DailyLogResponse.from(createDailyLog(List.of()));
+        DailyLogResponse response = response(List.of());
 
         assertEquals(0, response.totalDurationMinutes());
         assertTrue(response.projects().isEmpty());
@@ -137,13 +142,23 @@ class DailyLogResponseTest {
                 createTask(2L, 2L, "08:00", (short) 120)
         );
 
-        DailyLogResponse response =
-                DailyLogResponse.from(createDailyLog(tasks));
+        DailyLogResponse response = response(tasks);
 
         assertEquals(120, response.totalDurationMinutes());
 
         // Masing-masing proyek tetap memiliki subtotal sendiri.
         assertEquals(120, response.projects().get(0).subtotalMinutes());
         assertEquals(120, response.projects().get(1).subtotalMinutes());
+    }
+
+    @Test
+    void shouldExposeEditableAndDeadline() {
+        DailyLogResponse response = response(List.of());
+
+        assertTrue(response.editable());
+        assertEquals(
+                OffsetDateTime.of(2026, 10, 30, 0, 0, 0, 0, ZoneOffset.ofHours(7)),
+                response.deadline()
+        );
     }
 }

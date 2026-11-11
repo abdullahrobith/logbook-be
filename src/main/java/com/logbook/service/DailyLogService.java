@@ -22,16 +22,21 @@ public class DailyLogService {
     private static final String STATUS_REJECTED = "DITOLAK";
 
     private final DailyLogRepository dailyLogRepository;
+    private final DeadlineService deadlineService;
 
-    public DailyLogService(DailyLogRepository dailyLogRepository) {
+    public DailyLogService(
+            DailyLogRepository dailyLogRepository,
+            DeadlineService deadlineService
+    ) {
         this.dailyLogRepository = dailyLogRepository;
+        this.deadlineService = deadlineService;
     }
 
     @Transactional(readOnly = true)
     public DailyLogResponse getDailyLog(Long userId, LocalDate date) {
         return dailyLogRepository
                 .findByUserIdAndLogDate(userId, date)
-                .map(DailyLogResponse::from)
+                .map(this::toResponse)
                 .orElseThrow(() -> {
                     log.debug("Daily Log User ID {} tanggal {} tidak ditemukan", userId, date);
                     return new ResponseStatusException(
@@ -44,8 +49,10 @@ public class DailyLogService {
     @Transactional
     public DailyLogResponse createDailyLog(Long userId, LocalDate date) {
         return dailyLogRepository.findByUserIdAndLogDate(userId, date)
-                .map(DailyLogResponse::from)
+                .map(this::toResponse)
                 .orElseGet(() -> {
+                    requireEditableDay(date, "dibuat", null);
+
                     log.info("Membuat Daily Log baru berstatus DRAF untuk User ID {} tanggal {}",
                             userId, date);
 
@@ -66,7 +73,7 @@ public class DailyLogService {
 
                     log.info("Berhasil membuat Daily Log ID {} untuk User ID {} tanggal {}",
                             created.getId(), userId, date);
-                    return DailyLogResponse.from(created);
+                    return toResponse(created);
                 });
     }
 
@@ -84,8 +91,10 @@ public class DailyLogService {
 
         if (STATUS_WAITING.equalsIgnoreCase(dailyLog.getStatus())) {
             log.info("Daily Log ID {} sudah berstatus MENUNGGU, submit diabaikan", dailyLogId);
-            return DailyLogResponse.from(dailyLog);
+            return toResponse(dailyLog);
         }
+
+        requireEditableDay(dailyLog.getLogDate(), "dikirim", dailyLogId);
 
         // DRAF dikirim pertama kali; DITOLAK dikirim ulang setelah diperbaiki
         // (LBK-KRM-01).
@@ -112,7 +121,7 @@ public class DailyLogService {
 
         log.info("Berhasil submit Daily Log ID {} tanggal {} milik User ID {}",
                 saved.getId(), saved.getLogDate(), userId);
-        return DailyLogResponse.from(saved);
+        return toResponse(saved);
     }
 
     @Transactional
@@ -129,8 +138,10 @@ public class DailyLogService {
 
         if (STATUS_DRAFT.equalsIgnoreCase(dailyLog.getStatus())) {
             log.info("Daily Log ID {} sudah berstatus DRAF, withdraw diabaikan", dailyLogId);
-            return DailyLogResponse.from(dailyLog);
+            return toResponse(dailyLog);
         }
+
+        requireEditableDay(dailyLog.getLogDate(), "ditarik", dailyLogId);
 
         if (!STATUS_WAITING.equalsIgnoreCase(dailyLog.getStatus())) {
             log.warn("Gagal withdraw: Daily Log ID {} berstatus {}, bukan MENUNGGU",
@@ -146,6 +157,38 @@ public class DailyLogService {
 
         log.info("Berhasil withdraw Daily Log ID {} tanggal {} milik User ID {}",
                 saved.getId(), saved.getLogDate(), userId);
-        return DailyLogResponse.from(saved);
+        return toResponse(saved);
+    }
+
+    private DailyLogResponse toResponse(DailyLog dailyLog) {
+        return DailyLogResponse.from(
+                dailyLog,
+                deadlineService.isEditable(dailyLog.getStatus(), dailyLog.getLogDate()),
+                deadlineService.deadlineFor(dailyLog.getLogDate())
+        );
+    }
+
+    private void requireEditableDay(LocalDate date, String action, Long dailyLogId) {
+        String dailyLogLabel = dailyLogId == null ? "" : " ID " + dailyLogId;
+
+        if (deadlineService.isPastDeadline(date)) {
+            log.warn("Gagal {} Daily Log{}: batas hari tanggal {} sudah lewat",
+                    action, dailyLogLabel, date);
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "Batas hari sudah lewat. Daily Log tanggal " + date
+                            + " tidak dapat " + action + "."
+            );
+        }
+
+        if (deadlineService.isFutureDay(date)) {
+            log.warn("Gagal {} Daily Log{}: tanggal {} belum tiba",
+                    action, dailyLogLabel, date);
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "Tanggal " + date + " belum tiba. Daily Log hanya dapat " + action
+                            + " pada tanggal hari ini."
+            );
+        }
     }
 }

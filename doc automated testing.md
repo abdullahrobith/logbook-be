@@ -69,8 +69,9 @@ Pengujian dilakukan terhadap logika penghitungan durasi pekerjaan pada Daily Log
 | 4 | Menghitung task dengan waktu berurutan | Lulus |
 | 5 | Menangani Daily Log tanpa task | Lulus |
 | 6 | Menangani interval waktu identik pada beberapa project | Lulus |
+| 7 | Menyertakan field `editable` dan `deadline` pada response Daily Log | Lulus |
 
-Total: **6 test, seluruhnya lulus.**
+Total: **7 test, seluruhnya lulus.**
 
 ### 4.2 LogTaskRequestTest
 
@@ -108,8 +109,17 @@ Pengujian dilakukan untuk memastikan logika bisnis pada proses pengelolaan task.
 | 11 | Pembaruan task tidak menghitung task itu sendiri pada batas tumpang tindih | Lulus |
 | 12 | Task tidak dapat dihapus jika Daily Log bukan berstatus DRAF | Lulus |
 | 13 | Berhasil menghapus task | Lulus |
+| 14 | Task tidak dapat ditambah pada hari yang sudah lewat | Lulus |
+| 15 | Task tidak dapat diubah pada hari yang sudah lewat | Lulus |
+| 16 | Task tidak dapat dihapus pada hari yang sudah lewat | Lulus |
+| 17 | Task tidak dapat ditambah pada tanggal yang belum tiba | Lulus |
+| 18 | Task tidak dapat diubah pada tanggal yang belum tiba | Lulus |
+| 19 | Task tidak dapat dihapus pada tanggal yang belum tiba | Lulus |
+| 20 | Task dapat ditambah pada Daily Log berstatus DITOLAK | Lulus |
+| 21 | Task dapat diubah pada Daily Log berstatus DITOLAK | Lulus |
+| 22 | Task dapat dihapus pada Daily Log berstatus DITOLAK | Lulus |
 
-Total: **13 test, seluruhnya lulus.**
+Total: **22 test, seluruhnya lulus.**
 
 ### 4.4 DailyLogServiceTest
 
@@ -127,8 +137,14 @@ Pengujian dilakukan untuk memastikan logika pembuatan dan pengiriman Daily Log.
 | 8 | Penarikan ulang Daily Log DRAF bersifat idempotent | Lulus |
 | 9 | Penarikan gagal jika status Daily Log tidak dapat ditarik | Lulus |
 | 10 | Penarikan gagal jika Daily Log tidak ditemukan | Lulus |
+| 11 | Pembuatan Daily Log ditolak pada hari yang sudah lewat | Lulus |
+| 12 | Pengiriman Daily Log ditolak pada hari yang sudah lewat | Lulus |
+| 13 | Penarikan Daily Log ditolak pada hari yang sudah lewat | Lulus |
+| 14 | Pembuatan Daily Log ditolak pada tanggal yang belum tiba | Lulus |
+| 15 | Pengiriman Daily Log ditolak pada tanggal yang belum tiba | Lulus |
+| 16 | Penarikan Daily Log ditolak pada tanggal yang belum tiba | Lulus |
 
-Total: **10 test, seluruhnya lulus.**
+Total: **16 test, seluruhnya lulus.**
 
 ### 4.5 RoleServiceTest
 
@@ -203,13 +219,35 @@ Pengujian dilakukan untuk memastikan keputusan atas Daily Log (setujui, tolak, a
 
 Total: **15 test, seluruhnya lulus.**
 
+### 4.9 DeadlineServiceTest
+
+Pengujian dilakukan untuk memastikan perhitungan batas hari, penentuan hari ini, dan aturan hari yang dapat diisi berjalan benar.
+
+| No. | Skenario Pengujian | Hasil |
+|---|---|---|
+| 1 | Deadline adalah pukul 00:00 hari berikutnya pada zona waktu yang dikonfigurasi | Lulus |
+| 2 | Tanggal kemarin sudah melewati deadline | Lulus |
+| 3 | Tanggal hari ini dan besok belum melewati deadline | Lulus |
+| 4 | Hanya tanggal besok yang dianggap hari yang belum tiba | Lulus |
+| 5 | Hanya tanggal hari ini yang dianggap hari ini | Lulus |
+| 6 | Daily Log DRAF hari ini dapat disunting | Lulus |
+| 7 | Daily Log DRAF kemarin tidak dapat disunting | Lulus |
+| 8 | Daily Log DRAF besok tidak dapat disunting | Lulus |
+| 9 | Status selain DRAF tidak dapat disunting | Lulus |
+| 10 | Saat aturan dimatikan, hari yang sudah lewat tetap dapat disunting | Lulus |
+| 11 | Saat aturan dimatikan, hari yang belum tiba tetap dapat disunting | Lulus |
+| 12 | Daily Log DITOLAK hari ini dapat disunting untuk diperbaiki | Lulus |
+| 13 | Daily Log DITOLAK pada hari lain tidak dapat disunting | Lulus |
+
+Total: **13 test, seluruhnya lulus.**
+
 ## 5. Integration Testing
 
 Integration testing dilakukan menggunakan Spring Boot Test dan MockMvc untuk menguji interaksi antara endpoint API, komponen aplikasi, session autentikasi, otorisasi berbasis peran, dan database PostgreSQL.
 
-Pengujian menggunakan database `logbook` dengan konfigurasi transaksi `@Transactional` untuk membantu melakukan rollback perubahan data setelah setiap test selesai.
+Pengujian menggunakan database `logbook` dengan konfigurasi transaksi `@Transactional` untuk membantu melakukan rollback perubahan data setelah setiap test selesai. Terdapat dua kelas integration test dengan konfigurasi aturan batas hari yang berbeda agar keduanya dapat berjalan di database lokal yang sama.
 
-### 5.1 Skenario Pengujian
+### 5.1 LogbookApiIntegrationTest
 
 | No. | Skenario Pengujian | Hasil |
 |---|---|---|
@@ -287,39 +325,64 @@ Pengujian menggunakan database `logbook` dengan konfigurasi transaksi `@Transact
 
 Total: **71 test, seluruhnya lulus.**
 
+### 5.2 DailyLogDeadlineIntegrationTest
+
+Pengujian ini dijalankan dengan `logbook.batas-hari.aktif=true` untuk memastikan aturan batas hari benar-benar ditegakkan pada level API, termasuk ketika data uji bertanggal lampau. Sebaliknya, `LogbookApiIntegrationTest` dijalankan dengan aturan dimatikan agar fixture bertanggal lampau tetap dapat dipakai.
+
+| No. | Skenario Pengujian | Hasil |
+|---|---|---|
+| 1 | Response hari yang sudah lewat menyertakan `editable=false` dan `deadline`, dan task baru ditolak | Lulus |
+| 2 | Hari yang sudah lewat menolak pengiriman Daily Log | Lulus |
+| 3 | Hari yang sudah lewat menolak penarikan Daily Log | Lulus |
+| 4 | Hari yang sudah lewat menolak pembaruan task | Lulus |
+| 5 | Hari yang sudah lewat menolak penghapusan task | Lulus |
+| 6 | Pembuatan Daily Log baru ditolak pada hari yang sudah lewat | Lulus |
+| 7 | Hari ini tetap dapat disunting dan menerima task baru | Lulus |
+| 8 | Tanggal besok terkunci, task baru dan pengiriman ditolak, `editable=false` | Lulus |
+| 9 | Pembuatan Daily Log baru ditolak pada tanggal yang belum tiba | Lulus |
+| 10 | Response hari ini menyertakan `editable=true` dan `deadline` | Lulus |
+| 11 | Daily Log DITOLAK hari ini dapat diperbaiki dan dikirim ulang, alasan penolakan dibersihkan | Lulus |
+| 12 | Daily Log DITOLAK pada hari yang sudah lewat tetap terkunci | Lulus |
+
+Total: **12 test, seluruhnya lulus.**
+
 ## 6. Rekapitulasi Hasil Pengujian
 
-Berdasarkan hasil eksekusi perintah `.\mvnw.cmd test` pada 11 November 2026, diperoleh hasil sebagai berikut.
+Berdasarkan hasil eksekusi `.\mvnw.cmd test "-Dtest=!LogbookApiIntegrationTest,!DailyLogDeadlineIntegrationTest"` untuk unit test dan `.\mvnw.cmd test "-Dtest=LogbookApiIntegrationTest,DailyLogDeadlineIntegrationTest"` untuk integration test pada 11 November 2026, diperoleh hasil sebagai berikut.
 
 | Komponen Pengujian | Jumlah Test | Failures | Errors | Status |
 |---|---|---:|---:|---|
-| DailyLogResponseTest | 6 | 0 | 0 | Lulus |
+| DailyLogResponseTest | 7 | 0 | 0 | Lulus |
 | LogTaskRequestTest | 8 | 0 | 0 | Lulus |
-| LogTaskServiceTest | 13 | 0 | 0 | Lulus |
-| DailyLogServiceTest | 10 | 0 | 0 | Lulus |
+| LogTaskServiceTest | 22 | 0 | 0 | Lulus |
+| DailyLogServiceTest | 16 | 0 | 0 | Lulus |
+| DeadlineServiceTest | 13 | 0 | 0 | Lulus |
 | RoleServiceTest | 12 | 0 | 0 | Lulus |
 | TeamServiceTest | 4 | 0 | 0 | Lulus |
 | AdminDailyLogServiceTest | 6 | 0 | 0 | Lulus |
 | ApprovalServiceTest | 15 | 0 | 0 | Lulus |
 | LogbookApiIntegrationTest | 71 | 0 | 0 | Lulus |
+| DailyLogDeadlineIntegrationTest | 12 | 0 | 0 | Lulus |
 | LogbookBeApplicationTests | 1 | 0 | 0 | Lulus |
-| **Total** | **146** | **0** | **0** | **Lulus** |
+| **Total** | **187** | **0** | **0** | **Lulus** |
 
 ### 6.1 Kesimpulan Hasil Pengujian
 
 Berdasarkan pengujian yang telah dilakukan, diperoleh hasil:
 
 - Sebanyak 23 endpoint API tersedia; 10 endpoint diuji secara manual menggunakan Postman dan 13 endpoint diverifikasi melalui integration test.
-- Sebanyak 146 automated test berhasil dijalankan.
+- Sebanyak 187 automated test berhasil dijalankan.
 - Seluruh unit test dan integration test berhasil dilewati.
 - Tidak ditemukan failures maupun errors pada eksekusi pengujian otomatis.
 - Otorisasi berbasis peran (talent, atasan, admin) telah diuji pada level unit maupun integrasi.
 - Alur persetujuan Daily Log (setujui, tolak, ajukan perbaikan, setujui perbaikan), aturan alasan wajib, larangan memutuskan Daily Log sendiri, dan pencatatan log INFO setiap keputusan telah diuji.
+- Aturan batas hari telah diuji: hanya Daily Log tanggal hari ini yang dapat ditambah, diubah, atau dikirim, sedangkan hari yang sudah lewat maupun yang belum tiba ditolak dengan status 409.
+- Alur Daily Log DITOLAK telah diuji: pada hari yang sama task masih dapat diperbaiki lalu Daily Log dikirim ulang, sedangkan pada hari berikutnya hari tersebut tetap terkunci.
 
-Dengan demikian, backend Logbook berhasil melewati seluruh skenario pengujian yang telah disiapkan. Pengujian tambahan masih dapat dilakukan untuk memperluas cakupan, khususnya pada pengelolaan hari libur dan cuti, batas hari pengiriman, serta kondisi bisnis lainnya.
+Dengan demikian, backend Logbook berhasil melewati seluruh skenario pengujian yang telah disiapkan. Pengujian tambahan masih dapat dilakukan untuk memperluas cakupan, khususnya pada pengelolaan hari libur dan cuti, pengiriman otomatis di akhir hari, serta kondisi bisnis lainnya.
 
 ## 7. Kesimpulan
 
-Pengujian backend Logbook telah dilakukan melalui tiga pendekatan, yaitu manual testing, unit testing, dan integration testing. Pengujian manual terhadap 10 endpoint API berhasil dilakukan menggunakan Postman, 13 endpoint tambahan diverifikasi melalui integration test, dan pengujian otomatis menghasilkan 146 test dengan 0 failures dan 0 errors.
+Pengujian backend Logbook telah dilakukan melalui tiga pendekatan, yaitu manual testing, unit testing, dan integration testing. Pengujian manual terhadap 10 endpoint API berhasil dilakukan menggunakan Postman, 13 endpoint tambahan diverifikasi melalui integration test, dan pengujian otomatis menghasilkan 187 test dengan 0 failures dan 0 errors.
 
 Hasil tersebut menunjukkan bahwa komponen backend yang telah diuji berjalan sesuai dengan skenario pengujian yang tersedia. Meskipun demikian, hasil ini belum menjamin seluruh kemungkinan kondisi sistem telah diuji sehingga pengembangan cakupan pengujian tetap diperlukan.

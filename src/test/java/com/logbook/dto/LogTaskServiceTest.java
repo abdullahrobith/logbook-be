@@ -12,7 +12,11 @@ import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.Clock;
+import java.time.Instant;
+import java.time.LocalDate;
 import java.time.LocalTime;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Optional;
 
@@ -21,6 +25,10 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 class LogTaskServiceTest {
+
+    private static final ZoneId JAKARTA = ZoneId.of("Asia/Jakarta");
+    private static final Instant NOW = Instant.parse("2026-11-11T03:00:00Z");
+    private static final LocalDate TODAY = LocalDate.of(2026, 11, 11);
 
     private DailyLogRepository dailyLogRepository;
     private LogTaskRepository logTaskRepository;
@@ -42,13 +50,19 @@ class LogTaskServiceTest {
         service = new LogTaskService(
                 dailyLogRepository,
                 logTaskRepository,
-                projectRepository
+                projectRepository,
+                new DeadlineService(
+                        true,
+                        JAKARTA,
+                        Clock.fixed(NOW, JAKARTA)
+                )
         );
 
         dailyLog = mock(DailyLog.class);
 
         when(dailyLog.getId()).thenReturn(dailyLogId);
         when(dailyLog.getUserId()).thenReturn(userId);
+        when(dailyLog.getLogDate()).thenReturn(TODAY);
         when(dailyLog.getStatus()).thenReturn("DRAF");
         when(dailyLog.getTasks()).thenReturn(List.of());
 
@@ -386,6 +400,174 @@ class LogTaskServiceTest {
         assertDoesNotThrow(() -> service.deleteTask(userId, 5L));
 
         verify(logTaskRepository).delete(task);
+    }
+
+    @Test
+    void createTaskShouldFailAfterDeadline() {
+        when(dailyLog.getLogDate()).thenReturn(TODAY.minusDays(1));
+
+        ResponseStatusException exception = assertThrows(
+                ResponseStatusException.class,
+                () -> service.createTask(userId, dailyLogId, validRequest())
+        );
+
+        assertEquals(HttpStatus.CONFLICT, exception.getStatusCode());
+        assertTrue(exception.getReason().contains("Batas hari"));
+        verify(logTaskRepository, never()).save(any());
+    }
+
+    @Test
+    void updateTaskShouldFailAfterDeadline() {
+        LogTask task = mock(LogTask.class);
+        DailyLog pastLog = mock(DailyLog.class);
+        when(pastLog.getId()).thenReturn(dailyLogId);
+        when(pastLog.getLogDate()).thenReturn(TODAY.minusDays(1));
+        when(pastLog.getStatus()).thenReturn("DRAF");
+        when(task.getDailyLog()).thenReturn(pastLog);
+        when(logTaskRepository.findByIdAndUserId(5L, userId))
+                .thenReturn(Optional.of(task));
+
+        ResponseStatusException exception = assertThrows(
+                ResponseStatusException.class,
+                () -> service.updateTask(userId, 5L, validRequest())
+        );
+
+        assertEquals(HttpStatus.CONFLICT, exception.getStatusCode());
+        assertTrue(exception.getReason().contains("Batas hari"));
+        verify(logTaskRepository, never()).save(any());
+    }
+
+    @Test
+    void deleteTaskShouldFailAfterDeadline() {
+        LogTask task = mock(LogTask.class);
+        DailyLog pastLog = mock(DailyLog.class);
+        when(pastLog.getId()).thenReturn(dailyLogId);
+        when(pastLog.getLogDate()).thenReturn(TODAY.minusDays(1));
+        when(pastLog.getStatus()).thenReturn("DRAF");
+        when(task.getDailyLog()).thenReturn(pastLog);
+        when(logTaskRepository.findByIdAndUserId(5L, userId))
+                .thenReturn(Optional.of(task));
+
+        ResponseStatusException exception = assertThrows(
+                ResponseStatusException.class,
+                () -> service.deleteTask(userId, 5L)
+        );
+
+        assertEquals(HttpStatus.CONFLICT, exception.getStatusCode());
+        assertTrue(exception.getReason().contains("Batas hari"));
+        verify(logTaskRepository, never()).delete(any());
+    }
+
+    @Test
+    void createTaskShouldFailForFutureDate() {
+        when(dailyLog.getLogDate()).thenReturn(TODAY.plusDays(1));
+
+        ResponseStatusException exception = assertThrows(
+                ResponseStatusException.class,
+                () -> service.createTask(userId, dailyLogId, validRequest())
+        );
+
+        assertEquals(HttpStatus.CONFLICT, exception.getStatusCode());
+        assertTrue(exception.getReason().contains("belum tiba"));
+        verify(logTaskRepository, never()).save(any());
+    }
+
+    @Test
+    void updateTaskShouldFailForFutureDate() {
+        LogTask task = mock(LogTask.class);
+        DailyLog futureLog = logOn(TODAY.plusDays(1));
+        when(task.getDailyLog()).thenReturn(futureLog);
+        when(logTaskRepository.findByIdAndUserId(5L, userId))
+                .thenReturn(Optional.of(task));
+
+        ResponseStatusException exception = assertThrows(
+                ResponseStatusException.class,
+                () -> service.updateTask(userId, 5L, validRequest())
+        );
+
+        assertEquals(HttpStatus.CONFLICT, exception.getStatusCode());
+        assertTrue(exception.getReason().contains("belum tiba"));
+        verify(logTaskRepository, never()).save(any());
+    }
+
+    @Test
+    void deleteTaskShouldFailForFutureDate() {
+        LogTask task = mock(LogTask.class);
+        DailyLog futureLog = logOn(TODAY.plusDays(1));
+        when(task.getDailyLog()).thenReturn(futureLog);
+        when(logTaskRepository.findByIdAndUserId(5L, userId))
+                .thenReturn(Optional.of(task));
+
+        ResponseStatusException exception = assertThrows(
+                ResponseStatusException.class,
+                () -> service.deleteTask(userId, 5L)
+        );
+
+        assertEquals(HttpStatus.CONFLICT, exception.getStatusCode());
+        assertTrue(exception.getReason().contains("belum tiba"));
+        verify(logTaskRepository, never()).delete(any());
+    }
+
+    @Test
+    void createTaskShouldSucceedWhenDailyLogIsRejected() {
+        when(dailyLog.getStatus()).thenReturn("DITOLAK");
+        when(projectRepository.existsActiveProjectForUser(1L, userId))
+                .thenReturn(true);
+        when(logTaskRepository.save(any(LogTask.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        assertDoesNotThrow(() -> service.createTask(
+                userId,
+                dailyLogId,
+                validRequest()
+        ));
+
+        verify(logTaskRepository).save(any(LogTask.class));
+    }
+
+    @Test
+    void updateTaskShouldSucceedWhenDailyLogIsRejected() {
+        LogTask task = overlappingTask(5L, LocalTime.of(9, 0), (short) 120);
+        DailyLog rejectedLog = logOn(TODAY);
+        when(rejectedLog.getStatus()).thenReturn("DITOLAK");
+        when(rejectedLog.getTasks()).thenReturn(List.of(task));
+        when(task.getDailyLog()).thenReturn(rejectedLog);
+        when(logTaskRepository.findByIdAndUserId(5L, userId))
+                .thenReturn(Optional.of(task));
+        when(projectRepository.existsActiveProjectForUser(1L, userId))
+                .thenReturn(true);
+        when(logTaskRepository.save(any(LogTask.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        assertDoesNotThrow(() -> service.updateTask(
+                userId,
+                5L,
+                validRequest()
+        ));
+
+        verify(logTaskRepository).save(task);
+    }
+
+    @Test
+    void deleteTaskShouldSucceedWhenDailyLogIsRejected() {
+        LogTask task = mock(LogTask.class);
+        DailyLog rejectedLog = logOn(TODAY);
+        when(rejectedLog.getStatus()).thenReturn("DITOLAK");
+        when(task.getDailyLog()).thenReturn(rejectedLog);
+        when(logTaskRepository.findByIdAndUserId(5L, userId))
+                .thenReturn(Optional.of(task));
+
+        assertDoesNotThrow(() -> service.deleteTask(userId, 5L));
+
+        verify(logTaskRepository).delete(task);
+    }
+
+    private DailyLog logOn(LocalDate date) {
+        DailyLog dailyLog = mock(DailyLog.class);
+        when(dailyLog.getId()).thenReturn(dailyLogId);
+        when(dailyLog.getLogDate()).thenReturn(date);
+        when(dailyLog.getStatus()).thenReturn("DRAF");
+        return dailyLog;
     }
 
     private LogTask overlappingTask(

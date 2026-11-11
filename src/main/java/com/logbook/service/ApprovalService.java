@@ -42,15 +42,18 @@ public class ApprovalService {
     private final DailyLogRepository dailyLogRepository;
     private final UserRepository userRepository;
     private final RoleService roleService;
+    private final DeadlineService deadlineService;
 
     public ApprovalService(
             DailyLogRepository dailyLogRepository,
             UserRepository userRepository,
-            RoleService roleService
+            RoleService roleService,
+            DeadlineService deadlineService
     ) {
         this.dailyLogRepository = dailyLogRepository;
         this.userRepository = userRepository;
         this.roleService = roleService;
+        this.deadlineService = deadlineService;
     }
 
     /**
@@ -73,7 +76,7 @@ public class ApprovalService {
                 actor.getEmail()
         );
 
-        return DailyLogResponse.from(saved);
+        return toResponse(saved);
     }
 
     /**
@@ -100,7 +103,7 @@ public class ApprovalService {
                 normalizedReason
         );
 
-        return DailyLogResponse.from(saved);
+        return toResponse(saved);
     }
 
     /**
@@ -127,7 +130,7 @@ public class ApprovalService {
                 normalizedReason
         );
 
-        return DailyLogResponse.from(saved);
+        return toResponse(saved);
     }
 
     /**
@@ -153,7 +156,7 @@ public class ApprovalService {
                 STATUS_DRAFT
         );
 
-        return DailyLogResponse.from(saved);
+        return toResponse(saved);
     }
 
     /**
@@ -205,6 +208,14 @@ public class ApprovalService {
         }
 
         return dailyLog;
+    }
+
+    private DailyLogResponse toResponse(DailyLog dailyLog) {
+        return DailyLogResponse.from(
+                dailyLog,
+                deadlineService.isEditable(dailyLog.getStatus(), dailyLog.getLogDate()),
+                deadlineService.deadlineFor(dailyLog.getLogDate())
+        );
     }
 
     private void requireStatus(DailyLog dailyLog, String expectedStatus, String action) {

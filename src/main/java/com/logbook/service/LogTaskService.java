@@ -22,6 +22,7 @@ import java.util.Set;
 public class LogTaskService {
 
     private static final String STATUS_DRAF = "DRAF";
+    private static final String STATUS_REJECTED = "DITOLAK";
     private static final short MIN_DURATION_MINUTES = 5;
     private static final short MAX_DURATION_MINUTES = 1440;
     private static final int MAX_CONCURRENT_TASKS = 3;
@@ -32,15 +33,18 @@ public class LogTaskService {
     private final DailyLogRepository dailyLogRepository;
     private final LogTaskRepository logTaskRepository;
     private final ProjectRepository projectRepository;
+    private final DeadlineService deadlineService;
 
     public LogTaskService(
             DailyLogRepository dailyLogRepository,
             LogTaskRepository logTaskRepository,
-            ProjectRepository projectRepository
+            ProjectRepository projectRepository,
+            DeadlineService deadlineService
     ) {
         this.dailyLogRepository = dailyLogRepository;
         this.logTaskRepository = logTaskRepository;
         this.projectRepository = projectRepository;
+        this.deadlineService = deadlineService;
     }
 
     @Transactional
@@ -62,7 +66,8 @@ public class LogTaskService {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Daily log bukan milik pengguna ini");
         }
 
-        requireDraft(dailyLog);
+        requireEditableDay(dailyLog, "ditambah");
+        requireEditableStatus(dailyLog);
         validateRequest(userId, request);
         validateConcurrentTaskLimit(dailyLog, request.startTime(), request.durationMinutes(), null);
 
@@ -97,7 +102,8 @@ public class LogTaskService {
         
         LogTask logTask = findOwnedTask(userId, taskId);
 
-        requireDraft(logTask.getDailyLog());
+        requireEditableDay(logTask.getDailyLog(), "diubah");
+        requireEditableStatus(logTask.getDailyLog());
         validateRequest(userId, request);
         validateConcurrentTaskLimit(
                 logTask.getDailyLog(),
@@ -130,7 +136,8 @@ public class LogTaskService {
         
         LogTask logTask = findOwnedTask(userId, taskId);
 
-        requireDraft(logTask.getDailyLog());
+        requireEditableDay(logTask.getDailyLog(), "dihapus");
+        requireEditableStatus(logTask.getDailyLog());
         logTaskRepository.delete(logTask);
         
         log.info("Berhasil menghapus task ID: {}", taskId);
@@ -144,12 +151,37 @@ public class LogTaskService {
                 });
     }
 
-    private void requireDraft(DailyLog dailyLog) {
-        if (!STATUS_DRAF.equalsIgnoreCase(dailyLog.getStatus())) {
-            log.warn("Validasi gagal: Daily Log ID {} berstatus {}, bukan DRAF", dailyLog.getId(), dailyLog.getStatus());
+    private void requireEditableStatus(DailyLog dailyLog) {
+        String status = dailyLog.getStatus();
+        if (!STATUS_DRAF.equalsIgnoreCase(status)
+                && !STATUS_REJECTED.equalsIgnoreCase(status)) {
+            log.warn("Validasi gagal: Daily Log ID {} berstatus {}, bukan DRAF/DITOLAK",
+                    dailyLog.getId(), status);
             throw new ResponseStatusException(
                     HttpStatus.CONFLICT,
-                    "Task hanya dapat diubah pada Daily Log berstatus DRAF"
+                    "Task hanya dapat diubah pada Daily Log berstatus DRAF atau DITOLAK"
+            );
+        }
+    }
+
+    private void requireEditableDay(DailyLog dailyLog, String action) {
+        if (deadlineService.isPastDeadline(dailyLog.getLogDate())) {
+            log.warn("Validasi gagal: batas hari Daily Log ID {} tanggal {} sudah lewat, task tidak dapat {}",
+                    dailyLog.getId(), dailyLog.getLogDate(), action);
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "Batas hari sudah lewat. Task pada tanggal " + dailyLog.getLogDate()
+                            + " tidak dapat " + action + "."
+            );
+        }
+
+        if (deadlineService.isFutureDay(dailyLog.getLogDate())) {
+            log.warn("Validasi gagal: tanggal {} belum tiba, task pada Daily Log ID {} tidak dapat {}",
+                    dailyLog.getLogDate(), dailyLog.getId(), action);
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "Tanggal " + dailyLog.getLogDate() + " belum tiba. Task belum dapat " + action
+                            + ". Task hanya dapat diisi pada tanggal hari ini."
             );
         }
     }

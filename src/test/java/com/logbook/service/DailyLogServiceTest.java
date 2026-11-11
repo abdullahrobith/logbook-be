@@ -8,32 +8,46 @@ import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.Clock;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 class DailyLogServiceTest {
 
+    private static final ZoneId JAKARTA = ZoneId.of("Asia/Jakarta");
+    private static final Instant NOW = Instant.parse("2026-11-11T03:00:00Z");
+    private static final LocalDate TODAY = LocalDate.of(2026, 11, 11);
+
     private DailyLogRepository dailyLogRepository;
+    private DeadlineService deadlineService;
     private DailyLogService service;
 
     @BeforeEach
     void setUp() {
         dailyLogRepository = mock(DailyLogRepository.class);
-        service = new DailyLogService(dailyLogRepository);
+        deadlineService = new DeadlineService(
+                true,
+                JAKARTA,
+                Clock.fixed(NOW, JAKARTA)
+        );
+        service = new DailyLogService(dailyLogRepository, deadlineService);
     }
 
     @Test
     void createDailyLogShouldInsertDraftWithDefaultScheduleWhenMissing() {
-        LocalDate date = LocalDate.of(2026, 11, 5);
+        LocalDate date = TODAY;
         DailyLog created = draftLog(13L, date, List.of());
 
         when(dailyLogRepository.findByUserIdAndLogDate(1L, date))
@@ -61,7 +75,7 @@ class DailyLogServiceTest {
 
     @Test
     void createDailyLogShouldReturnExistingLogWithoutSavingDuplicate() {
-        LocalDate date = LocalDate.of(2026, 11, 5);
+        LocalDate date = TODAY;
         DailyLog existing = mock(DailyLog.class);
         when(existing.getId()).thenReturn(12L);
         when(existing.getUserId()).thenReturn(1L);
@@ -79,7 +93,7 @@ class DailyLogServiceTest {
 
     @Test
     void submitDailyLogShouldMarkSubmittedWhenDraftHasTasks() {
-        LocalDate date = LocalDate.of(2026, 11, 5);
+        LocalDate date = TODAY;
         LogTask task = mock(LogTask.class);
         when(task.getProjectId()).thenReturn(1L);
         when(task.getStartTime()).thenReturn(LocalTime.of(9, 0));
@@ -99,7 +113,7 @@ class DailyLogServiceTest {
 
     @Test
     void submitDailyLogShouldBeIdempotentWhenAlreadySubmitted() {
-        LocalDate date = LocalDate.of(2026, 11, 5);
+        LocalDate date = TODAY;
         DailyLog dailyLog = draftLog(10L, date, List.of());
         when(dailyLog.getStatus()).thenReturn("MENUNGGU");
         when(dailyLogRepository.findByIdAndUserId(10L, 1L))
@@ -114,7 +128,7 @@ class DailyLogServiceTest {
 
     @Test
     void submitDailyLogShouldFailWhenDraftHasNoTasks() {
-        LocalDate date = LocalDate.of(2026, 11, 5);
+        LocalDate date = TODAY;
         DailyLog dailyLog = draftLog(10L, date, List.of());
         when(dailyLogRepository.findByIdAndUserId(10L, 1L))
                 .thenReturn(Optional.of(dailyLog));
@@ -126,6 +140,126 @@ class DailyLogServiceTest {
 
         assertEquals(HttpStatus.BAD_REQUEST, exception.getStatusCode());
         verify(dailyLog, never()).submit(any());
+    }
+
+    @Test
+    void createDailyLogShouldFailAfterDeadlineWhenMissing() {
+        LocalDate date = TODAY.minusDays(1);
+
+        when(dailyLogRepository.findByUserIdAndLogDate(1L, date))
+                .thenReturn(Optional.empty());
+
+        ResponseStatusException exception = assertThrows(
+                ResponseStatusException.class,
+                () -> service.createDailyLog(1L, date)
+        );
+
+        assertEquals(HttpStatus.CONFLICT, exception.getStatusCode());
+        assertTrue(exception.getReason().contains("Batas hari"));
+        verify(dailyLogRepository, never()).insertDraftIfAbsent(
+                any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void submitDailyLogShouldFailAfterDeadline() {
+        LocalDate date = TODAY.minusDays(1);
+        LogTask task = mock(LogTask.class);
+        when(task.getProjectId()).thenReturn(1L);
+        when(task.getStartTime()).thenReturn(LocalTime.of(9, 0));
+        when(task.getDurationMinutes()).thenReturn((short) 30);
+
+        DailyLog dailyLog = draftLog(10L, date, List.of(task));
+        when(dailyLogRepository.findByIdAndUserId(10L, 1L))
+                .thenReturn(Optional.of(dailyLog));
+
+        ResponseStatusException exception = assertThrows(
+                ResponseStatusException.class,
+                () -> service.submitDailyLog(1L, 10L)
+        );
+
+        assertEquals(HttpStatus.CONFLICT, exception.getStatusCode());
+        assertTrue(exception.getReason().contains("Batas hari"));
+        verify(dailyLog, never()).submit(any());
+        verify(dailyLogRepository, never()).save(any(DailyLog.class));
+    }
+
+    @Test
+    void withdrawDailyLogShouldFailAfterDeadline() {
+        LocalDate date = TODAY.minusDays(1);
+        DailyLog dailyLog = draftLog(10L, date, List.of());
+        when(dailyLog.getStatus()).thenReturn("MENUNGGU");
+        when(dailyLogRepository.findByIdAndUserId(10L, 1L))
+                .thenReturn(Optional.of(dailyLog));
+
+        ResponseStatusException exception = assertThrows(
+                ResponseStatusException.class,
+                () -> service.withdrawDailyLog(1L, 10L)
+        );
+
+        assertEquals(HttpStatus.CONFLICT, exception.getStatusCode());
+        assertTrue(exception.getReason().contains("Batas hari"));
+        verify(dailyLog, never()).withdraw(any());
+        verify(dailyLogRepository, never()).save(any(DailyLog.class));
+    }
+
+    @Test
+    void createDailyLogShouldFailForFutureDateWhenMissing() {
+        LocalDate date = TODAY.plusDays(1);
+
+        when(dailyLogRepository.findByUserIdAndLogDate(1L, date))
+                .thenReturn(Optional.empty());
+
+        ResponseStatusException exception = assertThrows(
+                ResponseStatusException.class,
+                () -> service.createDailyLog(1L, date)
+        );
+
+        assertEquals(HttpStatus.CONFLICT, exception.getStatusCode());
+        assertTrue(exception.getReason().contains("belum tiba"));
+        verify(dailyLogRepository, never()).insertDraftIfAbsent(
+                any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void submitDailyLogShouldFailForFutureDate() {
+        LocalDate date = TODAY.plusDays(1);
+        LogTask task = mock(LogTask.class);
+        when(task.getProjectId()).thenReturn(1L);
+        when(task.getStartTime()).thenReturn(LocalTime.of(9, 0));
+        when(task.getDurationMinutes()).thenReturn((short) 30);
+
+        DailyLog dailyLog = draftLog(10L, date, List.of(task));
+        when(dailyLogRepository.findByIdAndUserId(10L, 1L))
+                .thenReturn(Optional.of(dailyLog));
+
+        ResponseStatusException exception = assertThrows(
+                ResponseStatusException.class,
+                () -> service.submitDailyLog(1L, 10L)
+        );
+
+        assertEquals(HttpStatus.CONFLICT, exception.getStatusCode());
+        assertTrue(exception.getReason().contains("belum tiba"));
+        verify(dailyLog, never()).submit(any());
+        verify(dailyLogRepository, never()).save(any(DailyLog.class));
+    }
+
+    @Test
+    void withdrawDailyLogShouldFailForFutureDate() {
+        LocalDate date = TODAY.plusDays(1);
+        DailyLog dailyLog = draftLog(10L, date, List.of());
+        when(dailyLog.getStatus()).thenReturn("MENUNGGU");
+        when(dailyLogRepository.findByIdAndUserId(10L, 1L))
+                .thenReturn(Optional.of(dailyLog));
+
+        ResponseStatusException exception = assertThrows(
+                ResponseStatusException.class,
+                () -> service.withdrawDailyLog(1L, 10L)
+        );
+
+        assertEquals(HttpStatus.CONFLICT, exception.getStatusCode());
+        assertTrue(exception.getReason().contains("belum tiba"));
+        verify(dailyLog, never()).withdraw(any());
+        verify(dailyLogRepository, never()).save(any(DailyLog.class));
     }
 
     @Test
@@ -143,7 +277,7 @@ class DailyLogServiceTest {
 
     @Test
     void withdrawDailyLogShouldMarkDraftWhenSubmitted() {
-        LocalDate date = LocalDate.of(2026, 11, 5);
+        LocalDate date = TODAY;
         DailyLog dailyLog = draftLog(10L, date, List.of());
         when(dailyLog.getStatus()).thenReturn("MENUNGGU");
         when(dailyLogRepository.findByIdAndUserId(10L, 1L))
@@ -159,7 +293,7 @@ class DailyLogServiceTest {
 
     @Test
     void withdrawDailyLogShouldBeIdempotentWhenAlreadyDraft() {
-        LocalDate date = LocalDate.of(2026, 11, 5);
+        LocalDate date = TODAY;
         DailyLog dailyLog = draftLog(10L, date, List.of());
         when(dailyLogRepository.findByIdAndUserId(10L, 1L))
                 .thenReturn(Optional.of(dailyLog));
@@ -173,7 +307,7 @@ class DailyLogServiceTest {
 
     @Test
     void withdrawDailyLogShouldFailWhenStatusCannotBeWithdrawn() {
-        LocalDate date = LocalDate.of(2026, 11, 5);
+        LocalDate date = TODAY;
         DailyLog dailyLog = draftLog(10L, date, List.of());
         when(dailyLog.getStatus()).thenReturn("DITOLAK");
         when(dailyLogRepository.findByIdAndUserId(10L, 1L))

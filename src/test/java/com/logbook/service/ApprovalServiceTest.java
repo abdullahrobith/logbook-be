@@ -14,8 +14,11 @@ import org.springframework.http.HttpStatus;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.Clock;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Optional;
 
@@ -49,7 +52,19 @@ class ApprovalServiceTest {
         dailyLogRepository = mock(DailyLogRepository.class);
         userRepository = mock(UserRepository.class);
         roleService = mock(RoleService.class);
-        service = new ApprovalService(dailyLogRepository, userRepository, roleService);
+        service = new ApprovalService(
+                dailyLogRepository,
+                userRepository,
+                roleService,
+                new DeadlineService(
+                        true,
+                        ZoneId.of("Asia/Jakarta"),
+                        Clock.fixed(
+                                Instant.parse("2026-11-11T03:00:00Z"),
+                                ZoneId.of("Asia/Jakarta")
+                        )
+                )
+        );
 
         actor = user(ACTOR_ID, ACTOR_EMAIL);
         owner = user(OWNER_ID, "talent@contoh.id");

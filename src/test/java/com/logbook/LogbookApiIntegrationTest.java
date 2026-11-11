@@ -38,7 +38,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-@SpringBootTest
+@SpringBootTest(properties = "logbook.batas-hari.aktif=false")
 @AutoConfigureMockMvc
 @Transactional
 class LogbookApiIntegrationTest {
@@ -186,7 +186,9 @@ class LogbookApiIntegrationTest {
                         .param("date", DAILY_LOG_DATE)
                         .session(session)
         )
-        .andExpect(status().isOk());
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.editable").value(true))
+        .andExpect(jsonPath("$.deadline").isNotEmpty());
     }
 
     @Test
