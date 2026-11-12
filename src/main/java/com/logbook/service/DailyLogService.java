@@ -20,16 +20,20 @@ public class DailyLogService {
     private static final String STATUS_DRAFT = "DRAF";
     private static final String STATUS_WAITING = "MENUNGGU";
     private static final String STATUS_REJECTED = "DITOLAK";
+    private static final String STATUS_MISSED = "TERLEWAT";
 
     private final DailyLogRepository dailyLogRepository;
     private final DeadlineService deadlineService;
+    private final CalendarService calendarService;
 
     public DailyLogService(
             DailyLogRepository dailyLogRepository,
-            DeadlineService deadlineService
+            DeadlineService deadlineService,
+            CalendarService calendarService
     ) {
         this.dailyLogRepository = dailyLogRepository;
         this.deadlineService = deadlineService;
+        this.calendarService = calendarService;
     }
 
     @Transactional(readOnly = true)
@@ -49,7 +53,7 @@ public class DailyLogService {
     @Transactional
     public DailyLogResponse createDailyLog(Long userId, LocalDate date) {
         return dailyLogRepository.findByUserIdAndLogDate(userId, date)
-                .map(this::toResponse)
+                .map(this::reopenMissedDayIfAllowed)
                 .orElseGet(() -> {
                     requireEditableDay(date, "dibuat", null);
 
@@ -164,8 +168,29 @@ public class DailyLogService {
         return DailyLogResponse.from(
                 dailyLog,
                 deadlineService.isEditable(dailyLog.getStatus(), dailyLog.getLogDate()),
-                deadlineService.deadlineFor(dailyLog.getLogDate())
+                deadlineService.deadlineFor(dailyLog.getLogDate()),
+                calendarService.describe(dailyLog.getUserId(), dailyLog.getLogDate())
         );
+    }
+
+    /**
+     * Saat aturan batas hari dimatikan, hari TERLEWAT boleh diisi kembali dan
+     * berubah menjadi DRAF (OCD 5.3.6).
+     */
+    private DailyLogResponse reopenMissedDayIfAllowed(DailyLog dailyLog) {
+        if (!deadlineService.isActive()
+                && STATUS_MISSED.equalsIgnoreCase(dailyLog.getStatus())) {
+            dailyLog.reopenAsDraft(OffsetDateTime.now());
+            DailyLog saved = dailyLogRepository.save(dailyLog);
+
+            log.info("Daily Log ID {} tanggal {} dibuka kembali dari TERLEWAT menjadi DRAF "
+                            + "karena aturan batas hari nonaktif",
+                    saved.getId(), saved.getLogDate());
+
+            return toResponse(saved);
+        }
+
+        return toResponse(dailyLog);
     }
 
     private void requireEditableDay(LocalDate date, String action, Long dailyLogId) {

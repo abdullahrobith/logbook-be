@@ -23,6 +23,7 @@ public class LogTaskService {
 
     private static final String STATUS_DRAF = "DRAF";
     private static final String STATUS_REJECTED = "DITOLAK";
+    private static final String STATUS_MISSED = "TERLEWAT";
     private static final short MIN_DURATION_MINUTES = 5;
     private static final short MAX_DURATION_MINUTES = 1440;
     private static final int MAX_CONCURRENT_TASKS = 3;
@@ -153,14 +154,27 @@ public class LogTaskService {
 
     private void requireEditableStatus(DailyLog dailyLog) {
         String status = dailyLog.getStatus();
+        boolean reopenMissedDay = !deadlineService.isActive()
+                && STATUS_MISSED.equalsIgnoreCase(status);
+
         if (!STATUS_DRAF.equalsIgnoreCase(status)
-                && !STATUS_REJECTED.equalsIgnoreCase(status)) {
+                && !STATUS_REJECTED.equalsIgnoreCase(status)
+                && !reopenMissedDay) {
             log.warn("Validasi gagal: Daily Log ID {} berstatus {}, bukan DRAF/DITOLAK",
                     dailyLog.getId(), status);
             throw new ResponseStatusException(
                     HttpStatus.CONFLICT,
                     "Task hanya dapat diubah pada Daily Log berstatus DRAF atau DITOLAK"
             );
+        }
+
+        if (reopenMissedDay) {
+            // Aturan batas hari nonaktif: hari TERLEWAT boleh diisi lagi dan
+            // berubah menjadi DRAF.
+            dailyLog.reopenAsDraft(OffsetDateTime.now());
+            log.info("Daily Log ID {} tanggal {} dibuka kembali dari TERLEWAT menjadi DRAF "
+                            + "karena aturan batas hari nonaktif",
+                    dailyLog.getId(), dailyLog.getLogDate());
         }
     }
 

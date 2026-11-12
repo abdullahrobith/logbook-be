@@ -22,6 +22,27 @@ public interface DailyLogRepository extends JpaRepository<DailyLog, Long> {
     @EntityGraph(attributePaths = "tasks")
     List<DailyLog> findByUserIdInAndLogDate(Collection<Long> userIds, LocalDate logDate);
 
+    /**
+     * Draf yang tanggalnya sudah lewat, dipakai tugas berkala untuk kirim
+     * otomatis. Pemeriksaan batas hari tetap dilakukan per baris memakai
+     * {@link com.logbook.service.DeadlineService}.
+     */
+    @EntityGraph(attributePaths = "tasks")
+    @Query("""
+            select distinct dl
+            from DailyLog dl
+            where dl.logDate <= :today
+              and upper(dl.status) = 'DRAF'
+            order by dl.logDate
+            """)
+    List<DailyLog> findDraftsUpTo(@Param("today") LocalDate today);
+
+    /**
+     * Seluruh Daily Log dalam rentang tanggal, tanpa memuat task. Dipakai tugas
+     * berkala untuk mengetahui hari yang sudah berisi.
+     */
+    List<DailyLog> findByLogDateBetween(LocalDate startDate, LocalDate endDate);
+
     @EntityGraph(attributePaths = "tasks")
     @Query("""
             select distinct dl

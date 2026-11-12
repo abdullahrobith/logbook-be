@@ -43,17 +43,20 @@ public class ApprovalService {
     private final UserRepository userRepository;
     private final RoleService roleService;
     private final DeadlineService deadlineService;
+    private final CalendarService calendarService;
 
     public ApprovalService(
             DailyLogRepository dailyLogRepository,
             UserRepository userRepository,
             RoleService roleService,
-            DeadlineService deadlineService
+            DeadlineService deadlineService,
+            CalendarService calendarService
     ) {
         this.dailyLogRepository = dailyLogRepository;
         this.userRepository = userRepository;
         this.roleService = roleService;
         this.deadlineService = deadlineService;
+        this.calendarService = calendarService;
     }
 
     /**
@@ -214,7 +217,8 @@ public class ApprovalService {
         return DailyLogResponse.from(
                 dailyLog,
                 deadlineService.isEditable(dailyLog.getStatus(), dailyLog.getLogDate()),
-                deadlineService.deadlineFor(dailyLog.getLogDate())
+                deadlineService.deadlineFor(dailyLog.getLogDate()),
+                calendarService.describe(dailyLog.getUserId(), dailyLog.getLogDate())
         );
     }
 

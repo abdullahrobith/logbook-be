@@ -94,6 +94,44 @@ public class DailyLog {
     }
 
     /**
+     * Tugas berkala mengirim Draf yang sudah melewati batas hari apa adanya.
+     * Berbeda dengan {@link #submit(OffsetDateTime)}, pengiriman ini ditandai
+     * otomatis agar pembaca tahu isinya belum tentu lengkap.
+     */
+    public void submitAutomatically(OffsetDateTime now) {
+        this.status = "MENUNGGU";
+        this.submittedAt = now;
+        this.autoSubmitted = true;
+        this.rejectionReason = null;
+        this.revisionReason = null;
+        this.decidedByUserId = null;
+        this.decidedAt = null;
+        this.updatedAt = now;
+    }
+
+    /**
+     * Hari kerja tanpa isi yang sudah melewati batas hari ditandai Terlewat
+     * dan tetap kosong.
+     */
+    public void markMissed(OffsetDateTime now) {
+        this.status = "TERLEWAT";
+        this.submittedAt = null;
+        this.autoSubmitted = false;
+        this.updatedAt = now;
+    }
+
+    /**
+     * Membuka kembali hari TERLEWAT menjadi DRAF saat aturan batas hari
+     * dimatikan sehingga talent boleh mengisi hari lalu.
+     */
+    public void reopenAsDraft(OffsetDateTime now) {
+        this.status = "DRAF";
+        this.submittedAt = null;
+        this.autoSubmitted = false;
+        this.updatedAt = now;
+    }
+
+    /**
      * Atasan atau admin menyetujui Daily Log yang sedang menunggu.
      */
     public void approve(Long decidedByUserId, OffsetDateTime now) {

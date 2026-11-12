@@ -28,13 +28,23 @@ public record DailyLogResponse(
         OffsetDateTime deadline,
         Integer totalDurationMinutes,
         List<ProjectResponse> projects,
-        List<TaskResponse> tasks
+        List<TaskResponse> tasks,
+        DayInfoResponse day
 ) {
 
     public static DailyLogResponse from(
             DailyLog dailyLog,
             boolean editable,
             OffsetDateTime deadline
+    ) {
+        return from(dailyLog, editable, deadline, DayInfoResponse.none());
+    }
+
+    public static DailyLogResponse from(
+            DailyLog dailyLog,
+            boolean editable,
+            OffsetDateTime deadline,
+            DayInfoResponse day
     ) {
         List<LogTask> logTasks = dailyLog.getTasks();
 
@@ -82,7 +92,8 @@ public record DailyLogResponse(
                 deadline,
                 totalDuration,
                 projects,
-                tasks
+                tasks,
+                day
         );
     }
 

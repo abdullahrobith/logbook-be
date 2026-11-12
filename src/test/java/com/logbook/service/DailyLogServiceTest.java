@@ -13,10 +13,12 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -42,7 +44,11 @@ class DailyLogServiceTest {
                 JAKARTA,
                 Clock.fixed(NOW, JAKARTA)
         );
-        service = new DailyLogService(dailyLogRepository, deadlineService);
+        service = new DailyLogService(
+                dailyLogRepository,
+                deadlineService,
+                mock(CalendarService.class)
+        );
     }
 
     @Test
@@ -333,6 +339,75 @@ class DailyLogServiceTest {
         );
 
         assertEquals(HttpStatus.NOT_FOUND, exception.getStatusCode());
+    }
+
+    @Test
+    void getDailyLogShouldReportMissedDayEditableWhenDeadlineRuleIsInactive() {
+        LocalDate yesterday = TODAY.minusDays(1);
+        DailyLog missed = missedLog(yesterday);
+        when(dailyLogRepository.findByUserIdAndLogDate(1L, yesterday))
+                .thenReturn(Optional.of(missed));
+
+        DailyLogService relaxed = new DailyLogService(
+                dailyLogRepository,
+                new DeadlineService(false, JAKARTA, Clock.fixed(NOW, JAKARTA)),
+                mock(CalendarService.class)
+        );
+
+        var response = relaxed.getDailyLog(1L, yesterday);
+
+        assertEquals("TERLEWAT", response.status());
+        assertTrue(response.editable());
+        verify(dailyLogRepository, never()).save(any(DailyLog.class));
+    }
+
+    @Test
+    void createDailyLogShouldReopenMissedDayWhenDeadlineRuleIsInactive() {
+        LocalDate yesterday = TODAY.minusDays(1);
+        DailyLog missed = missedLog(yesterday);
+        when(dailyLogRepository.findByUserIdAndLogDate(1L, yesterday))
+                .thenReturn(Optional.of(missed));
+        when(dailyLogRepository.save(missed)).thenReturn(missed);
+
+        DailyLogService relaxed = new DailyLogService(
+                dailyLogRepository,
+                new DeadlineService(false, JAKARTA, Clock.fixed(NOW, JAKARTA)),
+                mock(CalendarService.class)
+        );
+
+        var response = relaxed.createDailyLog(1L, yesterday);
+
+        assertEquals("DRAF", response.status());
+        assertTrue(response.editable());
+        assertEquals("DRAF", missed.getStatus());
+        verify(dailyLogRepository).save(missed);
+    }
+
+    @Test
+    void getDailyLogShouldKeepMissedDayLockedWhenDeadlineRuleIsActive() {
+        LocalDate yesterday = TODAY.minusDays(1);
+        DailyLog missed = draftLog(15L, yesterday, List.of());
+        when(missed.getStatus()).thenReturn("TERLEWAT");
+        when(dailyLogRepository.findByUserIdAndLogDate(1L, yesterday))
+                .thenReturn(Optional.of(missed));
+
+        var response = service.getDailyLog(1L, yesterday);
+
+        assertEquals("TERLEWAT", response.status());
+        assertFalse(response.editable());
+        verify(missed, never()).reopenAsDraft(any());
+        verify(dailyLogRepository, never()).save(any(DailyLog.class));
+    }
+
+    private DailyLog missedLog(LocalDate date) {
+        return new DailyLog(
+                15L,
+                date,
+                (short) 1,
+                "TERLEWAT",
+                NOW.atOffset(ZoneOffset.ofHours(7)),
+                NOW.atOffset(ZoneOffset.ofHours(7))
+        );
     }
 
     private DailyLog draftLog(Long id, LocalDate date, List<LogTask> tasks) {

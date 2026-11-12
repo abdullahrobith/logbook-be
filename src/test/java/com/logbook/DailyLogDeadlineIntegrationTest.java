@@ -31,7 +31,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  */
 @SpringBootTest(properties = {
         "logbook.batas-hari.aktif=true",
-        "logbook.zona-waktu=Asia/Jakarta"
+        "logbook.zona-waktu=Asia/Jakarta",
+        "logbook.jadwal.aktif=false"
 })
 @AutoConfigureMockMvc
 @Transactional

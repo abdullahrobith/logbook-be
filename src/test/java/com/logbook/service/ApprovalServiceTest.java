@@ -63,7 +63,8 @@ class ApprovalServiceTest {
                                 Instant.parse("2026-11-11T03:00:00Z"),
                                 ZoneId.of("Asia/Jakarta")
                         )
-                )
+                ),
+                mock(CalendarService.class)
         );
 
         actor = user(ACTOR_ID, ACTOR_EMAIL);

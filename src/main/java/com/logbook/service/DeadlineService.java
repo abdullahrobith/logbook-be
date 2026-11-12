@@ -24,6 +24,7 @@ public class DeadlineService {
 
     private static final String STATUS_DRAFT = "DRAF";
     private static final String STATUS_REJECTED = "DITOLAK";
+    private static final String STATUS_MISSED = "TERLEWAT";
 
     private final boolean active;
     private final ZoneId zoneId;
@@ -79,6 +80,14 @@ public class DeadlineService {
     }
 
     /**
+     * Waktu sekarang menurut jam server pada zona waktu aplikasi. Dipakai
+     * tugas berkala agar stempel waktu konsisten dengan penentuan batas hari.
+     */
+    public OffsetDateTime now() {
+        return OffsetDateTime.now(clock);
+    }
+
+    /**
      * True bila tanggal tersebut belum tiba. Saat aturan dimatikan, method ini
      * selalu false agar semua tanggal dapat diisi.
      */
@@ -102,11 +111,22 @@ public class DeadlineService {
      * tanggalnya hari ini. Hari yang sudah lewat maupun yang belum tiba tetap
      * terkunci. Status DITOLAK ikut dapat disunting agar talent dapat
      * memperbaiki lalu mengirim ulang pada hari yang sama (LBK-KRM-01).
+     *
+     * <p>Saat aturan batas hari dimatikan, hari TERLEWAT boleh diisi kembali
+     * dan akan menjadi DRAF (OCD 5.3.6).</p>
      */
     public boolean isEditable(String status, LocalDate logDate) {
         boolean editableStatus = STATUS_DRAFT.equalsIgnoreCase(status)
-                || STATUS_REJECTED.equalsIgnoreCase(status);
+                || STATUS_REJECTED.equalsIgnoreCase(status)
+                || (!active && STATUS_MISSED.equalsIgnoreCase(status));
 
         return editableStatus && isToday(logDate);
+    }
+
+    /**
+     * Zona waktu yang dipakai untuk menentukan hari ini dan batas hari.
+     */
+    public ZoneId getZoneId() {
+        return zoneId;
     }
 }

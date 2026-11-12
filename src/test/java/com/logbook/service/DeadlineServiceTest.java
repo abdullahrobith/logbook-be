@@ -114,6 +114,13 @@ class DeadlineServiceTest {
     }
 
     @Test
+    void missedDayShouldOnlyBeEditableWhenRuleIsDisabled() {
+        assertFalse(service(true).isEditable("TERLEWAT", TODAY));
+        assertFalse(service(true).isEditable("TERLEWAT", YESTERDAY));
+        assertTrue(service(false).isEditable("TERLEWAT", YESTERDAY));
+    }
+
+    @Test
     void disabledRuleShouldAllowFutureDays() {
         DeadlineService service = service(false);
 
