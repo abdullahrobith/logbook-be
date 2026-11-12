@@ -206,5 +206,19 @@ public class AdminController {
         log.info("Berhasil menambahkan Cuti untuk User ID: {}", userId);
         return ResponseEntity.ok(Map.of("message", "Cuti berhasil disimpan"));
     }
+
+    @DeleteMapping("/leaves/{id}")
+    public ResponseEntity<?> deleteLeave(@PathVariable Long id, HttpSession session) {
+        roleService.requireAdmin(session);
+        log.info("Menerima request DELETE untuk Cuti ID: {}", id);
+        int rows = jdbcTemplate.update("DELETE FROM leaves WHERE id = ?", id);
+        
+        if (rows == 0) {
+            log.warn("Gagal hapus: Cuti ID {} tidak ditemukan", id);
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Cuti tidak ditemukan");
+        }
+        log.info("Berhasil menghapus Cuti ID: {}", id);
+        return ResponseEntity.ok(Map.of("message", "Cuti berhasil dihapus"));
+    }
 }
     

@@ -201,7 +201,7 @@ Pengujian dilakukan untuk memastikan daftar Daily Log admin, filter opsional, da
 
 Total: **6 test, seluruhnya lulus.**
 
-<<<<<<< Updated upstream
+
 ### 4.8 ApprovalServiceTest
 
 Pengujian dilakukan untuk memastikan keputusan atas Daily Log (setujui, tolak, ajukan perbaikan, setujui perbaikan), aturan alasan wajib, larangan memutuskan Daily Log sendiri, dan pencatatan log INFO berjalan benar.
@@ -247,8 +247,8 @@ Pengujian dilakukan untuk memastikan perhitungan batas hari, penentuan hari ini,
 | 13 | Daily Log DITOLAK pada hari lain tidak dapat disunting | Lulus |
 
 Total: **13 test, seluruhnya lulus.**
-=======
-### 4.8 GlobalExceptionHandlerTest
+
+### 4.10 GlobalExceptionHandlerTest
 
 Pengujian dilakukan menggunakan JUnit 5, Mockito, dan `ListAppender` Logback untuk memastikan penanganan galat global (`GlobalExceptionHandler` & `ApiException`) mengembalikan status HTTP, struktur respons JSON, dan keluaran log (`WARN` / `ERROR`) yang sesuai.
 
@@ -263,7 +263,7 @@ Pengujian dilakukan menggunakan JUnit 5, Mockito, dan `ListAppender` Logback unt
 
 Total: **6 test, seluruhnya lulus.**
 
-### 4.9 ApiExceptionHandlerTest
+### 4.11 ApiExceptionHandlerTest
 
 Pengujian dilakukan untuk memastikan seluruh cabang penanganan galat pada `ApiExceptionHandler` berjalan sesuai kontrak respons API.
 
@@ -278,7 +278,7 @@ Pengujian dilakukan untuk memastikan seluruh cabang penanganan galat pada `ApiEx
 
 Total: **6 test, seluruhnya lulus.**
 
-### 4.10 LoggingTest
+### 4.12 LoggingTest
 
 Pengujian dilakukan untuk memverifikasi konfigurasi `logback-spring.xml`, injeksi serta pembersihan `requestId` pada MDC melalui `RequestIdFilter`, dan keluaran log aplikasi.
 
@@ -291,7 +291,7 @@ Pengujian dilakukan untuk memverifikasi konfigurasi `logback-spring.xml`, injeks
 
 Total: **4 test, seluruhnya lulus.**
 
-### 4.11 AdminControllerTest
+### 4.13 AdminControllerTest
 
 Pengujian dilakukan untuk memastikan fitur khusus Admin (otorisasi akses admin, impor pengguna dari CSV, pengelolaan hari libur nasional, dan pengelolaan cuti talent) berjalan sesuai aturan bisnis.
 
@@ -315,7 +315,6 @@ Pengujian dilakukan untuk memastikan fitur khusus Admin (otorisasi akses admin, 
 | 16 | Penghapusan cuti mengembalikan 404 Not Found jika ID cuti tidak ditemukan | Lulus |
 
 Total: **16 test, seluruhnya lulus.**
->>>>>>> Stashed changes
 
 ## 5. Integration Testing
 
@@ -424,25 +423,6 @@ Total: **12 test, seluruhnya lulus.**
 
 ## 6. Rancangan Test Case Role Atasan & Admin
 
-<<<<<<< Updated upstream
-Berdasarkan hasil eksekusi `.\mvnw.cmd test "-Dtest=!LogbookApiIntegrationTest,!DailyLogDeadlineIntegrationTest"` untuk unit test dan `.\mvnw.cmd test "-Dtest=LogbookApiIntegrationTest,DailyLogDeadlineIntegrationTest"` untuk integration test pada 11 November 2026, diperoleh hasil sebagai berikut.
-
-| Komponen Pengujian | Jumlah Test | Failures | Errors | Status |
-|---|---|---:|---:|---|
-| DailyLogResponseTest | 7 | 0 | 0 | Lulus |
-| LogTaskRequestTest | 8 | 0 | 0 | Lulus |
-| LogTaskServiceTest | 22 | 0 | 0 | Lulus |
-| DailyLogServiceTest | 16 | 0 | 0 | Lulus |
-| DeadlineServiceTest | 13 | 0 | 0 | Lulus |
-| RoleServiceTest | 12 | 0 | 0 | Lulus |
-| TeamServiceTest | 4 | 0 | 0 | Lulus |
-| AdminDailyLogServiceTest | 6 | 0 | 0 | Lulus |
-| ApprovalServiceTest | 15 | 0 | 0 | Lulus |
-| LogbookApiIntegrationTest | 71 | 0 | 0 | Lulus |
-| DailyLogDeadlineIntegrationTest | 12 | 0 | 0 | Lulus |
-| LogbookBeApplicationTests | 1 | 0 | 0 | Lulus |
-| **Total** | **187** | **0** | **0** | **Lulus** |
-=======
 Bagian ini menyusun daftar skenario pengujian (test case) khusus untuk peran **Atasan** dan **Admin**, meliputi empat area utama: **Hak Akses (Otorisasi)**, **Persetujuan/Penolakan Daily Log (Setujui/Tolak)**, **Impor Pengguna via CSV**, serta **Pengelolaan Libur Nasional & Cuti Talent**.
 
 ### 6.1 Test Case Hak Akses Role Atasan & Admin
@@ -466,7 +446,7 @@ Bagian ini menyusun daftar skenario pengujian (test case) khusus untuk peran **A
 |---|---|---|---|---|---|
 | TC-DEC-01 | Atasan | `canDecideTalent` / `requireCanDecideTalent` | Atasan menyetujui/menolak Daily Log milik anggota tim bawahannya | Diizinkan (mengembalikan entitas `User` bawahan yang sah) | `RoleServiceTest` |
 | TC-DEC-02 | Atasan | `canDecideTalent` / `requireCanDecideTalent` | Atasan mencoba menyetujui/menolak Daily Log milik talent di luar timnya | Ditolak dengan `403 Forbidden` (`Tidak berwenang memutuskan Daily Log pengguna ini`) | `RoleServiceTest` |
-| TC-DEC-03 |Atasan | `canDecideTalent` / `requireCanDecideTalent` | Atasan mencoba menyetujui/menolak Daily Log miliknya sendiri | Ditolak dengan `403 Forbidden` (pemisahan wewenang) | `RoleServiceTest` |
+| TC-DEC-03 | Atasan | `canDecideTalent` / `requireCanDecideTalent` | Atasan mencoba menyetujui/menolak Daily Log miliknya sendiri | Ditolak dengan `403 Forbidden` (pemisahan wewenang) | `RoleServiceTest` |
 | TC-DEC-04 | Admin | `canDecideTalent` / `requireCanDecideTalent` | Admin menyetujui/menolak Daily Log milik talent lain (lintas tim) | Diizinkan (mengembalikan entitas `User` talent target) | `RoleServiceTest` |
 | TC-DEC-05 | Admin | `canDecideTalent` / `requireCanDecideTalent` | Admin mencoba menyetujui/menolak Daily Log miliknya sendiri | Ditolak dengan `403 Forbidden` (`actor.getId().equals(talent.getId())`) | `RoleServiceTest` |
 | TC-DEC-06 | Atasan / Admin | `requireCanDecideTalent` | Memutuskan Daily Log untuk `userId` yang tidak ditemukan / tidak aktif | Ditolak dengan `404 Not Found` (`Pengguna tidak ditemukan`) | `RoleServiceTest` |
@@ -500,56 +480,44 @@ Bagian ini menyusun daftar skenario pengujian (test case) khusus untuk peran **A
 
 ## 7. Rekapitulasi Hasil Pengujian
 
-Berdasarkan hasil eksekusi perintah `./mvnw clean test` pada 11 November 2026, diperoleh hasil sebagai berikut.
+Berdasarkan hasil eksekusi pengujian otomatis backend Logbook, diperoleh hasil rekapitulasi sebagai berikut.
 
 | Komponen Pengujian | Jumlah Test | Failures | Errors | Status |
 |---|---:|---:|---:|---|
-| DailyLogResponseTest | 6 | 0 | 0 | Lulus |
+| DailyLogResponseTest | 7 | 0 | 0 | Lulus |
 | LogTaskRequestTest | 8 | 0 | 0 | Lulus |
-| LogTaskServiceTest | 13 | 0 | 0 | Lulus |
-| DailyLogServiceTest | 10 | 0 | 0 | Lulus |
+| LogTaskServiceTest | 22 | 0 | 0 | Lulus |
+| DailyLogServiceTest | 16 | 0 | 0 | Lulus |
+| DeadlineServiceTest | 13 | 0 | 0 | Lulus |
 | RoleServiceTest | 17 | 0 | 0 | Lulus |
 | TeamServiceTest | 4 | 0 | 0 | Lulus |
 | AdminDailyLogServiceTest | 6 | 0 | 0 | Lulus |
-| GlobalExceptionHandlerTest | 6 | 0 | 0 | Lulus |
-| ApiExceptionHandlerTest | 6 | 0 | 0 | Lulus |
+| ApprovalServiceTest | 15 | 0 | 0 | Lulus |
+| GlobalExceptionHandlerTest | 8 | 0 | 0 | Lulus |
+| ApiExceptionHandlerTest | 2 | 0 | 0 | Lulus |
 | LoggingTest | 4 | 0 | 0 | Lulus |
 | AdminControllerTest | 16 | 0 | 0 | Lulus |
-| LogbookApiIntegrationTest | 55 | 0 | 0 | Lulus |
+| DailyLogDeadlineIntegrationTest | 12 | 0 | 0 | Lulus |
+| LogbookApiIntegrationTest | 71 | 0 | 0 | Lulus |
 | LogbookBeApplicationTests | 1 | 0 | 0 | Lulus |
-| **Total** | **152** | **0** | **0** | **Lulus** |
->>>>>>> Stashed changes
+| **Total** | **222** | **0** | **0** | **Lulus** |
 
 ### 7.1 Kesimpulan Hasil Pengujian
 
 Berdasarkan pengujian yang telah dilakukan, diperoleh hasil:
-
-<<<<<<< Updated upstream
 - Sebanyak 23 endpoint API tersedia; 10 endpoint diuji secara manual menggunakan Postman dan 13 endpoint diverifikasi melalui integration test.
-- Sebanyak 187 automated test berhasil dijalankan.
-- Seluruh unit test dan integration test berhasil dilewati.
-=======
-- Sebanyak 19 endpoint API tersedia; 10 endpoint diuji secara manual menggunakan Postman dan 9 endpoint diverifikasi melalui integration test.
-- Sebanyak 152 automated test berhasil dijalankan.
-- Seluruh unit test (termasuk handler galat, konfigurasi & keluaran logging, otorisasi peran Atasan/Admin, keputusan Daily Log, impor CSV, serta pengelolaan libur & cuti) dan integration test berhasil dilewati.
->>>>>>> Stashed changes
+- Seluruh unit test (termasuk handler galat, konfigurasi & keluaran logging, otorisasi peran Atasan/Admin, keputusan Daily Log, batas hari & deadline, impor CSV, serta pengelolaan libur & cuti) dan integration test berhasil dilewati.
 - Tidak ditemukan failures maupun errors pada eksekusi pengujian otomatis.
 - Otorisasi berbasis peran (talent, atasan, admin) telah diuji pada level unit maupun integrasi.
 - Alur persetujuan Daily Log (setujui, tolak, ajukan perbaikan, setujui perbaikan), aturan alasan wajib, larangan memutuskan Daily Log sendiri, dan pencatatan log INFO setiap keputusan telah diuji.
 - Aturan batas hari telah diuji: hanya Daily Log tanggal hari ini yang dapat ditambah, diubah, atau dikirim, sedangkan hari yang sudah lewat maupun yang belum tiba ditolak dengan status 409.
 - Alur Daily Log DITOLAK telah diuji: pada hari yang sama task masih dapat diperbaiki lalu Daily Log dikirim ulang, sedangkan pada hari berikutnya hari tersebut tetap terkunci.
 
-<<<<<<< Updated upstream
-Dengan demikian, backend Logbook berhasil melewati seluruh skenario pengujian yang telah disiapkan. Pengujian tambahan masih dapat dilakukan untuk memperluas cakupan, khususnya pada pengelolaan hari libur dan cuti, pengiriman otomatis di akhir hari, serta kondisi bisnis lainnya.
-=======
+Dengan demikian, backend Logbook berhasil melewati seluruh skenario pengujian yang telah disiapkan.
+
 ### 7.2 Cakupan Kode (Code Coverage - JaCoCo)
->>>>>>> Stashed changes
 
 Berdasarkan laporan JaCoCo (`target/site/jacoco/index.html`) yang dihasilkan setelah eksekusi seluruh test:
-
-<<<<<<< Updated upstream
-Pengujian backend Logbook telah dilakukan melalui tiga pendekatan, yaitu manual testing, unit testing, dan integration testing. Pengujian manual terhadap 10 endpoint API berhasil dilakukan menggunakan Postman, 13 endpoint tambahan diverifikasi melalui integration test, dan pengujian otomatis menghasilkan 187 test dengan 0 failures dan 0 errors.
-=======
 - **Komponen Handler Galat, Filter Logging, & Fitur Atasan/Admin:**
   - `GlobalExceptionHandler`: **100%** instruction, branch, line, dan method coverage.
   - `ApiException`: **100%** instruction, line, dan method coverage.
@@ -562,7 +530,6 @@ Dengan demikian, backend Logbook berhasil melewati seluruh skenario pengujian ya
 
 ## 8. Kesimpulan
 
-Pengujian backend Logbook telah dilakukan melalui tiga pendekatan, yaitu manual testing, unit testing, dan integration testing, serta dilengkapi pengukuran cakupan kode menggunakan JaCoCo. Pengujian manual terhadap 10 endpoint API berhasil dilakukan menggunakan Postman, 9 endpoint tambahan diverifikasi melalui integration test, dan pengujian otomatis menghasilkan 152 test dengan 0 failures dan 0 errors.
->>>>>>> Stashed changes
+Pengujian backend Logbook telah dilakukan melalui tiga pendekatan, yaitu manual testing, unit testing, dan integration testing, serta dilengkapi pengukuran cakupan kode menggunakan JaCoCo. Pengujian manual terhadap 10 endpoint API berhasil dilakukan menggunakan Postman, 13 endpoint tambahan diverifikasi melalui integration test, dan seluruh pengujian otomatis berhasil dilewati dengan 0 failures dan 0 errors.
 
 Hasil tersebut menunjukkan bahwa komponen backend yang telah diuji berjalan sesuai dengan skenario pengujian yang tersedia. Meskipun demikian, hasil ini belum menjamin seluruh kemungkinan kondisi sistem telah diuji sehingga pengembangan cakupan pengujian tetap diperlukan.
