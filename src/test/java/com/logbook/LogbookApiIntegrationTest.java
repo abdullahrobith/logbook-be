@@ -714,6 +714,7 @@ class LogbookApiIntegrationTest {
 
     @Test
     void supervisorSeesOnlyOwnTeam() throws Exception {
+        clearTodayDailyLog(2L);
         insertUser("atasan.tim.api@contoh.id", "Atasan Tim API", false);
         jdbcTemplate.update(
                 "UPDATE users SET email_atasan = ? WHERE id = 2",
@@ -1470,8 +1471,24 @@ class LogbookApiIntegrationTest {
         );
     }
 
+    private void clearTodayDailyLog(Long userId) {
+        LocalDate today = LocalDate.now();
+        jdbcTemplate.update(
+                "DELETE FROM log_tasks WHERE daily_log_id IN "
+                        + "(SELECT id FROM daily_logs WHERE user_id = ? AND log_date = ?)",
+                userId,
+                today
+        );
+        jdbcTemplate.update(
+                "DELETE FROM daily_logs WHERE user_id = ? AND log_date = ?",
+                userId,
+                today
+        );
+    }
+
     private long insertTodayDailyLog(Long userId, String status) {
         LocalDate today = LocalDate.now();
+        clearTodayDailyLog(userId);
 
         jdbcTemplate.update(
                 "INSERT INTO daily_logs (user_id, log_date, work_schedule_id, status, "

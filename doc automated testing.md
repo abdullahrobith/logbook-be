@@ -19,7 +19,8 @@ Pengujian dilakukan melalui tiga pendekatan:
 | Database | PostgreSQL 18.4 |
 | Database name | logbook |
 | API testing | Postman |
-| Automated testing | JUnit 5, Spring Boot Test, Mockito, MockMvc |
+| Automated testing | JUnit 5, Spring Boot Test, Mockito, MockMvc, Logback ListAppender |
+| Code coverage | JaCoCo Maven Plugin 0.8.12 |
 
 ## 3. Manual Testing API
 
@@ -164,8 +165,13 @@ Pengujian dilakukan untuk memastikan peran dihitung dari data pada setiap permin
 | 10 | Pengguna yang tidak ditemukan menghasilkan 404 | Lulus |
 | 11 | Endpoint atasan/admin menolak talent biasa | Lulus |
 | 12 | Atasan/admin tidak dapat memutuskan Daily Log miliknya sendiri | Lulus |
+| 13 | Atasan dapat memutuskan (setujui/tolak) Daily Log anggota tim bawahannya | Lulus |
+| 14 | Admin dapat memutuskan (setujui/tolak) Daily Log milik talent lain mana pun | Lulus |
+| 15 | Atasan ditolak (403) saat mencoba memutuskan Daily Log talent di luar timnya | Lulus |
+| 16 | Keputusan Daily Log mengembalikan 404 apabila pengguna target tidak ditemukan | Lulus |
+| 17 | Otorisasi `requireAdmin` dan `requireSupervisorOrAdmin` mengizinkan pengguna dengan peran yang sah | Lulus |
 
-Total: **12 test, seluruhnya lulus.**
+Total: **17 test, seluruhnya lulus.**
 
 ### 4.6 TeamServiceTest
 
@@ -195,6 +201,7 @@ Pengujian dilakukan untuk memastikan daftar Daily Log admin, filter opsional, da
 
 Total: **6 test, seluruhnya lulus.**
 
+<<<<<<< Updated upstream
 ### 4.8 ApprovalServiceTest
 
 Pengujian dilakukan untuk memastikan keputusan atas Daily Log (setujui, tolak, ajukan perbaikan, setujui perbaikan), aturan alasan wajib, larangan memutuskan Daily Log sendiri, dan pencatatan log INFO berjalan benar.
@@ -240,6 +247,75 @@ Pengujian dilakukan untuk memastikan perhitungan batas hari, penentuan hari ini,
 | 13 | Daily Log DITOLAK pada hari lain tidak dapat disunting | Lulus |
 
 Total: **13 test, seluruhnya lulus.**
+=======
+### 4.8 GlobalExceptionHandlerTest
+
+Pengujian dilakukan menggunakan JUnit 5, Mockito, dan `ListAppender` Logback untuk memastikan penanganan galat global (`GlobalExceptionHandler` & `ApiException`) mengembalikan status HTTP, struktur respons JSON, dan keluaran log (`WARN` / `ERROR`) yang sesuai.
+
+| No. | Skenario Pengujian | Hasil |
+|---|---|---|
+| 1 | Menangani `ApiException` sesuai status HTTP bisnis dan mencatat log `ERROR` | Lulus |
+| 2 | Menangani `Exception` umum dengan status 500, pesan generik, dan mencatat stacktrace pada log `ERROR` | Lulus |
+| 3 | Menangani `HttpMessageNotReadableException` (JSON tidak valid) dengan status 400 dan log `WARN` | Lulus |
+| 4 | Menangani `HandlerMethodValidationException` dengan status 400 dan log `WARN` | Lulus |
+| 5 | Menangani `MethodArgumentNotValidException` dengan detail `FieldError` serta mencatat log `WARN` | Lulus |
+| 6 | Menangani `MethodArgumentNotValidException` tanpa `FieldError` (`null` fallback ke `unknown`) serta mencatat log `WARN` | Lulus |
+
+Total: **6 test, seluruhnya lulus.**
+
+### 4.9 ApiExceptionHandlerTest
+
+Pengujian dilakukan untuk memastikan seluruh cabang penanganan galat pada `ApiExceptionHandler` berjalan sesuai kontrak respons API.
+
+| No. | Skenario Pengujian | Hasil |
+|---|---|---|
+| 1 | Menangani validasi field dan mengembalikan pesan field pertama beserta peta `fieldErrors` | Lulus |
+| 2 | Menangani validasi tanpa daftar `FieldError` dengan pesan default | Lulus |
+| 3 | Menangani `ResponseStatusException` yang memiliki `reason` | Lulus |
+| 4 | Menangani `ResponseStatusException` tanpa `reason` (`null`) dengan pesan default | Lulus |
+| 5 | Menangani parameter request yang wajib diisi (`MissingServletRequestParameterException`) | Lulus |
+| 6 | Menangani ketidakcocokan tipe parameter (`MethodArgumentTypeMismatchException`) | Lulus |
+
+Total: **6 test, seluruhnya lulus.**
+
+### 4.10 LoggingTest
+
+Pengujian dilakukan untuk memverifikasi konfigurasi `logback-spring.xml`, injeksi serta pembersihan `requestId` pada MDC melalui `RequestIdFilter`, dan keluaran log aplikasi.
+
+| No. | Skenario Pengujian | Hasil |
+|---|---|---|
+| 1 | Memastikan konfigurasi Logback memiliki appender `CONSOLE` dan `FILE` (`logs/application.log`) dengan pola `[ReqID: %X{requestId}]` serta level root `INFO` | Lulus |
+| 2 | Memastikan `RequestIdFilter` mengisi MDC `requestId` (8 karakter), meneruskannya ke event log, dan membersihkannya setelah request selesai | Lulus |
+| 3 | Memastikan `RequestIdFilter` tetap membersihkan MDC `requestId` pada blok `finally` ketika `FilterChain` melempar exception | Lulus |
+| 4 | Memastikan `AdminController` menghasilkan keluaran log `INFO` dan `WARN` sesuai alur eksekusi | Lulus |
+
+Total: **4 test, seluruhnya lulus.**
+
+### 4.11 AdminControllerTest
+
+Pengujian dilakukan untuk memastikan fitur khusus Admin (otorisasi akses admin, impor pengguna dari CSV, pengelolaan hari libur nasional, dan pengelolaan cuti talent) berjalan sesuai aturan bisnis.
+
+| No. | Skenario Pengujian | Hasil |
+|---|---|---|
+| 1 | Pengguna non-admin ditolak (403 Forbidden) saat mengakses endpoint Admin | Lulus |
+| 2 | Impor CSV berhasil membuat pengguna baru (beserta password sementara) dan memperbarui pengguna yang sudah ada | Lulus |
+| 3 | Impor CSV menolak file kosong (400 Bad Request) | Lulus |
+| 4 | Impor CSV menolak baris dengan kolom `email` atau `nama` kosong (400 Bad Request) | Lulus |
+| 5 | Impor CSV menolak file dengan stream yang rusak/tidak dapat dibaca (400 Bad Request) | Lulus |
+| 6 | Admin berhasil mendapatkan daftar hari libur nasional (`GET /api/admin/holidays`) | Lulus |
+| 7 | Admin berhasil menambahkan/memperbarui hari libur nasional (`POST /api/admin/holidays`) | Lulus |
+| 8 | Penambahan hari libur nasional ditolak (400 Bad Request) jika tanggal atau nama kosong | Lulus |
+| 9 | Admin berhasil menghapus hari libur nasional yang terdaftar (`DELETE /api/admin/holidays/{date}`) | Lulus |
+| 10 | Penghapusan hari libur nasional mengembalikan 404 Not Found jika tanggal tidak ditemukan | Lulus |
+| 11 | Admin berhasil mendapatkan daftar cuti seluruh talent (`GET /api/admin/leaves`) | Lulus |
+| 12 | Admin berhasil menambahkan data cuti talent dengan rentang tanggal yang valid (`POST /api/admin/leaves`) | Lulus |
+| 13 | Penambahan cuti ditolak (400 Bad Request) jika parameter `userId`, `fromDate`, atau `toDate` tidak lengkap | Lulus |
+| 14 | Penambahan cuti ditolak (400 Bad Request) jika tanggal mulai (`fromDate`) melebihi tanggal selesai (`toDate`) | Lulus |
+| 15 | Admin berhasil menghapus data cuti yang terdaftar (`DELETE /api/admin/leaves/{id}`) | Lulus |
+| 16 | Penghapusan cuti mengembalikan 404 Not Found jika ID cuti tidak ditemukan | Lulus |
+
+Total: **16 test, seluruhnya lulus.**
+>>>>>>> Stashed changes
 
 ## 5. Integration Testing
 
@@ -346,8 +422,9 @@ Pengujian ini dijalankan dengan `logbook.batas-hari.aktif=true` untuk memastikan
 
 Total: **12 test, seluruhnya lulus.**
 
-## 6. Rekapitulasi Hasil Pengujian
+## 6. Rancangan Test Case Role Atasan & Admin
 
+<<<<<<< Updated upstream
 Berdasarkan hasil eksekusi `.\mvnw.cmd test "-Dtest=!LogbookApiIntegrationTest,!DailyLogDeadlineIntegrationTest"` untuk unit test dan `.\mvnw.cmd test "-Dtest=LogbookApiIntegrationTest,DailyLogDeadlineIntegrationTest"` untuk integration test pada 11 November 2026, diperoleh hasil sebagai berikut.
 
 | Komponen Pengujian | Jumlah Test | Failures | Errors | Status |
@@ -365,24 +442,127 @@ Berdasarkan hasil eksekusi `.\mvnw.cmd test "-Dtest=!LogbookApiIntegrationTest,!
 | DailyLogDeadlineIntegrationTest | 12 | 0 | 0 | Lulus |
 | LogbookBeApplicationTests | 1 | 0 | 0 | Lulus |
 | **Total** | **187** | **0** | **0** | **Lulus** |
+=======
+Bagian ini menyusun daftar skenario pengujian (test case) khusus untuk peran **Atasan** dan **Admin**, meliputi empat area utama: **Hak Akses (Otorisasi)**, **Persetujuan/Penolakan Daily Log (Setujui/Tolak)**, **Impor Pengguna via CSV**, serta **Pengelolaan Libur Nasional & Cuti Talent**.
 
-### 6.1 Kesimpulan Hasil Pengujian
+### 6.1 Test Case Hak Akses Role Atasan & Admin
+
+| ID Test Case | Peran | Fitur / Endpoint | Skenario Pengujian | Ekspektasi Hasil | Metode Verifikasi |
+|---|---|---|---|---|---|
+| TC-ACC-01 | Atasan | `GET /api/auth/roles` | Pengguna memiliki bawahan aktif (`email_atasan` menunjuk ke emailnya) | Mendapatkan peran `TALENT` dan `ATASAN` beserta `teamSize > 0` | `RoleServiceTest`, `LogbookApiIntegrationTest` |
+| TC-ACC-02 | Admin | `GET /api/auth/roles` | Pengguna memiliki flag `is_admin = true` | Mendapatkan peran `TALENT` dan `ADMIN` | `RoleServiceTest`, `LogbookApiIntegrationTest` |
+| TC-ACC-03 | Talent | `GET /api/team` | Talent biasa mencoba mengakses daftar tim | Ditolak dengan `403 Forbidden` | `RoleServiceTest`, `LogbookApiIntegrationTest` |
+| TC-ACC-04 | Atasan | `GET /api/team` | Atasan melihat daftar anggota tim dan ringkasan status hari ini | `200 OK`, hanya menampilkan bawahan langsung (`email_atasan` sesuai) | `TeamServiceTest`, `LogbookApiIntegrationTest` |
+| TC-ACC-05 | Admin | `GET /api/team` | Admin melihat daftar anggota tim | `200 OK`, menampilkan seluruh pengguna aktif | `TeamServiceTest`, `LogbookApiIntegrationTest` |
+| TC-ACC-06 | Atasan | `GET /api/team/{userId}/daily-logs/{date}` | Atasan membuka Daily Log milik anggota timnya | `200 OK`, detail Daily Log & task bawahan tampil | `RoleServiceTest`, `LogbookApiIntegrationTest` |
+| TC-ACC-07 | Atasan | `GET /api/team/{userId}/daily-logs/{date}` | Atasan mencoba membuka Daily Log talent di luar timnya | Ditolak dengan `403 Forbidden` | `RoleServiceTest`, `LogbookApiIntegrationTest` |
+| TC-ACC-08 | Admin | `GET /api/team/{userId}/daily-logs/{date}` | Admin membuka Daily Log talent mana pun | `200 OK`, detail Daily Log tampil | `RoleServiceTest`, `LogbookApiIntegrationTest` |
+| TC-ACC-09 | Talent / Atasan | `GET /api/admin/daily-logs` | Pengguna non-admin mengakses rekap Daily Log seluruh talent | Ditolak dengan `403 Forbidden` | `RoleServiceTest`, `LogbookApiIntegrationTest` |
+| TC-ACC-10 | Admin | `GET /api/admin/daily-logs` | Admin mengakses dan memfilter daftar Daily Log (`date`, `userId`, `status`) | `200 OK`, daftar sesuai filter; `400 Bad Request` bila parameter tidak valid | `AdminDailyLogServiceTest`, `LogbookApiIntegrationTest` |
+
+### 6.2 Test Case Keputusan Setujui / Tolak Daily Log (Atasan & Admin)
+
+| ID Test Case | Peran | Komponen / Aturan | Skenario Pengujian | Ekspektasi Hasil | Metode Verifikasi |
+|---|---|---|---|---|---|
+| TC-DEC-01 | Atasan | `canDecideTalent` / `requireCanDecideTalent` | Atasan menyetujui/menolak Daily Log milik anggota tim bawahannya | Diizinkan (mengembalikan entitas `User` bawahan yang sah) | `RoleServiceTest` |
+| TC-DEC-02 | Atasan | `canDecideTalent` / `requireCanDecideTalent` | Atasan mencoba menyetujui/menolak Daily Log milik talent di luar timnya | Ditolak dengan `403 Forbidden` (`Tidak berwenang memutuskan Daily Log pengguna ini`) | `RoleServiceTest` |
+| TC-DEC-03 |Atasan | `canDecideTalent` / `requireCanDecideTalent` | Atasan mencoba menyetujui/menolak Daily Log miliknya sendiri | Ditolak dengan `403 Forbidden` (pemisahan wewenang) | `RoleServiceTest` |
+| TC-DEC-04 | Admin | `canDecideTalent` / `requireCanDecideTalent` | Admin menyetujui/menolak Daily Log milik talent lain (lintas tim) | Diizinkan (mengembalikan entitas `User` talent target) | `RoleServiceTest` |
+| TC-DEC-05 | Admin | `canDecideTalent` / `requireCanDecideTalent` | Admin mencoba menyetujui/menolak Daily Log miliknya sendiri | Ditolak dengan `403 Forbidden` (`actor.getId().equals(talent.getId())`) | `RoleServiceTest` |
+| TC-DEC-06 | Atasan / Admin | `requireCanDecideTalent` | Memutuskan Daily Log untuk `userId` yang tidak ditemukan / tidak aktif | Ditolak dengan `404 Not Found` (`Pengguna tidak ditemukan`) | `RoleServiceTest` |
+
+### 6.3 Test Case Impor Pengguna dari CSV (Admin)
+
+| ID Test Case | Peran | Endpoint | Skenario Pengujian | Ekspektasi Hasil | Metode Verifikasi |
+|---|---|---|---|---|---|
+| TC-CSV-01 | Non-Admin | `POST /api/admin/users/import` | Talent/Atasan non-admin mengunggah file CSV pengguna | Ditolak dengan `403 Forbidden` (`Hanya admin yang dapat mengakses fitur ini`) | `AdminControllerTest`, `LogbookApiIntegrationTest` |
+| TC-CSV-02 | Admin | `POST /api/admin/users/import` | Admin mengunggah CSV berisi email pengguna baru | `200 OK`, `created` bertambah, user disimpan dengan `must_change_password = true` dan `tempPasswords` dikembalikan | `AdminControllerTest`, `LogbookApiIntegrationTest` |
+| TC-CSV-03 | Admin | `POST /api/admin/users/import` | Admin mengunggah CSV berisi email yang sudah terdaftar | `200 OK`, `updated` bertambah, `full_name` pengguna diperbarui tanpa duplikasi baris | `AdminControllerTest` |
+| TC-CSV-04 | Admin | `POST /api/admin/users/import` | Admin mengunggah file CSV kosong (0 byte) | Ditolak dengan `400 Bad Request` (`File CSV tidak boleh kosong`) | `AdminControllerTest` |
+| TC-CSV-05 | Admin | `POST /api/admin/users/import` | Admin mengunggah CSV yang memiliki baris dengan `email` atau `nama` kosong | Ditolak dengan `400 Bad Request` (`Baris ke-N salah: Email dan Nama wajib diisi.`) | `AdminControllerTest` |
+| TC-CSV-06 | Admin | `POST /api/admin/users/import` | Stream file CSV rusak atau gagal dibaca oleh parser | Ditolak dengan `400 Bad Request` (`Format file CSV tidak valid`) | `AdminControllerTest` |
+
+### 6.4 Test Case Pengelolaan Hari Libur Nasional & Cuti Talent (Admin)
+
+| ID Test Case | Peran | Endpoint | Skenario Pengujian | Ekspektasi Hasil | Metode Verifikasi |
+|---|---|---|---|---|---|
+| TC-HOL-01 | Non-Admin | `/api/admin/holidays` | Pengguna non-admin mengakses endpoint libur nasional | Ditolak dengan `403 Forbidden` | `AdminControllerTest` |
+| TC-HOL-02 | Admin | `GET /api/admin/holidays` | Admin melihat daftar seluruh hari libur nasional | `200 OK`, daftar libur nasional terurut berdasarkan tanggal | `AdminControllerTest`, `LoggingTest` |
+| TC-HOL-03 | Admin | `POST /api/admin/holidays` | Admin menambahkan/memperbarui hari libur nasional dengan `date` dan `name` valid | `200 OK`, pesan `Libur nasional berhasil disimpan` | `AdminControllerTest` |
+| TC-HOL-04 | Admin | `POST /api/admin/holidays` | Admin mengirim request libur nasional tanpa `date` atau `name` | Ditolak dengan `400 Bad Request` (`Tanggal dan Nama wajib diisi`) | `AdminControllerTest`, `LoggingTest` |
+| TC-HOL-05 | Admin | `DELETE /api/admin/holidays/{date}` | Admin menghapus hari libur nasional yang ada vs tanggal yang tidak ditemukan | `200 OK` bila tanggal ada; `404 Not Found` (`Libur nasional tidak ditemukan`) bila tidak ada | `AdminControllerTest` |
+| TC-LVE-01 | Non-Admin | `/api/admin/leaves` | Pengguna non-admin mengakses endpoint cuti talent | Ditolak dengan `403 Forbidden` | `AdminControllerTest` |
+| TC-LVE-02 | Admin | `GET /api/admin/leaves` | Admin melihat daftar cuti seluruh talent | `200 OK`, daftar cuti beserta nama talent tampil terurut berdasarkan `from_date` | `AdminControllerTest` |
+| TC-LVE-03 | Admin | `POST /api/admin/leaves` | Admin menambahkan cuti talent dengan `userId`, `fromDate`, dan `toDate` valid (`fromDate <= toDate`) | `200 OK`, pesan `Cuti berhasil disimpan` | `AdminControllerTest` |
+| TC-LVE-04 | Admin | `POST /api/admin/leaves` | Admin menambahkan cuti dengan field yang tidak lengkap (`userId`/`fromDate`/`toDate` null) | Ditolak dengan `400 Bad Request` (`Data cuti tidak lengkap`) | `AdminControllerTest` |
+| TC-LVE-05 | Admin | `POST /api/admin/leaves` | Admin menambahkan cuti dengan tanggal mulai melebihi tanggal selesai (`fromDate > toDate`) | Ditolak dengan `400 Bad Request` (`Tanggal mulai tidak boleh melebihi tanggal selesai`) | `AdminControllerTest` |
+| TC-LVE-06 | Admin | `DELETE /api/admin/leaves/{id}` | Admin menghapus data cuti yang ada vs ID cuti yang tidak ditemukan | `200 OK` bila ID ada; `404 Not Found` (`Cuti tidak ditemukan`) bila tidak ada | `AdminControllerTest` |
+
+## 7. Rekapitulasi Hasil Pengujian
+
+Berdasarkan hasil eksekusi perintah `./mvnw clean test` pada 11 November 2026, diperoleh hasil sebagai berikut.
+
+| Komponen Pengujian | Jumlah Test | Failures | Errors | Status |
+|---|---:|---:|---:|---|
+| DailyLogResponseTest | 6 | 0 | 0 | Lulus |
+| LogTaskRequestTest | 8 | 0 | 0 | Lulus |
+| LogTaskServiceTest | 13 | 0 | 0 | Lulus |
+| DailyLogServiceTest | 10 | 0 | 0 | Lulus |
+| RoleServiceTest | 17 | 0 | 0 | Lulus |
+| TeamServiceTest | 4 | 0 | 0 | Lulus |
+| AdminDailyLogServiceTest | 6 | 0 | 0 | Lulus |
+| GlobalExceptionHandlerTest | 6 | 0 | 0 | Lulus |
+| ApiExceptionHandlerTest | 6 | 0 | 0 | Lulus |
+| LoggingTest | 4 | 0 | 0 | Lulus |
+| AdminControllerTest | 16 | 0 | 0 | Lulus |
+| LogbookApiIntegrationTest | 55 | 0 | 0 | Lulus |
+| LogbookBeApplicationTests | 1 | 0 | 0 | Lulus |
+| **Total** | **152** | **0** | **0** | **Lulus** |
+>>>>>>> Stashed changes
+
+### 7.1 Kesimpulan Hasil Pengujian
 
 Berdasarkan pengujian yang telah dilakukan, diperoleh hasil:
 
+<<<<<<< Updated upstream
 - Sebanyak 23 endpoint API tersedia; 10 endpoint diuji secara manual menggunakan Postman dan 13 endpoint diverifikasi melalui integration test.
 - Sebanyak 187 automated test berhasil dijalankan.
 - Seluruh unit test dan integration test berhasil dilewati.
+=======
+- Sebanyak 19 endpoint API tersedia; 10 endpoint diuji secara manual menggunakan Postman dan 9 endpoint diverifikasi melalui integration test.
+- Sebanyak 152 automated test berhasil dijalankan.
+- Seluruh unit test (termasuk handler galat, konfigurasi & keluaran logging, otorisasi peran Atasan/Admin, keputusan Daily Log, impor CSV, serta pengelolaan libur & cuti) dan integration test berhasil dilewati.
+>>>>>>> Stashed changes
 - Tidak ditemukan failures maupun errors pada eksekusi pengujian otomatis.
 - Otorisasi berbasis peran (talent, atasan, admin) telah diuji pada level unit maupun integrasi.
 - Alur persetujuan Daily Log (setujui, tolak, ajukan perbaikan, setujui perbaikan), aturan alasan wajib, larangan memutuskan Daily Log sendiri, dan pencatatan log INFO setiap keputusan telah diuji.
 - Aturan batas hari telah diuji: hanya Daily Log tanggal hari ini yang dapat ditambah, diubah, atau dikirim, sedangkan hari yang sudah lewat maupun yang belum tiba ditolak dengan status 409.
 - Alur Daily Log DITOLAK telah diuji: pada hari yang sama task masih dapat diperbaiki lalu Daily Log dikirim ulang, sedangkan pada hari berikutnya hari tersebut tetap terkunci.
 
+<<<<<<< Updated upstream
 Dengan demikian, backend Logbook berhasil melewati seluruh skenario pengujian yang telah disiapkan. Pengujian tambahan masih dapat dilakukan untuk memperluas cakupan, khususnya pada pengelolaan hari libur dan cuti, pengiriman otomatis di akhir hari, serta kondisi bisnis lainnya.
+=======
+### 7.2 Cakupan Kode (Code Coverage - JaCoCo)
+>>>>>>> Stashed changes
 
-## 7. Kesimpulan
+Berdasarkan laporan JaCoCo (`target/site/jacoco/index.html`) yang dihasilkan setelah eksekusi seluruh test:
 
+<<<<<<< Updated upstream
 Pengujian backend Logbook telah dilakukan melalui tiga pendekatan, yaitu manual testing, unit testing, dan integration testing. Pengujian manual terhadap 10 endpoint API berhasil dilakukan menggunakan Postman, 13 endpoint tambahan diverifikasi melalui integration test, dan pengujian otomatis menghasilkan 187 test dengan 0 failures dan 0 errors.
+=======
+- **Komponen Handler Galat, Filter Logging, & Fitur Atasan/Admin:**
+  - `GlobalExceptionHandler`: **100%** instruction, branch, line, dan method coverage.
+  - `ApiException`: **100%** instruction, line, dan method coverage.
+  - `ApiExceptionHandler`: **100%** instruction, branch, line, dan method coverage.
+  - `RequestIdFilter`: **100%** instruction, line, dan method coverage.
+  - `AdminController`: seluruh endpoint impor CSV, libur nasional, dan cuti telah tercakup unit test.
+  - `RoleService`: seluruh aturan hak akses dan keputusan (`canDecideTalent` / `requireCanDecideTalent`) untuk Atasan & Admin telah tercakup unit test.
+
+Dengan demikian, backend Logbook berhasil melewati seluruh skenario pengujian yang telah disiapkan.
+
+## 8. Kesimpulan
+
+Pengujian backend Logbook telah dilakukan melalui tiga pendekatan, yaitu manual testing, unit testing, dan integration testing, serta dilengkapi pengukuran cakupan kode menggunakan JaCoCo. Pengujian manual terhadap 10 endpoint API berhasil dilakukan menggunakan Postman, 9 endpoint tambahan diverifikasi melalui integration test, dan pengujian otomatis menghasilkan 152 test dengan 0 failures dan 0 errors.
+>>>>>>> Stashed changes
 
 Hasil tersebut menunjukkan bahwa komponen backend yang telah diuji berjalan sesuai dengan skenario pengujian yang tersedia. Meskipun demikian, hasil ini belum menjamin seluruh kemungkinan kondisi sistem telah diuji sehingga pengembangan cakupan pengujian tetap diperlukan.

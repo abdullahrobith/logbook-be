@@ -189,6 +189,75 @@ class RoleServiceTest {
         assertEquals(HttpStatus.FORBIDDEN, exception.getStatusCode());
     }
 
+    @Test
+    void requireCanDecideTalentAllowsSupervisorForSubordinate() {
+        User supervisor = user(2L, "atasan@contoh.id", false);
+        User subordinate = talentOf(3L, "rina@contoh.id", "atasan@contoh.id");
+        when(userRepository.findByIdAndActiveTrue(3L)).thenReturn(Optional.of(subordinate));
+
+        User target = service.requireCanDecideTalent(supervisor, 3L);
+
+        assertEquals(subordinate, target);
+    }
+
+    @Test
+    void requireCanDecideTalentAllowsAdminForOtherTalent() {
+        User admin = user(1L, "admin@contoh.id", true);
+        User talent = talentOf(3L, "rina@contoh.id", "atasan@contoh.id");
+        when(userRepository.findByIdAndActiveTrue(3L)).thenReturn(Optional.of(talent));
+
+        User target = service.requireCanDecideTalent(admin, 3L);
+
+        assertEquals(talent, target);
+    }
+
+    @Test
+    void requireCanDecideTalentRejectsSupervisorForNonSubordinate() {
+        User supervisor = user(2L, "atasan@contoh.id", false);
+        User outsider = talentOf(4L, "budi@contoh.id", "atasan.lain@contoh.id");
+        when(userRepository.findByIdAndActiveTrue(4L)).thenReturn(Optional.of(outsider));
+
+        ResponseStatusException exception = assertThrows(
+                ResponseStatusException.class,
+                () -> service.requireCanDecideTalent(supervisor, 4L)
+        );
+
+        assertEquals(HttpStatus.FORBIDDEN, exception.getStatusCode());
+    }
+
+    @Test
+    void requireCanDecideTalentReturnsNotFoundWhenTalentDoesNotExist() {
+        User supervisor = user(2L, "atasan@contoh.id", false);
+        when(userRepository.findByIdAndActiveTrue(99L)).thenReturn(Optional.empty());
+
+        ResponseStatusException exception = assertThrows(
+                ResponseStatusException.class,
+                () -> service.requireCanDecideTalent(supervisor, 99L)
+        );
+
+        assertEquals(HttpStatus.NOT_FOUND, exception.getStatusCode());
+    }
+
+    @Test
+    void requireAdminAndSupervisorOrAdminAllowAuthorizedUsers() {
+        User admin = user(1L, "admin@contoh.id", true);
+        User supervisor = user(2L, "atasan@contoh.id", false);
+        when(userRepository.findByIdAndActiveTrue(1L)).thenReturn(Optional.of(admin));
+        when(userRepository.findByIdAndActiveTrue(2L)).thenReturn(Optional.of(supervisor));
+        when(userRepository.existsByEmailAtasanIgnoreCaseAndActiveTrue("atasan@contoh.id"))
+                .thenReturn(true);
+
+        MockHttpSession adminSession = new MockHttpSession();
+        adminSession.setAttribute(AuthService.SESSION_USER_ID, 1L);
+
+        MockHttpSession supervisorSession = new MockHttpSession();
+        supervisorSession.setAttribute(AuthService.SESSION_USER_ID, 2L);
+
+        assertEquals(admin, service.requireAdmin(adminSession));
+        assertEquals(admin, service.requireSupervisorOrAdmin(adminSession));
+        assertEquals(supervisor, service.requireSupervisorOrAdmin(supervisorSession));
+    }
+
     private User user(Long id, String email, boolean admin) {
         User user = mock(User.class);
         when(user.getId()).thenReturn(id);
