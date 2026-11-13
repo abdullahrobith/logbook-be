@@ -151,6 +151,18 @@ class AdminControllerTest {
     }
 
     @Test
+    void testAddHolidayRejectsBlankName() {
+        Map<String, String> request = Map.of("date", "2026-08-17", "name", "  ");
+
+        ResponseStatusException ex = assertThrows(
+                ResponseStatusException.class,
+                () -> adminController.addHoliday(request, session)
+        );
+
+        assertEquals(HttpStatus.BAD_REQUEST, ex.getStatusCode());
+    }
+
+    @Test
     void testDeleteHolidaySuccess() {
         when(jdbcTemplate.update(contains("DELETE FROM holidays"), eq(LocalDate.parse("2026-08-17"))))
                 .thenReturn(1);
@@ -175,7 +187,7 @@ class AdminControllerTest {
     @Test
     void testGetLeavesSuccess() {
         List<Map<String, Object>> mockLeaves = List.of(
-                Map.of("id", 1L, "user_id", 10L, "full_name", "Talent A")
+                Map.of("id", 1L, "user_id", 10L, "full_name", "Talent A", "note", "Cuti tahunan")
         );
         when(jdbcTemplate.queryForList(contains("SELECT l.id, l.user_id"))).thenReturn(mockLeaves);
 
@@ -183,6 +195,24 @@ class AdminControllerTest {
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertEquals(1, response.getBody().size());
+        assertEquals("Cuti tahunan", response.getBody().get(0).get("note"));
+        verify(jdbcTemplate).queryForList(contains("l.note"));
+    }
+
+    @Test
+    void testGetTalentOptionsReturnsActiveNonAdminUsers() {
+        List<Map<String, Object>> users = List.of(
+                Map.of("id", 10L, "full_name", "Talent A")
+        );
+        when(jdbcTemplate.queryForList(contains("is_active = TRUE AND is_admin = FALSE")))
+                .thenReturn(users);
+
+        ResponseEntity<List<Map<String, Object>>> response =
+                adminController.getTalentOptions(session);
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertEquals(users, response.getBody());
+        verify(roleService).requireAdmin(session);
     }
 
     @Test
@@ -196,7 +226,33 @@ class AdminControllerTest {
         ResponseEntity<?> response = adminController.addLeave(request, session);
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
-        verify(jdbcTemplate).update(contains("INSERT INTO leaves"), eq(10L), eq(LocalDate.parse("2026-11-20")), eq(LocalDate.parse("2026-11-22")));
+        verify(jdbcTemplate).update(
+                contains("INSERT INTO leaves"),
+                eq(10L),
+                eq(LocalDate.parse("2026-11-20")),
+                eq(LocalDate.parse("2026-11-22")),
+                isNull()
+        );
+    }
+
+    @Test
+    void testAddLeaveTrimsOptionalNote() {
+        Map<String, String> request = Map.of(
+                "userId", "10",
+                "fromDate", "2026-11-20",
+                "toDate", "2026-11-22",
+                "note", " Cuti tahunan "
+        );
+
+        adminController.addLeave(request, session);
+
+        verify(jdbcTemplate).update(
+                contains("INSERT INTO leaves"),
+                eq(10L),
+                eq(LocalDate.parse("2026-11-20")),
+                eq(LocalDate.parse("2026-11-22")),
+                eq("Cuti tahunan")
+        );
     }
 
     @Test

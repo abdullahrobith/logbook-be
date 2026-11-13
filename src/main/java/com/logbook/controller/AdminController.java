@@ -119,6 +119,17 @@ public class AdminController {
     // ==========================================
     // 2. API CRUD LIBUR NASIONAL (HOLIDAYS)
     // ==========================================
+    @GetMapping("/users")
+    public ResponseEntity<List<Map<String, Object>>> getTalentOptions(HttpSession session) {
+        roleService.requireAdmin(session);
+        List<Map<String, Object>> users = jdbcTemplate.queryForList(
+                "SELECT id, full_name FROM users "
+                        + "WHERE is_active = TRUE AND is_admin = FALSE "
+                        + "ORDER BY full_name"
+        );
+        return ResponseEntity.ok(users);
+    }
+
     @GetMapping("/holidays")
     public ResponseEntity<List<Map<String, Object>>> getHolidays(HttpSession session) {
         roleService.requireAdmin(session);
@@ -135,7 +146,7 @@ public class AdminController {
         String name = request.get("name");
         log.info("Menerima request POST untuk tambah Libur Nasional: {}", name);
 
-        if (date == null || name == null) {
+        if (date == null || date.isBlank() || name == null || name.isBlank()) {
             log.warn("Validasi gagal: Tanggal atau Nama libur kosong");
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Tanggal dan Nama wajib diisi");
         }
@@ -144,7 +155,7 @@ public class AdminController {
         jdbcTemplate.update(
             "INSERT INTO holidays (holiday_date, name) VALUES (?, ?) ON CONFLICT (holiday_date) DO UPDATE SET name = EXCLUDED.name", 
             LocalDate.parse(date), 
-            name
+            name.trim()
         );
         log.info("Berhasil menambahkan Libur Nasional: {}", name);
         return ResponseEntity.ok(Map.of("message", "Libur nasional berhasil disimpan"));
@@ -174,7 +185,8 @@ public class AdminController {
         roleService.requireAdmin(session);
         log.info("Menerima request GET untuk daftar Cuti Talent");
         // Ganti from_date & to_date jadi start_date & end_date
-        String query = "SELECT l.id, l.user_id, u.full_name, l.start_date, l.end_date FROM leaves l JOIN users u ON l.user_id = u.id ORDER BY l.start_date";
+        String query = "SELECT l.id, l.user_id, u.full_name, l.start_date, l.end_date, l.note "
+                + "FROM leaves l JOIN users u ON l.user_id = u.id ORDER BY l.start_date";
         List<Map<String, Object>> leaves = jdbcTemplate.queryForList(query);
         return ResponseEntity.ok(leaves);
     }
@@ -195,6 +207,13 @@ public class AdminController {
         Long userId = Long.parseLong(userIdStr);
         LocalDate start = LocalDate.parse(fromDate);
         LocalDate end = LocalDate.parse(toDate);
+        String note = request.get("note");
+        if (note != null) {
+            note = note.trim();
+            if (note.isEmpty()) {
+                note = null;
+            }
+        }
 
         if (start.isAfter(end)) {
             log.warn("Validasi gagal: Tanggal mulai cuti melebihi tanggal selesai");
@@ -202,7 +221,13 @@ public class AdminController {
         }
 
         // Ganti from_date & to_date jadi start_date & end_date di query INSERT
-        jdbcTemplate.update("INSERT INTO leaves (user_id, start_date, end_date) VALUES (?, ?, ?)", userId, start, end);
+        jdbcTemplate.update(
+                "INSERT INTO leaves (user_id, start_date, end_date, note) VALUES (?, ?, ?, ?)",
+                userId,
+                start,
+                end,
+                note
+        );
         log.info("Berhasil menambahkan Cuti untuk User ID: {}", userId);
         return ResponseEntity.ok(Map.of("message", "Cuti berhasil disimpan"));
     }
