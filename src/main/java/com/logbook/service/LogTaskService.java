@@ -9,6 +9,7 @@ import com.logbook.project.ProjectRepository;
 import com.logbook.repository.DailyLogRepository;
 import com.logbook.repository.LogTaskRepository;
 import org.springframework.http.HttpStatus;
+import org.springframework.jdbc.core.JdbcTemplate; 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
@@ -34,17 +35,20 @@ public class LogTaskService {
     private final LogTaskRepository logTaskRepository;
     private final ProjectRepository projectRepository;
     private final DeadlineService deadlineService;
+    private final JdbcTemplate jdbcTemplate; 
 
     public LogTaskService(
             DailyLogRepository dailyLogRepository,
             LogTaskRepository logTaskRepository,
             ProjectRepository projectRepository,
-            DeadlineService deadlineService
+            DeadlineService deadlineService,
+            JdbcTemplate jdbcTemplate 
     ) {
         this.dailyLogRepository = dailyLogRepository;
         this.logTaskRepository = logTaskRepository;
         this.projectRepository = projectRepository;
         this.deadlineService = deadlineService;
+        this.jdbcTemplate = jdbcTemplate;
     }
 
     @Transactional
@@ -87,6 +91,12 @@ public class LogTaskService {
         );
 
         LogTask savedTask = logTaskRepository.save(logTask);
+
+        jdbcTemplate.update(
+            "UPDATE project_members SET last_used_at = NOW() WHERE project_id = ? AND user_id = ?",
+            request.projectId(), userId
+        );
+
         log.info("Berhasil membuat task baru dengan ID: {} untuk Daily Log ID: {}", savedTask.getId(), dailyLogId);
         
         return DailyLogResponse.TaskResponse.from(savedTask);
@@ -125,6 +135,12 @@ public class LogTaskService {
         );
 
         LogTask updatedTask = logTaskRepository.save(logTask);
+
+        jdbcTemplate.update(
+            "UPDATE project_members SET last_used_at = NOW() WHERE project_id = ? AND user_id = ?",
+            request.projectId(), userId
+        );
+
         log.info("Berhasil mengupdate task ID: {}", updatedTask.getId());
         
         return DailyLogResponse.TaskResponse.from(updatedTask);
@@ -168,33 +184,27 @@ public class LogTaskService {
         }
 
         if (reopenMissedDay) {
-            // Aturan batas hari nonaktif: hari TERLEWAT boleh diisi lagi dan
-            // berubah menjadi DRAF.
             dailyLog.reopenAsDraft(OffsetDateTime.now());
-            log.info("Daily Log ID {} tanggal {} dibuka kembali dari TERLEWAT menjadi DRAF "
-                            + "karena aturan batas hari nonaktif",
+            log.info("Daily Log ID {} tanggal {} dibuka kembali dari TERLEWAT menjadi DRAF ",
                     dailyLog.getId(), dailyLog.getLogDate());
         }
     }
 
     private void requireEditableDay(DailyLog dailyLog, String action) {
         if (deadlineService.isPastDeadline(dailyLog.getLogDate())) {
-            log.warn("Validasi gagal: batas hari Daily Log ID {} tanggal {} sudah lewat, task tidak dapat {}",
-                    dailyLog.getId(), dailyLog.getLogDate(), action);
+            log.warn("Validasi gagal: batas hari Daily Log ID {} tanggal {} sudah lewat",
+                    dailyLog.getId(), dailyLog.getLogDate());
             throw new ResponseStatusException(
                     HttpStatus.CONFLICT,
-                    "Batas hari sudah lewat. Task pada tanggal " + dailyLog.getLogDate()
-                            + " tidak dapat " + action + "."
+                    "Batas hari sudah lewat. Task pada tanggal " + dailyLog.getLogDate() + " tidak dapat " + action + "."
             );
         }
 
         if (deadlineService.isFutureDay(dailyLog.getLogDate())) {
-            log.warn("Validasi gagal: tanggal {} belum tiba, task pada Daily Log ID {} tidak dapat {}",
-                    dailyLog.getLogDate(), dailyLog.getId(), action);
+            log.warn("Validasi gagal: tanggal {} belum tiba", dailyLog.getLogDate());
             throw new ResponseStatusException(
                     HttpStatus.CONFLICT,
-                    "Tanggal " + dailyLog.getLogDate() + " belum tiba. Task belum dapat " + action
-                            + ". Task hanya dapat diisi pada tanggal hari ini."
+                    "Tanggal " + dailyLog.getLogDate() + " belum tiba. Task belum dapat " + action + "."
             );
         }
     }
@@ -202,42 +212,23 @@ public class LogTaskService {
     private void validateRequest(Long userId, LogTaskRequest request) {
         if (!VALID_WORK_STATUS_IDS.contains(request.workStatusId())) {
             log.warn("Validasi gagal: Work Status ID {} tidak valid", request.workStatusId());
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST,
-                    "Status pekerjaan harus Selesai, Berjalan, atau Tertahan"
-            );
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Status pekerjaan harus Selesai, Berjalan, atau Tertahan");
         }
 
-        if (request.taskTypeId() == null
-                || !logTaskRepository.existsActiveTaskType(request.taskTypeId())) {
+        if (request.taskTypeId() == null || !logTaskRepository.existsActiveTaskType(request.taskTypeId())) {
             log.warn("Validasi gagal: Task Type ID {} tidak tersedia", request.taskTypeId());
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST,
-                    "Jenis task tidak tersedia"
-            );
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Jenis task tidak tersedia");
         }
 
-        if (request.durationMinutes() == null
-                || request.durationMinutes() < MIN_DURATION_MINUTES
-                || request.durationMinutes() > MAX_DURATION_MINUTES) {
-            log.warn("Validasi gagal: Durasi {} menit di luar batas (5-1440 menit)", request.durationMinutes());
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST,
-                    "Durasi harus antara 5 dan 1440 menit"
-            );
+        if (request.durationMinutes() == null || request.durationMinutes() < MIN_DURATION_MINUTES || request.durationMinutes() > MAX_DURATION_MINUTES) {
+            log.warn("Validasi gagal: Durasi {} menit di luar batas", request.durationMinutes());
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Durasi harus antara 5 dan 1440 menit");
         }
 
-        boolean projectAvailable = projectRepository.existsActiveProjectForUser(
-                request.projectId(),
-                userId
-        );
-
+        boolean projectAvailable = projectRepository.existsActiveProjectForUser(request.projectId(), userId);
         if (!projectAvailable) {
-            log.warn("Validasi gagal: Project ID {} tidak tersedia untuk User ID {}", request.projectId(), userId);
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST,
-                    "Proyek tidak tersedia untuk pengguna ini"
-            );
+            log.warn("Validasi gagal: Project ID {} tidak tersedia", request.projectId());
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Proyek tidak tersedia untuk pengguna ini");
         }
     }
 
@@ -251,37 +242,31 @@ public class LogTaskService {
         long end = start + durationMinutes.longValue();
 
         long overlappingTasks = dailyLog.getTasks().stream()
-                .filter(task -> excludedTaskId == null
-                        || !excludedTaskId.equals(task.getId()))
+                .filter(task -> excludedTaskId == null || !excludedTaskId.equals(task.getId()))
                 .filter(task -> {
-                    long otherStart = task.getStartMinute().longValue();
-                    long otherEnd = otherStart + task.getDurationMinutes().longValue();
+                    long otherStart = task.getStartMinute() == null ? 0 : task.getStartMinute().longValue();
+                    long otherEnd = otherStart + (task.getDurationMinutes() == null ? 0 : task.getDurationMinutes().longValue());
                     return start < otherEnd && otherStart < end;
                 })
                 .count();
 
         if (overlappingTasks >= MAX_CONCURRENT_TASKS) {
-            log.warn("Validasi gagal: Maksimal task bersamaan ({}) terlampaui pada Daily Log ID {}", MAX_CONCURRENT_TASKS, dailyLog.getId());
+            log.warn("Validasi gagal: Maksimal task bersamaan ({}) terlampaui", MAX_CONCURRENT_TASKS);
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
-                    "Maksimal 3 task dapat berjalan pada waktu yang bersamaan. "
-                            + "Ubah jam atau durasi task terlebih dahulu."
+                    "Maksimal 3 task dapat berjalan pada waktu yang bersamaan. Ubah jam atau durasi task terlebih dahulu."
             );
         }
     }
 
     private String normalizeTicket(String ticket) {
-        if (ticket == null) {
-            return null;
-        }
+        if (ticket == null) return null;
         String trimmed = ticket.trim();
         return trimmed.isEmpty() ? null : trimmed;
     }
 
     private String normalizeObstacle(String obstacle) {
-        if (obstacle == null) {
-            return null;
-        }
+        if (obstacle == null) return null;
         String trimmed = obstacle.trim();
         return trimmed.isEmpty() ? null : trimmed;
     }
