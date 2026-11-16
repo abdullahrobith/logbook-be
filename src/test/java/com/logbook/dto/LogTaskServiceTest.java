@@ -10,6 +10,7 @@ import com.logbook.repository.LogTaskRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.Clock;
@@ -32,6 +33,7 @@ class LogTaskServiceTest {
     private DailyLogRepository dailyLogRepository;
     private LogTaskRepository logTaskRepository;
     private ProjectRepository projectRepository;
+    private JdbcTemplate jdbcTemplate;
 
     private LogTaskService service;
 
@@ -45,6 +47,7 @@ class LogTaskServiceTest {
         dailyLogRepository = mock(DailyLogRepository.class);
         logTaskRepository = mock(LogTaskRepository.class);
         projectRepository = mock(ProjectRepository.class);
+        jdbcTemplate = mock(JdbcTemplate.class);
 
         service = new LogTaskService(
                 dailyLogRepository,
@@ -54,7 +57,8 @@ class LogTaskServiceTest {
                         true,
                         JAKARTA,
                         Clock.fixed(NOW, JAKARTA)
-                )
+                ),
+                jdbcTemplate
         );
 
         dailyLog = mock(DailyLog.class);
