@@ -27,11 +27,12 @@ public class MasterDataController {
         
         log.info("Menerima request GET untuk mengambil Master Data (Task Types, Statuses, Durations)");
 
+        // 👇 TAMBAHKAN 'code' DI SINI 👇
         List<Map<String, Object>> types = jdbcTemplate.queryForList(
-                "SELECT id, name FROM task_types WHERE is_active = true ORDER BY sort_order"
+                "SELECT id, code, name FROM task_types WHERE is_active = true ORDER BY sort_order"
         );
         List<Map<String, Object>> statuses = jdbcTemplate.queryForList(
-                "SELECT id, name FROM work_statuses ORDER BY sort_order"
+                "SELECT id, code, name FROM work_statuses ORDER BY sort_order"
         );
         List<Map<String, Object>> durations = jdbcTemplate.queryForList(
                 "SELECT minutes, label FROM duration_options WHERE is_active = true ORDER BY sort_order"
