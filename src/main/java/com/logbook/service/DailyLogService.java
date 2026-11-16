@@ -1,9 +1,11 @@
 package com.logbook.service;
 
+import com.logbook.dto.DayDto;
 import com.logbook.dto.DailyLogResponse;
 import com.logbook.entity.DailyLog;
 import com.logbook.repository.DailyLogRepository;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.http.HttpStatus;
@@ -25,22 +27,53 @@ public class DailyLogService {
     private final DailyLogRepository dailyLogRepository;
     private final DeadlineService deadlineService;
     private final CalendarService calendarService;
+    private final DayDtoMapper dayDtoMapper;
+
+    @Autowired
+    public DailyLogService(
+            DailyLogRepository dailyLogRepository,
+            DeadlineService deadlineService,
+            CalendarService calendarService,
+            DayDtoMapper dayDtoMapper
+    ) {
+        this.dailyLogRepository = dailyLogRepository;
+        this.deadlineService = deadlineService;
+        this.calendarService = calendarService;
+        this.dayDtoMapper = dayDtoMapper;
+    }
 
     public DailyLogService(
             DailyLogRepository dailyLogRepository,
             DeadlineService deadlineService,
             CalendarService calendarService
     ) {
-        this.dailyLogRepository = dailyLogRepository;
-        this.deadlineService = deadlineService;
-        this.calendarService = calendarService;
+        this(dailyLogRepository, deadlineService, calendarService, null);
     }
 
     @Transactional(readOnly = true)
     public DailyLogResponse getDailyLog(Long userId, LocalDate date) {
+        return toResponse(getOrThrow(userId, date));
+    }
+
+    @Transactional(readOnly = true)
+    public DayDto getDay(Long userId, LocalDate date) {
+        return dayDtoMapper.toDayDto(getOrThrow(userId, date));
+    }
+
+    @Transactional
+    public DailyLogResponse createDailyLog(Long userId, LocalDate date) {
+        return toResponse(getOrCreateEntity(userId, date));
+    }
+
+    @Transactional
+    public DayDto createDay(Long userId, LocalDate date) {
+        return dayDtoMapper.toDayDto(getOrCreateEntity(userId, date));
+    }
+
+    @Transactional(readOnly = true)
+    public DailyLog getOrThrow(Long userId, LocalDate date) {
         return dailyLogRepository
                 .findByUserIdAndLogDate(userId, date)
-                .map(this::toResponse)
                 .orElseThrow(() -> {
                     log.debug("Daily Log User ID {} tanggal {} tidak ditemukan", userId, date);
                     return new ResponseStatusException(
@@ -51,9 +84,9 @@ public class DailyLogService {
     }
 
     @Transactional
-    public DailyLogResponse createDailyLog(Long userId, LocalDate date) {
+    public DailyLog getOrCreateEntity(Long userId, LocalDate date) {
         return dailyLogRepository.findByUserIdAndLogDate(userId, date)
-                .map(this::reopenMissedDayIfAllowed)
+                .map(this::reopenMissedDayEntityIfAllowed)
                 .orElseGet(() -> {
                     requireEditableDay(date, "dibuat", null);
 
@@ -77,7 +110,7 @@ public class DailyLogService {
 
                     log.info("Berhasil membuat Daily Log ID {} untuk User ID {} tanggal {}",
                             created.getId(), userId, date);
-                    return toResponse(created);
+                    return created;
                 });
     }
 
@@ -173,11 +206,22 @@ public class DailyLogService {
         );
     }
 
+    public DayDto toDayDto(DailyLog dailyLog) {
+        if (dayDtoMapper == null) {
+            throw new IllegalStateException("DayDtoMapper is not configured");
+        }
+        return dayDtoMapper.toDayDto(dailyLog);
+    }
+
     /**
      * Saat aturan batas hari dimatikan, hari TERLEWAT boleh diisi kembali dan
      * berubah menjadi DRAF (OCD 5.3.6).
      */
     private DailyLogResponse reopenMissedDayIfAllowed(DailyLog dailyLog) {
+        return toResponse(reopenMissedDayEntityIfAllowed(dailyLog));
+    }
+
+    private DailyLog reopenMissedDayEntityIfAllowed(DailyLog dailyLog) {
         if (!deadlineService.isActive()
                 && STATUS_MISSED.equalsIgnoreCase(dailyLog.getStatus())) {
             dailyLog.reopenAsDraft(OffsetDateTime.now());
@@ -187,10 +231,10 @@ public class DailyLogService {
                             + "karena aturan batas hari nonaktif",
                     saved.getId(), saved.getLogDate());
 
-            return toResponse(saved);
+            return saved;
         }
 
-        return toResponse(dailyLog);
+        return dailyLog;
     }
 
     private void requireEditableDay(LocalDate date, String action, Long dailyLogId) {

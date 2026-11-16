@@ -1,5 +1,6 @@
 package com.logbook.controller;
 
+import com.logbook.dto.DayDto;
 import com.logbook.dto.DailyLogResponse;
 import com.logbook.dto.TeamMemberResponse;
 import com.logbook.entity.User;
@@ -59,5 +60,20 @@ public class TeamController {
         log.info("Menerima request GET Daily Log User ID {} tanggal {} oleh User ID {} ({})",
                 member.getId(), date, actor.getId(), actor.getEmail());
         return dailyLogService.getDailyLog(member.getId(), date);
+    }
+
+    @GetMapping("/{userId}/days/{date}")
+    public DayDto getTeamMemberDay(
+            @PathVariable Long userId,
+            @PathVariable
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+            LocalDate date,
+            HttpSession session
+    ) {
+        User actor = roleService.requireSupervisorOrAdmin(session);
+        User member = roleService.requireCanViewTalent(actor, userId);
+        log.info("Menerima request GET DayDto User ID {} tanggal {} oleh User ID {} ({})",
+                member.getId(), date, actor.getId(), actor.getEmail());
+        return dailyLogService.getDay(member.getId(), date);
     }
 }

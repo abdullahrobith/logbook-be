@@ -36,4 +36,12 @@ public interface ProjectRepository extends JpaRepository<Project, Long> {
         @Param("projectId") Long projectId,
         @Param("userId") Long userId
     );
+
+    @Query(value = """
+        SELECT p.id AS project_id, p.name AS project_name, c.name AS client_name, c.color AS color
+        FROM projects p
+        JOIN clients c ON p.client_id = c.id
+        WHERE p.id = :projectId
+        """, nativeQuery = true)
+    java.util.Optional<ProjectDto> findProjectInfoById(@Param("projectId") Long projectId);
 }

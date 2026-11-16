@@ -24,7 +24,7 @@ Pengujian dilakukan melalui tiga pendekatan:
 
 ## 3. Manual Testing API
 
-Saat ini backend Logbook memiliki **25 endpoint API**. Sepuluh endpoint diuji secara manual menggunakan Postman, tiga belas endpoint yang ditambahkan setelah pengujian manual awal diverifikasi melalui integration test, dan dua endpoint pengaturan pengguna ditambahkan kemudian (belum memiliki pengujian otomatis/manual khusus pada dokumen ini).
+Saat ini backend Logbook memiliki **28 endpoint API** (termasuk penyesuaian/penambahan endpoint SRS Day/Task). Sepuluh endpoint diuji secara manual menggunakan Postman, tiga belas endpoint yang ditambahkan setelah pengujian manual awal diverifikasi melalui integration test, dan endpoint lainnya (termasuk SRS Day/Task dan pengaturan pengguna) ditambahkan/diubah kemudian; verifikasinya belum seluruhnya tercakup dalam dokumen ini.
 
 | No. | Method | Endpoint | Fungsi | Akses | Verifikasi |
 |---|---|---|---|---|---|
@@ -41,20 +41,23 @@ Saat ini backend Logbook memiliki **25 endpoint API**. Sepuluh endpoint diuji se
 | 11 | POST | `/api/daily-logs/{dailyLogId}/reject` | Menolak Daily Log disertai alasan wajib | Atasan (timnya), admin (semua) | Integration test |
 | 12 | POST | `/api/daily-logs/{dailyLogId}/revision-request` | Mengajukan perbaikan Daily Log yang sudah disetujui | Pemilik data | Integration test |
 | 13 | POST | `/api/daily-logs/{dailyLogId}/approve-revision` | Menyetujui perbaikan dan membuka kembali hari sebagai DRAF | Atasan (timnya), admin (semua) | Integration test |
-| 14 | POST | `/api/daily-logs/{dailyLogId}/tasks` | Menambahkan task pada Daily Log | Pemilik data | Postman |
-| 15 | PUT | `/api/tasks/{id}` | Memperbarui task | Pemilik data | Postman |
-| 16 | DELETE | `/api/tasks/{id}` | Menghapus task | Pemilik data | Postman |
+| 14 | POST | `/api/daily-logs/{dailyLogId}/tasks` | Menambahkan task pada Daily Log (kontrak lama) | Pemilik data | Postman |
+| 15 | PUT | `/api/tasks/{id}` | Memperbarui task dan mengembalikan `DayDto` terbaru (SRS) | Pemilik data | Perlu verifikasi |
+| 16 | DELETE | `/api/tasks/{id}` | Menghapus task dan mengembalikan `DayDto` terbaru (SRS) | Pemilik data | Perlu verifikasi |
 | 17 | GET | `/api/team` | Mendapatkan daftar tim dengan status dan total jam hari ini | Atasan (timnya), admin (semua) | Integration test |
-| 18 | GET | `/api/team/{userId}/daily-logs/{date}` | Mendapatkan Daily Log anggota tim pada tanggal tertentu | Atasan (timnya), admin (semua) | Integration test |
-| 19 | POST | `/api/admin/users/import` | Mengimpor pengguna dari CSV | Admin | Integration test |
-| 20 | GET | `/api/admin/daily-logs` | Mendapatkan daftar Daily Log seluruh talent dengan filter tanggal, pengguna, dan status | Admin | Integration test |
-| 21 | GET | `/api/projects` | Mendapatkan daftar project pengguna | Pemilik data | Postman |
-| 22 | GET | `/api/tasks/master-data` | Mendapatkan data master task | Pengguna masuk | Postman |
-| 23 | GET | `/api/examples` | Mendapatkan data contoh penulisan logbook | Pengguna masuk | Postman |
-| 24 | GET | `/api/settings` | Mendapatkan pengaturan pengguna (jam kerja dan status onboarding) | Pengguna masuk | Unit test & Integration test (unit test lulus; integration test memerlukan DB lokal + fixture) |
-| 25 | PUT | `/api/settings` | Memperbarui pengaturan pengguna (jam kerja dan status onboarding) | Pengguna masuk | Unit test & Integration test (unit test lulus; integration test memerlukan DB lokal + fixture) |
+| 18 | GET | `/api/team/{userId}/daily-logs/{date}` | Mendapatkan Daily Log anggota tim pada tanggal tertentu (kontrak lama) | Atasan (timnya), admin (semua) | Integration test |
+| 19 | GET | `/api/team/{userId}/days/{date}` | Mendapatkan `DayDto` anggota tim pada tanggal tertentu (SRS) | Atasan (timnya), admin (semua) | Perlu verifikasi |
+| 20 | POST | `/api/admin/users/import` | Mengimpor pengguna dari CSV | Admin | Integration test |
+| 21 | GET | `/api/admin/daily-logs` | Mendapatkan daftar Daily Log seluruh talent dengan filter tanggal, pengguna, dan status | Admin | Integration test |
+| 22 | GET | `/api/projects` | Mendapatkan daftar project pengguna | Pemilik data | Postman |
+| 23 | GET | `/api/tasks/master-data` | Mendapatkan data master task | Pengguna masuk | Postman |
+| 24 | GET | `/api/examples` | Mendapatkan data contoh penulisan logbook | Pengguna masuk | Postman |
+| 25 | GET | `/api/settings` | Mendapatkan pengaturan pengguna (jam kerja dan status onboarding) | Pengguna masuk | Unit test & Integration test (unit test lulus; integration test memerlukan DB lokal + fixture) |
+| 26 | PUT | `/api/settings` | Memperbarui pengaturan pengguna (jam kerja dan status onboarding) | Pengguna masuk | Unit test & Integration test (unit test lulus; integration test memerlukan DB lokal + fixture) |
+| 27 | GET | `/api/days/{date}` | Mendapatkan `DayDto` milik pengguna pada tanggal tertentu (SRS) | Pemilik data | Perlu verifikasi |
+| 28 | POST | `/api/days/{date}/tasks` | Menambahkan task pada tanggal tertentu dan mengembalikan `DayDto` terbaru (SRS) | Pemilik data | Perlu verifikasi |
 
-Seluruh endpoint yang telah tercakup skenario pengujian memberikan hasil sesuai harapan. Untuk endpoint pengaturan pengguna (no. 24–25) telah ditambahkan unit test (`SettingsServiceTest`, `SettingsControllerTest`) yang berhasil lulus serta skenario integration test pada `LogbookApiIntegrationTest`; eksekusi integration test memerlukan database PostgreSQL lokal dengan skema/fixture yang sesuai.
+Seluruh endpoint yang telah tercakup skenario pengujian memberikan hasil sesuai harapan. Untuk endpoint pengaturan pengguna (no. 25–26) telah ditambahkan unit test (`SettingsServiceTest`, `SettingsControllerTest`) yang berhasil lulus serta skenario integration test pada `LogbookApiIntegrationTest`; eksekusi integration test memerlukan database PostgreSQL lokal dengan skema/fixture yang sesuai. Endpoint SRS Day/Task (no. 15–16, 19, 27–28) telah disesuaikan kontraknya (`DayDto`/`TaskDto`, path/request/response) namun pengujian otomatis/manual spesifik untuk kontrak baru ini masih perlu dilengkapi/diperbarui.
 
 ## 4. Unit Testing
 

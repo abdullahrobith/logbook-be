@@ -157,18 +157,26 @@ public record DailyLogResponse(
             Short workStatusId,
             String ticket,
             Integer startMinute,
+            String startTime,
             Short durationMinutes,
             String summary,
             String obstacle
     ) {
         public static TaskResponse from(LogTask task) {
+            Integer sm = task.getStartMinute();
+            String st = null;
+            if (sm != null) {
+                int m = ((sm % 1440) + 1440) % 1440;
+                st = String.format("%02d:%02d", m / 60, m % 60);
+            }
             return new TaskResponse(
                     task.getId(),
                     task.getProjectId(),
                     task.getTaskTypeId(),
                     task.getWorkStatusId(),
                     task.getTicket(),
-                    task.getStartMinute(),
+                    sm,
+                    st,
                     task.getDurationMinutes(),
                     task.getSummary(),
                     task.getObstacle()
