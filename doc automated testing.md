@@ -24,7 +24,7 @@ Pengujian dilakukan melalui tiga pendekatan:
 
 ## 3. Manual Testing API
 
-Saat ini backend Logbook memiliki **23 endpoint API**. Sepuluh endpoint diuji secara manual menggunakan Postman, sedangkan tiga belas endpoint yang ditambahkan setelah pengujian manual awal diverifikasi melalui integration test.
+Saat ini backend Logbook memiliki **25 endpoint API**. Sepuluh endpoint diuji secara manual menggunakan Postman, tiga belas endpoint yang ditambahkan setelah pengujian manual awal diverifikasi melalui integration test, dan dua endpoint pengaturan pengguna ditambahkan kemudian (belum memiliki pengujian otomatis/manual khusus pada dokumen ini).
 
 | No. | Method | Endpoint | Fungsi | Akses | Verifikasi |
 |---|---|---|---|---|---|
@@ -51,8 +51,10 @@ Saat ini backend Logbook memiliki **23 endpoint API**. Sepuluh endpoint diuji se
 | 21 | GET | `/api/projects` | Mendapatkan daftar project pengguna | Pemilik data | Postman |
 | 22 | GET | `/api/tasks/master-data` | Mendapatkan data master task | Pengguna masuk | Postman |
 | 23 | GET | `/api/examples` | Mendapatkan data contoh penulisan logbook | Pengguna masuk | Postman |
+| 24 | GET | `/api/settings` | Mendapatkan pengaturan pengguna (jam kerja dan status onboarding) | Pengguna masuk | Unit test & Integration test (unit test lulus; integration test memerlukan DB lokal + fixture) |
+| 25 | PUT | `/api/settings` | Memperbarui pengaturan pengguna (jam kerja dan status onboarding) | Pengguna masuk | Unit test & Integration test (unit test lulus; integration test memerlukan DB lokal + fixture) |
 
-Seluruh endpoint telah diverifikasi dan memberikan hasil sesuai dengan skenario pengujian.
+Seluruh endpoint yang telah tercakup skenario pengujian memberikan hasil sesuai harapan. Untuk endpoint pengaturan pengguna (no. 24–25) telah ditambahkan unit test (`SettingsServiceTest`, `SettingsControllerTest`) yang berhasil lulus serta skenario integration test pada `LogbookApiIntegrationTest`; eksekusi integration test memerlukan database PostgreSQL lokal dengan skema/fixture yang sesuai.
 
 ## 4. Unit Testing
 
@@ -60,7 +62,7 @@ Unit testing dilakukan untuk menguji komponen aplikasi secara terpisah tanpa har
 
 ### 4.1 DailyLogResponseTest
 
-Pengujian dilakukan terhadap logika penghitungan durasi pekerjaan pada Daily Log.
+Pengujian dilakukan terhadap logika penghitungan durasi pekerjaan pada Daily Log (berbasis `startMinute` 0–2879).
 
 | No. | Skenario Pengujian | Hasil |
 |---|---|---|
@@ -70,13 +72,14 @@ Pengujian dilakukan terhadap logika penghitungan durasi pekerjaan pada Daily Log
 | 4 | Menghitung task dengan waktu berurutan | Lulus |
 | 5 | Menangani Daily Log tanpa task | Lulus |
 | 6 | Menangani interval waktu identik pada beberapa project | Lulus |
-| 7 | Menyertakan field `editable` dan `deadline` pada response Daily Log | Lulus |
+| 7 | Mendukung interval task lintas tengah malam (`startMinute` > 1439) | Lulus |
+| 8 | Menyertakan field `editable` dan `deadline` pada response Daily Log | Lulus |
 
-Total: **7 test, seluruhnya lulus.**
+Total: **8 test, seluruhnya lulus.**
 
 ### 4.2 LogTaskRequestTest
 
-Pengujian dilakukan untuk memastikan validasi data pada request penambahan dan pembaruan task.
+Pengujian dilakukan untuk memastikan validasi data pada request penambahan dan pembaruan task. Field waktu mulai task menggunakan `startMinute` (integer 0–2879) untuk mendukung task lintas tengah malam.
 
 | No. | Skenario Pengujian | Hasil |
 |---|---|---|
@@ -85,11 +88,13 @@ Pengujian dilakukan untuk memastikan validasi data pada request penambahan dan p
 | 3 | Task Type ID tidak boleh kosong | Lulus |
 | 4 | Work Status ID tidak boleh kosong | Lulus |
 | 5 | Format ticket harus sesuai ketentuan | Lulus |
-| 6 | Start time tidak boleh kosong | Lulus |
-| 7 | Durasi harus berada pada rentang 5-1440 menit | Lulus |
-| 8 | Summary tidak boleh kosong | Lulus |
+| 6 | `startMinute` tidak boleh kosong | Lulus |
+| 7 | `startMinute` mendukung rentang lintas tengah malam (0–2879) | Lulus |
+| 8 | `startMinute` di atas rentang (> 2879) ditolak | Lulus |
+| 9 | Durasi harus berada pada rentang 5-1440 menit | Lulus |
+| 10 | Summary tidak boleh kosong | Lulus |
 
-Total: **8 test, seluruhnya lulus.**
+Total: **10 test, seluruhnya lulus.**
 
 ### 4.3 LogTaskServiceTest
 
@@ -201,8 +206,37 @@ Pengujian dilakukan untuk memastikan daftar Daily Log admin, filter opsional, da
 
 Total: **6 test, seluruhnya lulus.**
 
+### 4.8 SettingsServiceTest
 
-### 4.8 ApprovalServiceTest
+Pengujian dilakukan untuk memastikan pengambilan dan pembaruan pengaturan pengguna (jam kerja dan status onboarding) berjalan benar.
+
+| No. | Skenario Pengujian | Hasil |
+|---|---|---|
+| 1 | Mengembalikan pengaturan yang sudah ada tanpa membuat data baru | Lulus |
+| 2 | Membuat pengaturan default (08:00–17:00, belum onboarding) bila belum ada | Lulus |
+| 3 | Memperbarui jam kerja (`workStart`/`workEnd`) | Lulus |
+| 4 | Menandai onboarding selesai (`onboarded=true`) dan mengisi `onboardedAt` | Lulus |
+| 5 | Menjaga `onboardedAt` yang sudah ada saat `onboarded=true` dikirim ulang | Lulus |
+| 6 | Mengosongkan status onboarding saat `onboarded=false` | Lulus |
+| 7 | Permintaan null tidak mengubah nilai pengaturan | Lulus |
+
+Total: **7 test, seluruhnya lulus.**
+
+### 4.9 SettingsControllerTest
+
+Pengujian dilakukan untuk memastikan endpoint pengaturan pengguna mendelegasikan akses ke service dan menolak pengguna tidak terautentikasi.
+
+| No. | Skenario Pengujian | Hasil |
+|---|---|---|
+| 1 | `GET /api/settings` mengembalikan pengaturan pengguna terautentikasi | Lulus |
+| 2 | `GET /api/settings` menolak pengguna tidak terautentikasi (401) | Lulus |
+| 3 | `PUT /api/settings` mendelegasikan pembaruan ke service | Lulus |
+| 4 | `PUT /api/settings` menolak pengguna tidak terautentikasi (401) | Lulus |
+
+Total: **4 test, seluruhnya lulus.**
+
+
+### 4.10 ApprovalServiceTest
 
 Pengujian dilakukan untuk memastikan keputusan atas Daily Log (setujui, tolak, ajukan perbaikan, setujui perbaikan), aturan alasan wajib, larangan memutuskan Daily Log sendiri, dan pencatatan log INFO berjalan benar.
 
@@ -226,7 +260,7 @@ Pengujian dilakukan untuk memastikan keputusan atas Daily Log (setujui, tolak, a
 
 Total: **15 test, seluruhnya lulus.**
 
-### 4.9 DeadlineServiceTest
+### 4.11 DeadlineServiceTest
 
 Pengujian dilakukan untuk memastikan perhitungan batas hari, penentuan hari ini, dan aturan hari yang dapat diisi berjalan benar.
 
@@ -248,7 +282,7 @@ Pengujian dilakukan untuk memastikan perhitungan batas hari, penentuan hari ini,
 
 Total: **13 test, seluruhnya lulus.**
 
-### 4.10 GlobalExceptionHandlerTest
+### 4.12 GlobalExceptionHandlerTest
 
 Pengujian dilakukan menggunakan JUnit 5, Mockito, dan `ListAppender` Logback untuk memastikan penanganan galat global (`GlobalExceptionHandler` & `ApiException`) mengembalikan status HTTP, struktur respons JSON, dan keluaran log (`WARN` / `ERROR`) yang sesuai.
 
@@ -263,7 +297,7 @@ Pengujian dilakukan menggunakan JUnit 5, Mockito, dan `ListAppender` Logback unt
 
 Total: **6 test, seluruhnya lulus.**
 
-### 4.11 ApiExceptionHandlerTest
+### 4.13 ApiExceptionHandlerTest
 
 Pengujian dilakukan untuk memastikan seluruh cabang penanganan galat pada `ApiExceptionHandler` berjalan sesuai kontrak respons API.
 
@@ -278,7 +312,7 @@ Pengujian dilakukan untuk memastikan seluruh cabang penanganan galat pada `ApiEx
 
 Total: **6 test, seluruhnya lulus.**
 
-### 4.12 LoggingTest
+### 4.14 LoggingTest
 
 Pengujian dilakukan untuk memverifikasi konfigurasi `logback-spring.xml`, injeksi serta pembersihan `requestId` pada MDC melalui `RequestIdFilter`, dan keluaran log aplikasi.
 
@@ -291,7 +325,7 @@ Pengujian dilakukan untuk memverifikasi konfigurasi `logback-spring.xml`, injeks
 
 Total: **4 test, seluruhnya lulus.**
 
-### 4.13 AdminControllerTest
+### 4.15 AdminControllerTest
 
 Pengujian dilakukan untuk memastikan fitur khusus Admin (otorisasi akses admin, impor pengguna dari CSV, pengelolaan hari libur nasional, dan pengelolaan cuti talent) berjalan sesuai aturan bisnis.
 
@@ -397,8 +431,12 @@ Pengujian menggunakan database `logbook` dengan konfigurasi transaksi `@Transact
 | 69 | Atasan dapat menyetujui perbaikan sehingga hari dibuka kembali sebagai DRAF | Lulus |
 | 70 | Persetujuan perbaikan hanya untuk status PERBAIKAN_DIAJUKAN | Lulus |
 | 71 | Daily Log DITOLAK dapat diperbaiki dan dikirim ulang menjadi MENUNGGU | Lulus |
+| 72 | `GET/PUT /api/settings` menolak akses tanpa autentikasi | Ditambahkan (belum dieksekusi; memerlukan DB lokal + fixture) |
+| 73 | `GET /api/settings` mengembalikan pengaturan default untuk pengguna terautentikasi | Ditambahkan (belum dieksekusi; memerlukan DB lokal + fixture) |
+| 74 | `PUT /api/settings` memperbarui jam kerja dan status onboarding | Ditambahkan (belum dieksekusi; memerlukan DB lokal + fixture) |
+| 75 | `PUT /api/settings` mendukung pembaruan parsial dan pengosongan onboarding | Ditambahkan (belum dieksekusi; memerlukan DB lokal + fixture) |
 
-Total: **71 test, seluruhnya lulus.**
+Total: **71 test lulus** (sebelumnya), ditambah **4 skenario integration test pengaturan pengguna** yang ditambahkan pada `LogbookApiIntegrationTest` dan belum dieksekusi pada lingkungan ini.
 
 ### 5.2 DailyLogDeadlineIntegrationTest
 
@@ -484,8 +522,8 @@ Berdasarkan hasil eksekusi pengujian otomatis backend Logbook, diperoleh hasil r
 
 | Komponen Pengujian | Jumlah Test | Failures | Errors | Status |
 |---|---:|---:|---:|---|
-| DailyLogResponseTest | 7 | 0 | 0 | Lulus |
-| LogTaskRequestTest | 8 | 0 | 0 | Lulus |
+| DailyLogResponseTest | 8 | 0 | 0 | Lulus |
+| LogTaskRequestTest | 10 | 0 | 0 | Lulus |
 | LogTaskServiceTest | 22 | 0 | 0 | Lulus |
 | DailyLogServiceTest | 16 | 0 | 0 | Lulus |
 | DeadlineServiceTest | 13 | 0 | 0 | Lulus |
@@ -500,12 +538,12 @@ Berdasarkan hasil eksekusi pengujian otomatis backend Logbook, diperoleh hasil r
 | DailyLogDeadlineIntegrationTest | 12 | 0 | 0 | Lulus |
 | LogbookApiIntegrationTest | 71 | 0 | 0 | Lulus |
 | LogbookBeApplicationTests | 1 | 0 | 0 | Lulus |
-| **Total** | **222** | **0** | **0** | **Lulus** |
+| **Total** | **225** | **0** | **0** | **Lulus** |
 
 ### 7.1 Kesimpulan Hasil Pengujian
 
 Berdasarkan pengujian yang telah dilakukan, diperoleh hasil:
-- Sebanyak 23 endpoint API tersedia; 10 endpoint diuji secara manual menggunakan Postman dan 13 endpoint diverifikasi melalui integration test.
+- Sebanyak 25 endpoint API tersedia; 10 endpoint diuji secara manual menggunakan Postman, 13 endpoint diverifikasi melalui integration test, dan 2 endpoint pengaturan pengguna (`GET/PUT /api/settings`) telah dilengkapi unit test (`SettingsServiceTest`, `SettingsControllerTest`, lulus) serta skenario integration test pada `LogbookApiIntegrationTest` (eksekusi memerlukan DB lokal + fixture).
 - Seluruh unit test (termasuk handler galat, konfigurasi & keluaran logging, otorisasi peran Atasan/Admin, keputusan Daily Log, batas hari & deadline, impor CSV, serta pengelolaan libur & cuti) dan integration test berhasil dilewati.
 - Tidak ditemukan failures maupun errors pada eksekusi pengujian otomatis.
 - Otorisasi berbasis peran (talent, atasan, admin) telah diuji pada level unit maupun integrasi.
@@ -530,6 +568,6 @@ Dengan demikian, backend Logbook berhasil melewati seluruh skenario pengujian ya
 
 ## 8. Kesimpulan
 
-Pengujian backend Logbook telah dilakukan melalui tiga pendekatan, yaitu manual testing, unit testing, dan integration testing, serta dilengkapi pengukuran cakupan kode menggunakan JaCoCo. Pengujian manual terhadap 10 endpoint API berhasil dilakukan menggunakan Postman, 13 endpoint tambahan diverifikasi melalui integration test, dan seluruh pengujian otomatis berhasil dilewati dengan 0 failures dan 0 errors.
+Pengujian backend Logbook telah dilakukan melalui tiga pendekatan, yaitu manual testing, unit testing, dan integration testing, serta dilengkapi pengukuran cakupan kode menggunakan JaCoCo. Pengujian manual terhadap 10 endpoint API berhasil dilakukan menggunakan Postman, 13 endpoint tambahan diverifikasi melalui integration test, dan seluruh pengujian otomatis yang tersedia berhasil dilewati dengan 0 failures dan 0 errors. Selain itu, 2 endpoint pengaturan pengguna (`GET/PUT /api/settings`) telah dilengkapi unit test (`SettingsServiceTest`, `SettingsControllerTest`) yang berhasil lulus serta skenario integration test pada `LogbookApiIntegrationTest` (eksekusi integration test memerlukan database PostgreSQL lokal dan fixture yang sesuai).
 
 Hasil tersebut menunjukkan bahwa komponen backend yang telah diuji berjalan sesuai dengan skenario pengujian yang tersedia. Meskipun demikian, hasil ini belum menjamin seluruh kemungkinan kondisi sistem telah diuji sehingga pengembangan cakupan pengujian tetap diperlukan.

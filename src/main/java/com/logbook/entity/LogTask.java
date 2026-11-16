@@ -1,7 +1,6 @@
 package com.logbook.entity;
 
 import jakarta.persistence.*;
-import java.time.LocalTime;
 import java.time.OffsetDateTime;
 
 @Entity
@@ -27,8 +26,8 @@ public class LogTask {
 
     private String ticket;
 
-    @Column(name = "start_time", nullable = false)
-    private LocalTime startTime;
+    @Column(name = "start_minute", nullable = false)
+    private Integer startMinute;
 
     @Column(name = "duration_minutes", nullable = false)
     private Short durationMinutes;
@@ -54,7 +53,7 @@ public class LogTask {
             Short taskTypeId,
             Short workStatusId,
             String ticket,
-            LocalTime startTime,
+            Integer startMinute,
             Short durationMinutes,
             String summary,
             String obstacle,
@@ -66,7 +65,7 @@ public class LogTask {
         this.taskTypeId = taskTypeId;
         this.workStatusId = workStatusId;
         this.ticket = ticket;
-        this.startTime = startTime;
+        this.startMinute = startMinute;
         this.durationMinutes = durationMinutes;
         this.summary = summary;
         this.obstacle = obstacle;
@@ -79,7 +78,7 @@ public class LogTask {
             Short taskTypeId,
             Short workStatusId,
             String ticket,
-            LocalTime startTime,
+            Integer startMinute,
             Short durationMinutes,
             String summary,
             String obstacle,
@@ -89,7 +88,7 @@ public class LogTask {
         this.taskTypeId = taskTypeId;
         this.workStatusId = workStatusId;
         this.ticket = ticket;
-        this.startTime = startTime;
+        this.startMinute = startMinute;
         this.durationMinutes = durationMinutes;
         this.summary = summary;
         this.obstacle = obstacle;
@@ -102,7 +101,7 @@ public class LogTask {
     public Short getTaskTypeId() { return taskTypeId; }
     public Short getWorkStatusId() { return workStatusId; }
     public String getTicket() { return ticket; }
-    public LocalTime getStartTime() { return startTime; }
+    public Integer getStartMinute() { return startMinute; }
     public Short getDurationMinutes() { return durationMinutes; }
     public String getSummary() { return summary; }
     public String getObstacle() { return obstacle; }

@@ -11,7 +11,6 @@ import org.springframework.web.server.ResponseStatusException;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.time.LocalTime;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.List;
@@ -102,7 +101,7 @@ class DailyLogServiceTest {
         LocalDate date = TODAY;
         LogTask task = mock(LogTask.class);
         when(task.getProjectId()).thenReturn(1L);
-        when(task.getStartTime()).thenReturn(LocalTime.of(9, 0));
+        when(task.getStartMinute()).thenReturn(540); // 09:00
         when(task.getDurationMinutes()).thenReturn((short) 30);
 
         DailyLog dailyLog = draftLog(10L, date, List.of(task));
@@ -171,7 +170,7 @@ class DailyLogServiceTest {
         LocalDate date = TODAY.minusDays(1);
         LogTask task = mock(LogTask.class);
         when(task.getProjectId()).thenReturn(1L);
-        when(task.getStartTime()).thenReturn(LocalTime.of(9, 0));
+        when(task.getStartMinute()).thenReturn(540); // 09:00
         when(task.getDurationMinutes()).thenReturn((short) 30);
 
         DailyLog dailyLog = draftLog(10L, date, List.of(task));
@@ -231,7 +230,7 @@ class DailyLogServiceTest {
         LocalDate date = TODAY.plusDays(1);
         LogTask task = mock(LogTask.class);
         when(task.getProjectId()).thenReturn(1L);
-        when(task.getStartTime()).thenReturn(LocalTime.of(9, 0));
+        when(task.getStartMinute()).thenReturn(540); // 09:00
         when(task.getDurationMinutes()).thenReturn((short) 30);
 
         DailyLog dailyLog = draftLog(10L, date, List.of(task));

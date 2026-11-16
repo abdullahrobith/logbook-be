@@ -7,8 +7,6 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Positive;
 
-import java.time.LocalTime;
-
 public record LogTaskRequest(
 
         @NotNull(message = "Project ID wajib diisi")
@@ -28,8 +26,10 @@ public record LogTaskRequest(
         )
         String ticket,
 
-        @NotNull(message = "Jam mulai wajib diisi")
-        LocalTime startTime,
+        @NotNull(message = "Menit mulai wajib diisi")
+        @Min(value = 0, message = "Menit mulai minimal 0")
+        @Max(value = 2879, message = "Menit mulai maksimal 2879")
+        Integer startMinute,
 
         @NotNull(message = "Durasi wajib diisi")
         @Min(value = 5, message = "Durasi minimal 5 menit")

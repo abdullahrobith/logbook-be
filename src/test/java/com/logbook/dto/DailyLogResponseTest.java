@@ -6,7 +6,6 @@ import com.logbook.entity.LogTask;
 import org.junit.jupiter.api.Test;
 
 import java.time.LocalDate;
-import java.time.LocalTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
@@ -19,7 +18,7 @@ class DailyLogResponseTest {
     private LogTask createTask(
             Long id,
             Long projectId,
-            String startTime,
+            int startMinute,
             short duration
     ) {
         LogTask task = mock(LogTask.class);
@@ -29,7 +28,7 @@ class DailyLogResponseTest {
         when(task.getTaskTypeId()).thenReturn((short) 1);
         when(task.getWorkStatusId()).thenReturn((short) 1);
         when(task.getTicket()).thenReturn("ABC-" + id);
-        when(task.getStartTime()).thenReturn(LocalTime.parse(startTime));
+        when(task.getStartMinute()).thenReturn(startMinute);
         when(task.getDurationMinutes()).thenReturn(duration);
         when(task.getSummary()).thenReturn("Testing task " + id);
         when(task.getObstacle()).thenReturn(null);
@@ -62,9 +61,9 @@ class DailyLogResponseTest {
     @Test
     void shouldCalculateTotalDurationWithoutDoubleCountingParallelTasks() {
         List<LogTask> tasks = List.of(
-                createTask(1L, 1L, "08:00", (short) 120),
-                createTask(2L, 1L, "09:00", (short) 60),
-                createTask(3L, 1L, "09:00", (short) 120)
+                createTask(1L, 1L, 480, (short) 120), // 08:00
+                createTask(2L, 1L, 540, (short) 60),  // 09:00
+                createTask(3L, 1L, 540, (short) 120)  // 09:00
         );
 
         DailyLogResponse response = response(tasks);
@@ -76,10 +75,10 @@ class DailyLogResponseTest {
     @Test
     void shouldCalculateSubtotalForEachProject() {
         List<LogTask> tasks = List.of(
-                createTask(1L, 1L, "08:00", (short) 120),
-                createTask(2L, 1L, "09:00", (short) 60),
-                createTask(3L, 2L, "10:00", (short) 120),
-                createTask(4L, 2L, "13:00", (short) 90)
+                createTask(1L, 1L, 480, (short) 120), // 08:00
+                createTask(2L, 1L, 540, (short) 60),  // 09:00
+                createTask(3L, 2L, 600, (short) 120), // 10:00
+                createTask(4L, 2L, 780, (short) 90)   // 13:00
         );
 
         DailyLogResponse response = response(tasks);
@@ -102,9 +101,9 @@ class DailyLogResponseTest {
     @Test
     void shouldCalculateTotalAcrossDifferentProjectsWithoutDoubleCounting() {
         List<LogTask> tasks = List.of(
-                createTask(1L, 1L, "08:00", (short) 120),
-                createTask(2L, 1L, "09:00", (short) 60),
-                createTask(3L, 2L, "09:00", (short) 120)
+                createTask(1L, 1L, 480, (short) 120), // 08:00
+                createTask(2L, 1L, 540, (short) 60),  // 09:00
+                createTask(3L, 2L, 540, (short) 120)  // 09:00
         );
 
         DailyLogResponse response = response(tasks);
@@ -116,9 +115,9 @@ class DailyLogResponseTest {
     @Test
     void shouldCalculateSequentialTasksCorrectly() {
         List<LogTask> tasks = List.of(
-                createTask(1L, 1L, "08:00", (short) 60),
-                createTask(2L, 1L, "09:00", (short) 60),
-                createTask(3L, 1L, "10:00", (short) 60)
+                createTask(1L, 1L, 480, (short) 60), // 08:00
+                createTask(2L, 1L, 540, (short) 60), // 09:00
+                createTask(3L, 1L, 600, (short) 60)  // 10:00
         );
 
         DailyLogResponse response = response(tasks);
@@ -138,8 +137,8 @@ class DailyLogResponseTest {
     @Test
     void shouldCountIdenticalTaskIntervalsOnlyOnce() {
         List<LogTask> tasks = List.of(
-                createTask(1L, 1L, "08:00", (short) 120),
-                createTask(2L, 2L, "08:00", (short) 120)
+                createTask(1L, 1L, 480, (short) 120), // 08:00
+                createTask(2L, 2L, 480, (short) 120)  // 08:00
         );
 
         DailyLogResponse response = response(tasks);
@@ -149,6 +148,19 @@ class DailyLogResponseTest {
         // Masing-masing proyek tetap memiliki subtotal sendiri.
         assertEquals(120, response.projects().get(0).subtotalMinutes());
         assertEquals(120, response.projects().get(1).subtotalMinutes());
+    }
+
+    @Test
+    void shouldSupportCrossMidnightIntervals() {
+        List<LogTask> tasks = List.of(
+                createTask(1L, 1L, 1380, (short) 120), // 23:00 -> 01:00 (hari berikutnya, menit 1500)
+                createTask(2L, 1L, 1440, (short) 30)   // 00:00 hari berikutnya
+        );
+
+        DailyLogResponse response = response(tasks);
+
+        // Union 1380-1500 = 120 menit.
+        assertEquals(120, response.totalDurationMinutes());
     }
 
     @Test

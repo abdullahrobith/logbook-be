@@ -5,7 +5,6 @@ import com.logbook.entity.DailyLog;
 import com.logbook.entity.LogTask;
 
 import java.time.LocalDate;
-import java.time.LocalTime;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -100,6 +99,7 @@ public record DailyLogResponse(
     /**
      * Menghitung total durasi berdasarkan union rentang waktu.
      * Rentang waktu yang saling bertumpang tindih hanya dihitung sekali.
+     * startMinute mendukung 0-2879 untuk task lintas tengah malam.
      */
     public static int calculateUnionDuration(List<LogTask> tasks) {
         if (tasks == null || tasks.isEmpty()) {
@@ -108,7 +108,7 @@ public record DailyLogResponse(
 
         List<TimeInterval> intervals = tasks.stream()
                 .map(task -> {
-                    int start = task.getStartTime().toSecondOfDay() / 60;
+                    int start = task.getStartMinute();
                     int end = start + task.getDurationMinutes().intValue();
 
                     return new TimeInterval(start, end);
@@ -156,7 +156,7 @@ public record DailyLogResponse(
             Short taskTypeId,
             Short workStatusId,
             String ticket,
-            LocalTime startTime,
+            Integer startMinute,
             Short durationMinutes,
             String summary,
             String obstacle
@@ -168,7 +168,7 @@ public record DailyLogResponse(
                     task.getTaskTypeId(),
                     task.getWorkStatusId(),
                     task.getTicket(),
-                    task.getStartTime(),
+                    task.getStartMinute(),
                     task.getDurationMinutes(),
                     task.getSummary(),
                     task.getObstacle()

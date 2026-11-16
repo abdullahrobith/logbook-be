@@ -22,7 +22,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
-import java.time.LocalTime;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.regex.Matcher;
@@ -72,7 +71,7 @@ class LogbookApiIntegrationTest {
                     "taskTypeId": 1,
                     "workStatusId": 1,
                     "ticket": "TEST-101",
-                    "startTime": "17:00",
+                    "startMinute": 1020,
                     "durationMinutes": 30,
                     "summary": "Integration test task",
                     "obstacle": "Tidak ada"
@@ -269,7 +268,7 @@ class LogbookApiIntegrationTest {
                                     "taskTypeId": 1,
                                     "workStatusId": 2,
                                     "ticket": "TEST-101",
-                                    "startTime": "17:30",
+                                    "startMinute": 1050,
                                     "durationMinutes": 45,
                                     "summary": "Integration test update task",
                                     "obstacle": "Ada kendala kecil"
@@ -431,7 +430,7 @@ class LogbookApiIntegrationTest {
                                     "taskTypeId": 1,
                                     "workStatusId": 999,
                                     "ticket": "TEST-101",
-                                    "startTime": "17:00",
+                                    "startMinute": 1020,
                                     "durationMinutes": 30,
                                     "summary": "Invalid work status",
                                     "obstacle": "Tidak ada"
@@ -453,7 +452,7 @@ class LogbookApiIntegrationTest {
                                     "taskTypeId": 1,
                                     "workStatusId": 1,
                                     "ticket": "INVALID TICKET!",
-                                    "startTime": "17:00",
+                                    "startMinute": 1020,
                                     "durationMinutes": 30,
                                     "summary": "Invalid ticket format",
                                     "obstacle": "Tidak ada"
@@ -482,7 +481,7 @@ class LogbookApiIntegrationTest {
                     (short) 1,
                     (short) 1,
                     "OVERLAP-" + index,
-                    LocalTime.of(9, 30),
+                    570,
                     (short) 30,
                     "Fixture overlap " + index,
                     null,
@@ -504,7 +503,7 @@ class LogbookApiIntegrationTest {
                                     "taskTypeId": 1,
                                     "workStatusId": 1,
                                     "ticket": "TEST-104",
-                                    "startTime": "09:30",
+                                    "startMinute": 570,
                                     "durationMinutes": 30,
                                     "summary": "Task keempat pada jam yang sama",
                                     "obstacle": "Tidak ada"
@@ -741,8 +740,8 @@ class LogbookApiIntegrationTest {
         );
 
         long dailyLogId = insertTodayDailyLog(2L, "MENUNGGU");
-        insertTask(dailyLogId, LocalTime.of(9, 0), 60, "Task pagi");
-        insertTask(dailyLogId, LocalTime.of(9, 30), 60, "Task tumpang tindih");
+        insertTask(dailyLogId, 540, 60, "Task pagi");
+        insertTask(dailyLogId, 570, 60, "Task tumpang tindih");
 
         MockHttpSession supervisorSession = loginAs("atasan.union@contoh.id");
 
@@ -876,8 +875,8 @@ class LogbookApiIntegrationTest {
         long talentId = insertTalent("talent.pengguna@contoh.id", "Talent Pengguna");
         long firstLog = insertDailyLog(talentId, LocalDate.of(2026, 12, 4), "DRAF");
         insertDailyLog(talentId, LocalDate.of(2026, 12, 5), "MENUNGGU");
-        insertTask(firstLog, LocalTime.of(9, 0), 60, "Task pagi");
-        insertTask(firstLog, LocalTime.of(9, 30), 60, "Task tumpang tindih");
+        insertTask(firstLog, 540, 60, "Task pagi");
+        insertTask(firstLog, 570, 60, "Task tumpang tindih");
 
         MockHttpSession adminSession = loginAsAdmin(
                 "admin.filter.pengguna@contoh.id",
@@ -957,8 +956,8 @@ class LogbookApiIntegrationTest {
         LocalDate date = LocalDate.of(2026, 12, 9);
         long talentId = insertTalent("talent.gabung@contoh.id", "Talent Gabung");
         long dailyLogId = insertDailyLog(talentId, date, "DRAF");
-        insertTask(dailyLogId, LocalTime.of(9, 0), 60, "Task pagi");
-        insertTask(dailyLogId, LocalTime.of(9, 30), 60, "Task tumpang tindih");
+        insertTask(dailyLogId, 540, 60, "Task pagi");
+        insertTask(dailyLogId, 570, 60, "Task tumpang tindih");
         insertDailyLog(talentId, date.plusDays(1), "MENUNGGU");
 
         MockHttpSession adminSession = loginAsAdmin(
@@ -1357,7 +1356,7 @@ class LogbookApiIntegrationTest {
     @Test
     void rejectedDailyLogCanBeFixedAndResubmitted() throws Exception {
         long dailyLogId = insertDailyLog(1L, LocalDate.of(2027, 1, 2), "DITOLAK");
-        insertTask(dailyLogId, LocalTime.of(9, 0), 60, "Task yang sudah diperbaiki");
+        insertTask(dailyLogId, 540, 60, "Task yang sudah diperbaiki");
 
         jdbcTemplate.update(
                 "UPDATE daily_logs SET rejection_reason = ?, decided_by_user_id = 2, "
@@ -1515,19 +1514,107 @@ class LogbookApiIntegrationTest {
 
     private void insertTask(
             long dailyLogId,
-            LocalTime startTime,
+            int startMinute,
             int durationMinutes,
             String summary
     ) {
         jdbcTemplate.update(
                 "INSERT INTO log_tasks (daily_log_id, project_id, task_type_id, work_status_id, "
-                        + "start_time, duration_minutes, summary, created_at, updated_at) "
+                        + "start_minute, duration_minutes, summary, created_at, updated_at) "
                         + "VALUES (?, 1, 1, 1, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)",
                 dailyLogId,
-                startTime,
+                startMinute,
                 durationMinutes,
                 summary
         );
+    }
+
+    @Test
+    void settingsRequireAuthentication() throws Exception {
+        mockMvc.perform(get("/api/settings"))
+                .andExpect(status().isUnauthorized());
+
+        mockMvc.perform(
+                put("/api/settings")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                    "workStart": "09:00",
+                                    "workEnd": "18:00",
+                                    "onboarded": true
+                                }
+                                """)
+        )
+        .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void getSettingsReturnsDefaultForLoggedInUser() throws Exception {
+        mockMvc.perform(get("/api/settings").session(session))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.workStart").value("08:00"))
+                .andExpect(jsonPath("$.workEnd").value("17:00"))
+                .andExpect(jsonPath("$.onboarded").value(false));
+    }
+
+    @Test
+    void putSettingsUpdatesWorkHoursAndOnboarding() throws Exception {
+        mockMvc.perform(
+                put("/api/settings")
+                        .session(session)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                    "workStart": "07:30",
+                                    "workEnd": "16:30",
+                                    "onboarded": true
+                                }
+                                """)
+        )
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.workStart").value("07:30"))
+        .andExpect(jsonPath("$.workEnd").value("16:30"))
+        .andExpect(jsonPath("$.onboarded").value(true));
+
+        mockMvc.perform(get("/api/settings").session(session))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.workStart").value("07:30"))
+                .andExpect(jsonPath("$.workEnd").value("16:30"))
+                .andExpect(jsonPath("$.onboarded").value(true));
+    }
+
+    @Test
+    void putSettingsSupportsPartialUpdateAndClearingOnboarding() throws Exception {
+        mockMvc.perform(
+                put("/api/settings")
+                        .session(session)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                    "onboarded": true
+                                }
+                                """)
+        )
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.workStart").value("08:00"))
+        .andExpect(jsonPath("$.workEnd").value("17:00"))
+        .andExpect(jsonPath("$.onboarded").value(true));
+
+        mockMvc.perform(
+                put("/api/settings")
+                        .session(session)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                    "workStart": "09:00",
+                                    "onboarded": false
+                                }
+                                """)
+        )
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.workStart").value("09:00"))
+        .andExpect(jsonPath("$.workEnd").value("17:00"))
+        .andExpect(jsonPath("$.onboarded").value(false));
     }
 
     private MockHttpSession loginAs(String email) throws Exception {

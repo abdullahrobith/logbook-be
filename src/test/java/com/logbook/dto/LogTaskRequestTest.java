@@ -7,9 +7,7 @@ import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
-import java.time.LocalTime;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -35,7 +33,7 @@ class LogTaskRequestTest {
                 (short) 1,
                 (short) 1,
                 "ABC-154",
-                LocalTime.of(9, 0),
+                540, // 09:00
                 (short) 120,
                 "Mengerjakan pengembangan fitur.",
                 null
@@ -53,7 +51,7 @@ class LogTaskRequestTest {
     void projectIdMustBePositive() {
         LogTaskRequest request = new LogTaskRequest(
                 0L, (short) 1, (short) 1,
-                null, LocalTime.of(9, 0), (short) 120,
+                null, 540, (short) 120,
                 "Mengerjakan fitur", null
         );
 
@@ -64,7 +62,7 @@ class LogTaskRequestTest {
     void taskTypeIdMustNotBeNull() {
         LogTaskRequest request = new LogTaskRequest(
                 1L, null, (short) 1,
-                null, LocalTime.of(9, 0), (short) 120,
+                null, 540, (short) 120,
                 "Mengerjakan fitur", null
         );
 
@@ -75,7 +73,7 @@ class LogTaskRequestTest {
     void workStatusIdMustNotBeNull() {
         LogTaskRequest request = new LogTaskRequest(
                 1L, (short) 1, null,
-                null, LocalTime.of(9, 0), (short) 120,
+                null, 540, (short) 120,
                 "Mengerjakan fitur", null
         );
 
@@ -86,7 +84,7 @@ class LogTaskRequestTest {
     void invalidTicketFormatShouldFail() {
         LogTaskRequest request = new LogTaskRequest(
                 1L, (short) 1, (short) 1,
-                "ABC154", LocalTime.of(9, 0), (short) 120,
+                "ABC154", 540, (short) 120,
                 "Mengerjakan fitur", null
         );
 
@@ -94,7 +92,7 @@ class LogTaskRequestTest {
     }
 
     @Test
-    void startTimeMustNotBeNull() {
+    void startMinuteMustNotBeNull() {
         LogTaskRequest request = new LogTaskRequest(
                 1L, (short) 1, (short) 1,
                 null, null, (short) 120,
@@ -105,10 +103,32 @@ class LogTaskRequestTest {
     }
 
     @Test
+    void startMinuteMustSupportCrossMidnightRange() {
+        LogTaskRequest request = new LogTaskRequest(
+                1L, (short) 1, (short) 1,
+                null, 1500, (short) 120, // 25:00 (lintas tengah malam)
+                "Mengerjakan fitur", null
+        );
+
+        assertTrue(validator.validate(request).isEmpty());
+    }
+
+    @Test
+    void startMinuteAboveRangeShouldFail() {
+        LogTaskRequest request = new LogTaskRequest(
+                1L, (short) 1, (short) 1,
+                null, 2880, (short) 120,
+                "Mengerjakan fitur", null
+        );
+
+        assertFalse(validator.validate(request).isEmpty());
+    }
+
+    @Test
     void durationMustBePositive() {
         LogTaskRequest request = new LogTaskRequest(
                 1L, (short) 1, (short) 1,
-                null, LocalTime.of(9, 0), (short) 0,
+                null, 540, (short) 0,
                 "Mengerjakan fitur", null
         );
 
@@ -119,7 +139,7 @@ class LogTaskRequestTest {
     void summaryMustNotBeBlank() {
         LogTaskRequest request = new LogTaskRequest(
                 1L, (short) 1, (short) 1,
-                null, LocalTime.of(9, 0), (short) 120,
+                null, 540, (short) 120,
                 "   ", null
         );
 

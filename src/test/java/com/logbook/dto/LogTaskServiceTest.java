@@ -15,7 +15,6 @@ import org.springframework.web.server.ResponseStatusException;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.time.LocalTime;
 import java.time.ZoneId;
 import java.util.List;
 import java.util.Optional;
@@ -78,7 +77,7 @@ class LogTaskServiceTest {
                 (short) 1,
                 (short) 2,
                 " ABC-154 ",
-                LocalTime.of(9, 0),
+                540,
                 (short) 120,
                 "  Mengembangkan fitur login  ",
                 "  Kendala koneksi  "
@@ -167,7 +166,7 @@ class LogTaskServiceTest {
                 (short) 1,
                 (short) 99,
                 "ABC-154",
-                LocalTime.of(9, 0),
+                540,
                 (short) 120,
                 "Mengerjakan fitur",
                 null
@@ -199,7 +198,7 @@ class LogTaskServiceTest {
                 (short) 99,
                 (short) 1,
                 "ABC-154",
-                LocalTime.of(9, 0),
+                540,
                 (short) 120,
                 "Mengerjakan fitur",
                 null
@@ -223,7 +222,7 @@ class LogTaskServiceTest {
                 (short) 1,
                 (short) 1,
                 "ABC-154",
-                LocalTime.of(9, 0),
+                540,
                 (short) 4,
                 "Mengerjakan fitur",
                 null
@@ -262,17 +261,17 @@ class LogTaskServiceTest {
     void createTaskShouldFailWhenThreeTasksAlreadyOverlap() {
         LogTask firstTask = overlappingTask(
                 1L,
-                LocalTime.of(8, 0),
+                480,
                 (short) 120
         );
         LogTask secondTask = overlappingTask(
                 2L,
-                LocalTime.of(9, 0),
+                540,
                 (short) 60
         );
         LogTask thirdTask = overlappingTask(
                 3L,
-                LocalTime.of(9, 30),
+                570,
                 (short) 60
         );
         when(projectRepository.existsActiveProjectForUser(1L, userId))
@@ -301,12 +300,12 @@ class LogTaskServiceTest {
     void createTaskShouldSucceedWhenOnlyTwoTasksOverlap() {
         LogTask firstTask = overlappingTask(
                 1L,
-                LocalTime.of(8, 0),
+                480,
                 (short) 120
         );
         LogTask secondTask = overlappingTask(
                 2L,
-                LocalTime.of(9, 0),
+                540,
                 (short) 60
         );
         when(projectRepository.existsActiveProjectForUser(1L, userId))
@@ -329,15 +328,15 @@ class LogTaskServiceTest {
 
     @Test
     void updateTaskShouldExcludeItselfFromConcurrentLimit() {
-        LogTask task = overlappingTask(5L, LocalTime.of(9, 0), (short) 120);
+        LogTask task = overlappingTask(5L, 540, (short) 120);
         LogTask firstTask = overlappingTask(
                 1L,
-                LocalTime.of(8, 0),
+                480,
                 (short) 120
         );
         LogTask secondTask = overlappingTask(
                 2L,
-                LocalTime.of(9, 0),
+                540,
                 (short) 60
         );
         when(task.getDailyLog()).thenReturn(dailyLog);
@@ -527,7 +526,7 @@ class LogTaskServiceTest {
 
     @Test
     void updateTaskShouldSucceedWhenDailyLogIsRejected() {
-        LogTask task = overlappingTask(5L, LocalTime.of(9, 0), (short) 120);
+        LogTask task = overlappingTask(5L, 540, (short) 120);
         DailyLog rejectedLog = logOn(TODAY);
         when(rejectedLog.getStatus()).thenReturn("DITOLAK");
         when(rejectedLog.getTasks()).thenReturn(List.of(task));
@@ -572,12 +571,12 @@ class LogTaskServiceTest {
 
     private LogTask overlappingTask(
             Long id,
-            LocalTime startTime,
+            Integer startMinute,
             Short durationMinutes
     ) {
         LogTask task = mock(LogTask.class);
         when(task.getId()).thenReturn(id);
-        when(task.getStartTime()).thenReturn(startTime);
+        when(task.getStartMinute()).thenReturn(startMinute);
         when(task.getDurationMinutes()).thenReturn(durationMinutes);
         return task;
     }

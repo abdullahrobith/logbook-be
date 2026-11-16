@@ -41,8 +41,8 @@ INSERT INTO daily_logs (id, user_id, log_date, work_schedule_id, status, created
 ON CONFLICT (id) DO NOTHING;
 
 -- 6. Bikin Task (Ujian Kalkulasi)
-INSERT INTO log_tasks (id, daily_log_id, project_id, task_type_id, work_status_id, ticket, start_time, duration_minutes, summary, obstacle) VALUES 
-(101, 101, 101, 1, 1, 'TKT-1', '09:00:00', 60, 'Bikin fitur login', null),
-(102, 101, 102, 3, 1, 'TKT-2', '09:30:00', 60, 'Meeting sinkronisasi API', null),
-(103, 101, 101, 7, 1, null, '12:00:00', 60, 'Istirahat siang', null)
+INSERT INTO log_tasks (id, daily_log_id, project_id, task_type_id, work_status_id, ticket, start_minute, duration_minutes, summary, obstacle) VALUES 
+(101, 101, 101, 1, 1, 'TKT-1', 540, 60, 'Bikin fitur login', null),
+(102, 101, 102, 3, 1, 'TKT-2', 570, 60, 'Meeting sinkronisasi API', null),
+(103, 101, 101, 7, 1, null, 720, 60, 'Istirahat siang', null)
 ON CONFLICT (id) DO NOTHING;

@@ -89,7 +89,7 @@ class DailyLogDeadlineIntegrationTest {
                 post("/api/daily-logs/{dailyLogId}/tasks", PAST_DAILY_LOG_ID)
                         .session(session)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(validTaskJson("17:00"))
+                        .content(validTaskJson(1020))
         )
         .andExpect(status().isConflict())
         .andExpect(jsonPath("$.message", containsString("Batas hari")));
@@ -121,7 +121,7 @@ class DailyLogDeadlineIntegrationTest {
                 put("/api/tasks/{id}", PAST_TASK_ID)
                         .session(session)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(validTaskJson("17:00"))
+                        .content(validTaskJson(1020))
         )
         .andExpect(status().isConflict())
         .andExpect(jsonPath("$.message", containsString("Batas hari")));
@@ -166,7 +166,7 @@ class DailyLogDeadlineIntegrationTest {
                 post("/api/daily-logs/{dailyLogId}/tasks", dailyLogId)
                         .session(session)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(validTaskJson("17:00"))
+                        .content(validTaskJson(1020))
         )
         .andExpect(status().isCreated());
     }
@@ -189,7 +189,7 @@ class DailyLogDeadlineIntegrationTest {
                 post("/api/daily-logs/{dailyLogId}/tasks", dailyLogId)
                         .session(session)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(validTaskJson("17:00"))
+                        .content(validTaskJson(1020))
         )
         .andExpect(status().isConflict())
         .andExpect(jsonPath("$.message", containsString("belum tiba")));
@@ -220,9 +220,9 @@ class DailyLogDeadlineIntegrationTest {
 
         jdbcTemplate.update(
                 "INSERT INTO log_tasks (daily_log_id, project_id, task_type_id, "
-                        + "work_status_id, start_time, duration_minutes, summary, "
+                        + "work_status_id, start_minute, duration_minutes, summary, "
                         + "created_at, updated_at) "
-                        + "VALUES (?, 1, 1, 1, '09:00', 60, 'Task yang perlu diperbaiki', "
+                        + "VALUES (?, 1, 1, 1, 540, 60, 'Task yang perlu diperbaiki', "
                         + "CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)",
                 dailyLogId
         );
@@ -252,7 +252,7 @@ class DailyLogDeadlineIntegrationTest {
                 put("/api/tasks/{id}", taskId)
                         .session(session)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(validTaskJson("10:00"))
+                        .content(validTaskJson(600))
         )
         .andExpect(status().isOk());
 
@@ -327,18 +327,18 @@ class DailyLogDeadlineIntegrationTest {
         );
     }
 
-    private String validTaskJson(String startTime) {
+    private String validTaskJson(int startMinute) {
         return """
                 {
                     "projectId": 1,
                     "taskTypeId": 1,
                     "workStatusId": 1,
                     "ticket": "TEST-101",
-                    "startTime": "%s",
+                    "startMinute": %d,
                     "durationMinutes": 30,
                     "summary": "Uji batas hari",
                     "obstacle": "Tidak ada"
                 }
-                """.formatted(startTime);
+                """.formatted(startMinute);
     }
 }

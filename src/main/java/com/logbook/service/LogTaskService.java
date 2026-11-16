@@ -13,7 +13,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
-import java.time.LocalTime;
 import java.time.OffsetDateTime;
 import java.util.Set;
 
@@ -70,7 +69,7 @@ public class LogTaskService {
         requireEditableDay(dailyLog, "ditambah");
         requireEditableStatus(dailyLog);
         validateRequest(userId, request);
-        validateConcurrentTaskLimit(dailyLog, request.startTime(), request.durationMinutes(), null);
+        validateConcurrentTaskLimit(dailyLog, request.startMinute(), request.durationMinutes(), null);
 
         OffsetDateTime now = OffsetDateTime.now();
         LogTask logTask = new LogTask(
@@ -79,7 +78,7 @@ public class LogTaskService {
                 request.taskTypeId(),
                 request.workStatusId(),
                 normalizeTicket(request.ticket()),
-                request.startTime(),
+                request.startMinute(),
                 request.durationMinutes(),
                 request.summary().trim(),
                 normalizeObstacle(request.obstacle()),
@@ -108,7 +107,7 @@ public class LogTaskService {
         validateRequest(userId, request);
         validateConcurrentTaskLimit(
                 logTask.getDailyLog(),
-                request.startTime(),
+                request.startMinute(),
                 request.durationMinutes(),
                 logTask.getId()
         );
@@ -118,7 +117,7 @@ public class LogTaskService {
                 request.taskTypeId(),
                 request.workStatusId(),
                 normalizeTicket(request.ticket()),
-                request.startTime(),
+                request.startMinute(),
                 request.durationMinutes(),
                 request.summary().trim(),
                 normalizeObstacle(request.obstacle()),
@@ -244,20 +243,19 @@ public class LogTaskService {
 
     private void validateConcurrentTaskLimit(
             DailyLog dailyLog,
-            LocalTime startTime,
+            Integer startMinute,
             Short durationMinutes,
             Long excludedTaskId
     ) {
-        long start = startTime.toSecondOfDay();
-        long end = start + durationMinutes * 60L;
+        long start = startMinute.longValue();
+        long end = start + durationMinutes.longValue();
 
         long overlappingTasks = dailyLog.getTasks().stream()
                 .filter(task -> excludedTaskId == null
                         || !excludedTaskId.equals(task.getId()))
                 .filter(task -> {
-                    long otherStart = task.getStartTime().toSecondOfDay();
-                    long otherEnd = otherStart
-                            + task.getDurationMinutes() * 60L;
+                    long otherStart = task.getStartMinute().longValue();
+                    long otherEnd = otherStart + task.getDurationMinutes().longValue();
                     return start < otherEnd && otherStart < end;
                 })
                 .count();

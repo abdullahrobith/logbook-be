@@ -11,7 +11,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.time.LocalDate;
-import java.time.LocalTime;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -84,8 +83,8 @@ class TeamServiceTest {
         User supervisor = user(10L, "atasan@contoh.id", "Atasan", false);
         User member = user(1L, "rina@contoh.id", "Rina", false);
         DailyLog todayLog = dailyLog(4L, 1L, "MENUNGGU", List.of(
-                task(LocalTime.of(9, 0), (short) 60),
-                task(LocalTime.of(9, 30), (short) 60)
+                task(540, (short) 60),  // 09:00
+                task(570, (short) 60)   // 09:30
         ));
         PendingDayCountProjection pending = pending(1L, 2L);
 
@@ -136,9 +135,9 @@ class TeamServiceTest {
         return dailyLog;
     }
 
-    private LogTask task(LocalTime startTime, short durationMinutes) {
+    private LogTask task(Integer startMinute, short durationMinutes) {
         LogTask task = mock(LogTask.class);
-        when(task.getStartTime()).thenReturn(startTime);
+        when(task.getStartMinute()).thenReturn(startMinute);
         when(task.getDurationMinutes()).thenReturn(durationMinutes);
         return task;
     }

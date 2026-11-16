@@ -12,7 +12,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDate;
-import java.time.LocalTime;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -56,9 +55,9 @@ class AdminDailyLogServiceTest {
                 LocalDate.of(2026, 10, 29),
                 "MENUNGGU",
                 List.of(
-                        task(LocalTime.of(9, 0), (short) 60),
-                        task(LocalTime.of(9, 30), (short) 60),
-                        task(LocalTime.of(11, 0), (short) 30)
+                        task(540, (short) 60),  // 09:00
+                        task(570, (short) 60),  // 09:30
+                        task(660, (short) 30)   // 11:00
                 )
         );
         User owner = user(1L, "rina.talent@contoh.id", "Rina Talent", "MAGANG");
@@ -136,9 +135,9 @@ class AdminDailyLogServiceTest {
         return dailyLog;
     }
 
-    private LogTask task(LocalTime startTime, short durationMinutes) {
+    private LogTask task(Integer startMinute, short durationMinutes) {
         LogTask task = mock(LogTask.class);
-        when(task.getStartTime()).thenReturn(startTime);
+        when(task.getStartMinute()).thenReturn(startMinute);
         when(task.getDurationMinutes()).thenReturn(durationMinutes);
         return task;
     }

@@ -51,7 +51,7 @@ public class DailyLog {
     private OffsetDateTime updatedAt;
 
     @OneToMany(mappedBy = "dailyLog", fetch = FetchType.LAZY)
-    @OrderBy("startTime ASC")
+    @OrderBy("startMinute ASC")
     private List<LogTask> tasks = new ArrayList<>();
 
     public DailyLog() {
