@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.transaction.annotation.Transactional; 
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
@@ -39,47 +40,73 @@ public class AdminController {
     }
 
     // ====================
-    // 1. API IMPORT CSV 
+    // 1. API IMPORT CSV (SUDAH DISEMPURNAKAN)
     // ====================
+    @Transactional 
     @PostMapping("/users/import")
     public ResponseEntity<AdminImportResponse> importUsers(
             @RequestParam("file") MultipartFile file,
             HttpSession session
     ) {
         roleService.requireAdmin(session);
-
-        log.info("Menerima request import CSV dari Admin");
+        String currentUserEmail = (String) session.getAttribute("email");
+        log.info("Menerima request import CSV dari Admin: {}", currentUserEmail);
 
         if (file.isEmpty()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "File CSV tidak boleh kosong");
         }
 
-        List<CSVRecord> records = new ArrayList<>();
-        
+        List<CSVRecord> records;
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(file.getInputStream()))) {
+            // Set header secara eksplisit
             CSVFormat format = CSVFormat.DEFAULT.builder()
-                    .setHeader() 
+                    .setHeader("email", "nama", "jenis", "email_atasan", "admin")
                     .setSkipHeaderRecord(true)
+                    .setTrim(true)
                     .build();
             CSVParser parser = new CSVParser(reader, format);
             records = parser.getRecords();
         } catch (Exception e) {
             log.warn("Gagal membaca file CSV: {}", e.getMessage());
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Format file CSV tidak valid");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Format CSV tidak valid. Pastikan header: email,nama,jenis,email_atasan,admin");
         }
 
+        // --- VALIDASI SEMUA BARIS (BATAL SEMUA KALAU ADA YANG SALAH) ---
         int lineNumber = 2;
         for (CSVRecord record : records) {
             String email = record.get("email");
             String nama = record.get("nama");
+            String jenis = record.get("jenis");
+            String emailAtasan = record.get("email_atasan");
+            String adminStr = record.get("admin");
 
-            if (email == null || email.isBlank() || nama == null || nama.isBlank()) {
-                log.warn("Validasi gagal di baris {}: Email atau Nama kosong", lineNumber);
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Baris ke-" + lineNumber + " salah: Email dan Nama wajib diisi.");
+            // 1. Cek kolom wajib
+            if (email == null || email.isBlank() || nama == null || nama.isBlank() || jenis == null || jenis.isBlank()) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Baris ke-" + lineNumber + " salah: Email, Nama, dan Jenis wajib diisi.");
             }
+
+            // 2. Cek format email
+            if (!email.matches("^[A-Za-z0-9+_.-]+@(.+)$")) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Baris ke-" + lineNumber + " salah: Format email tidak valid.");
+            }
+
+            // 3. Cek relasi atasan (Kalau diisi, pastikan email atasan ada di DB)
+            if (emailAtasan != null && !emailAtasan.isBlank()) {
+                Integer atasanCount = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM users WHERE email = ?", Integer.class, emailAtasan);
+                if (atasanCount == null || atasanCount == 0) {
+                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Baris ke-" + lineNumber + " salah: Email atasan '" + emailAtasan + "' tidak ditemukan.");
+                }
+            }
+
+            // 4. Cek validasi admin (harus true/false)
+            if (adminStr != null && !adminStr.isBlank() && !adminStr.equalsIgnoreCase("true") && !adminStr.equalsIgnoreCase("false")) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Baris ke-" + lineNumber + " salah: Kolom admin harus 'true' atau 'false'.");
+            }
+            
             lineNumber++;
         }
 
+        // --- JIKA LOLOS VALIDASI, PROSES SIMPAN ---
         int created = 0;
         int updated = 0;
         List<Map<String, String>> tempPasswords = new ArrayList<>();
@@ -87,19 +114,32 @@ public class AdminController {
         for (CSVRecord record : records) {
             String email = record.get("email");
             String nama = record.get("nama");
+            String jenis = record.get("jenis");
+            String emailAtasan = record.get("email_atasan");
+            boolean isAdmin = Boolean.parseBoolean(record.get("admin"));
+
+            // Proteksi: Admin tidak bisa mencabut hak admin dirinya sendiri
+            if (email.equalsIgnoreCase(currentUserEmail) && !isAdmin) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Anda tidak dapat mencabut hak admin milik sendiri melalui CSV.");
+            }
 
             Integer count = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM users WHERE email = ?", Integer.class, email);
 
             if (count != null && count > 0) {
-                jdbcTemplate.update("UPDATE users SET full_name = ? WHERE email = ?", nama, email);
+                // Update user
+                jdbcTemplate.update(
+                    "UPDATE users SET full_name = ?, jenis = ?, email_atasan = ?, is_admin = ? WHERE email = ?",
+                    nama, jenis, (emailAtasan == null || emailAtasan.isBlank()) ? null : emailAtasan, isAdmin, email
+                );
                 updated++;
             } else {
+                // Insert user baru
                 String tempPassword = UUID.randomUUID().toString().substring(0, 8);
                 String passwordHash = "BCryptHashPlaceholder_" + tempPassword;
 
                 jdbcTemplate.update(
-                    "INSERT INTO users (email, full_name, password_hash, must_change_password) VALUES (?, ?, ?, true)",
-                    email, nama, passwordHash
+                    "INSERT INTO users (email, full_name, jenis, email_atasan, is_admin, password_hash, must_change_password) VALUES (?, ?, ?, ?, ?, ?, true)",
+                    email, nama, jenis, (emailAtasan == null || emailAtasan.isBlank()) ? null : emailAtasan, isAdmin, passwordHash
                 );
 
                 Map<String, String> passMap = new HashMap<>();
@@ -109,6 +149,12 @@ public class AdminController {
 
                 created++;
             }
+        }
+
+        // Proteksi terakhir: Pastikan minimal ada 1 admin di database
+        Integer adminCount = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM users WHERE is_admin = true", Integer.class);
+        if (adminCount == null || adminCount == 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Impor dibatalkan: Sistem harus memiliki minimal 1 Admin.");
         }
 
         log.info("Import CSV selesai: {} user baru dibuat, {} user diupdate", created, updated);
@@ -134,7 +180,6 @@ public class AdminController {
     public ResponseEntity<List<Map<String, Object>>> getHolidays(HttpSession session) {
         roleService.requireAdmin(session);
         log.info("Menerima request GET untuk daftar Libur Nasional");
-        // Ganti ORDER BY date menjadi ORDER BY holiday_date
         List<Map<String, Object>> holidays = jdbcTemplate.queryForList("SELECT * FROM holidays ORDER BY holiday_date");
         return ResponseEntity.ok(holidays);
     }
@@ -151,7 +196,6 @@ public class AdminController {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Tanggal dan Nama wajib diisi");
         }
 
-        // Ganti 'date' menjadi 'holiday_date' di query SQL
         jdbcTemplate.update(
             "INSERT INTO holidays (holiday_date, name) VALUES (?, ?) ON CONFLICT (holiday_date) DO UPDATE SET name = EXCLUDED.name", 
             LocalDate.parse(date), 
@@ -165,7 +209,6 @@ public class AdminController {
     public ResponseEntity<?> deleteHoliday(@PathVariable String date, HttpSession session) {
         roleService.requireAdmin(session);
         log.info("Menerima request DELETE untuk Libur Nasional tanggal: {}", date);
-        // Ganti 'date' menjadi 'holiday_date' di query DELETE
         int rows = jdbcTemplate.update("DELETE FROM holidays WHERE holiday_date = ?", LocalDate.parse(date));
         
         if (rows == 0) {
@@ -177,14 +220,13 @@ public class AdminController {
     }
 
 
-       // ==========================================
+    // ==========================================
     // 3. API CRUD CUTI (LEAVES)
     // ==========================================
     @GetMapping("/leaves")
     public ResponseEntity<List<Map<String, Object>>> getLeaves(HttpSession session) {
         roleService.requireAdmin(session);
         log.info("Menerima request GET untuk daftar Cuti Talent");
-        // Ganti from_date & to_date jadi start_date & end_date
         String query = "SELECT l.id, l.user_id, u.full_name, l.start_date, l.end_date, l.note "
                 + "FROM leaves l JOIN users u ON l.user_id = u.id ORDER BY l.start_date";
         List<Map<String, Object>> leaves = jdbcTemplate.queryForList(query);
@@ -220,7 +262,6 @@ public class AdminController {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Tanggal mulai tidak boleh melebihi tanggal selesai");
         }
 
-        // Ganti from_date & to_date jadi start_date & end_date di query INSERT
         jdbcTemplate.update(
                 "INSERT INTO leaves (user_id, start_date, end_date, note) VALUES (?, ?, ?, ?)",
                 userId,
@@ -246,4 +287,3 @@ public class AdminController {
         return ResponseEntity.ok(Map.of("message", "Cuti berhasil dihapus"));
     }
 }
-    

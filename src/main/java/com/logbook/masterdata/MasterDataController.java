@@ -27,7 +27,6 @@ public class MasterDataController {
         
         log.info("Menerima request GET untuk mengambil Master Data (Task Types, Statuses, Durations)");
 
-        // 👇 TAMBAHKAN 'code' DI SINI 👇
         List<Map<String, Object>> types = jdbcTemplate.queryForList(
                 "SELECT id, code, name FROM task_types WHERE is_active = true ORDER BY sort_order"
         );
