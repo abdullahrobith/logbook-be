@@ -191,7 +191,7 @@ public class LogTaskService {
     }
 
     private void requireEditableDay(DailyLog dailyLog, String action) {
-        if (deadlineService.isPastDeadline(dailyLog.getLogDate())) {
+        if (deadlineService.isPastDeadline(dailyLog.getUserId(), dailyLog.getLogDate())) {
             log.warn("Validasi gagal: batas hari Daily Log ID {} tanggal {} sudah lewat",
                     dailyLog.getId(), dailyLog.getLogDate());
             throw new ResponseStatusException(
@@ -200,7 +200,7 @@ public class LogTaskService {
             );
         }
 
-        if (deadlineService.isFutureDay(dailyLog.getLogDate())) {
+        if (deadlineService.isFutureDay(dailyLog.getUserId(), dailyLog.getLogDate())) {
             log.warn("Validasi gagal: tanggal {} belum tiba", dailyLog.getLogDate());
             throw new ResponseStatusException(
                     HttpStatus.CONFLICT,

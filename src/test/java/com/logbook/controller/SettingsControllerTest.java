@@ -14,6 +14,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.LocalDate;
 import java.time.LocalTime;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -40,7 +41,12 @@ class SettingsControllerTest {
         when(user.getId()).thenReturn(1L);
         when(roleService.requireCurrentUser(session)).thenReturn(user);
 
-        SettingsResponse expected = new SettingsResponse(LocalTime.of(8, 0), LocalTime.of(17, 0), false);
+        SettingsResponse expected = new SettingsResponse(
+                LocalTime.of(8, 0),
+                LocalTime.of(17, 0),
+                false,
+                LocalDate.of(2026, 11, 11)
+        );
         when(settingsService.getSettings(user)).thenReturn(expected);
 
         SettingsResponse response = settingsController.getSettings(session);
@@ -71,7 +77,12 @@ class SettingsControllerTest {
         when(roleService.requireCurrentUser(session)).thenReturn(user);
 
         SettingsRequest request = new SettingsRequest(LocalTime.of(9, 0), LocalTime.of(18, 0), true);
-        SettingsResponse expected = new SettingsResponse(LocalTime.of(9, 0), LocalTime.of(18, 0), true);
+        SettingsResponse expected = new SettingsResponse(
+                LocalTime.of(9, 0),
+                LocalTime.of(18, 0),
+                true,
+                LocalDate.of(2026, 11, 11)
+        );
         when(settingsService.updateSettings(user, request)).thenReturn(expected);
 
         SettingsResponse response = settingsController.updateSettings(request, session);

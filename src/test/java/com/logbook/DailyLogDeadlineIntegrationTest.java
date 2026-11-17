@@ -1,5 +1,6 @@
 package com.logbook;
 
+import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -48,6 +49,9 @@ class DailyLogDeadlineIntegrationTest {
     @Autowired
     private JdbcTemplate jdbcTemplate;
 
+    @Autowired
+    private EntityManager entityManager;
+
     private MockHttpSession session;
 
     @BeforeEach
@@ -80,7 +84,24 @@ class DailyLogDeadlineIntegrationTest {
         )
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.editable").value(false))
-        .andExpect(jsonPath("$.deadline", startsWith("2026-10-30T00:00")));
+        .andExpect(jsonPath("$.deadline", startsWith("2026-10-29T23:59")));
+    }
+
+    /**
+     * Pengguna shift malam (work_end lebih awal dari work_start) memiliki batas
+     * hari pukul work_end pada tanggal berikutnya, bukan tengah malam.
+     */
+    @Test
+    void nightShiftDeadlineShouldBeWorkEndOnNextDay() throws Exception {
+        useNightShift();
+
+        mockMvc.perform(
+                get("/api/daily-logs")
+                        .param("date", PAST_DAILY_LOG_DATE)
+                        .session(session)
+        )
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.deadline", startsWith("2026-10-30T06:00")));
     }
 
     @Test
@@ -97,6 +118,14 @@ class DailyLogDeadlineIntegrationTest {
 
     @Test
     void pastDayShouldRejectSubmit() throws Exception {
+        // Database lokal dapat berisi status berbeda (mis. MENUNGGU yang
+        // membuat submit idempoten). Set DRAF agar validasi batas hari yang
+        // diuji, bukan status awal data.
+        jdbcTemplate.update(
+                "UPDATE daily_logs SET status = 'DRAF' WHERE id = ?",
+                Long.valueOf(PAST_DAILY_LOG_ID)
+        );
+
         mockMvc.perform(
                 post("/api/daily-logs/{dailyLogId}/submit", PAST_DAILY_LOG_ID)
                         .session(session)
@@ -291,6 +320,21 @@ class DailyLogDeadlineIntegrationTest {
         )
         .andExpect(status().isConflict())
         .andExpect(jsonPath("$.message", containsString("Batas hari")));
+    }
+
+    /**
+     * Mengubah jam kerja pengguna fixture menjadi shift malam 22.00-06.00.
+     * {@code entityManager.clear()} dipakai agar pembacaan berikutnya tidak
+     * memakai salinan User Settings yang sudah tersimpan di persistence
+     * context.
+     */
+    private void useNightShift() {
+        jdbcTemplate.update(
+                "UPDATE user_settings SET work_start = TIME '22:00', "
+                        + "work_end = TIME '06:00' WHERE user_id = 1"
+        );
+        entityManager.flush();
+        entityManager.clear();
     }
 
     /**

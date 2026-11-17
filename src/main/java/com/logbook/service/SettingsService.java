@@ -20,15 +20,20 @@ public class SettingsService {
     private static final LocalTime DEFAULT_WORK_END = LocalTime.of(17, 0);
 
     private final UserSettingsRepository userSettingsRepository;
+    private final DeadlineService deadlineService;
 
-    public SettingsService(UserSettingsRepository userSettingsRepository) {
+    public SettingsService(
+            UserSettingsRepository userSettingsRepository,
+            DeadlineService deadlineService
+    ) {
         this.userSettingsRepository = userSettingsRepository;
+        this.deadlineService = deadlineService;
     }
 
     @Transactional
     public SettingsResponse getSettings(User user) {
         UserSettings settings = getOrCreate(user);
-        return SettingsResponse.from(settings);
+        return SettingsResponse.from(settings, deadlineService.activeDay(user.getId()));
     }
 
     @Transactional
@@ -56,7 +61,7 @@ public class SettingsService {
         UserSettings saved = userSettingsRepository.save(settings);
         log.info("Pengaturan diperbarui untuk User ID {}: workStart={}, workEnd={}, onboarded={}",
                 user.getId(), saved.getWorkStart(), saved.getWorkEnd(), saved.isOnboarded());
-        return SettingsResponse.from(saved);
+        return SettingsResponse.from(saved, deadlineService.activeDay(user.getId()));
     }
 
     private UserSettings getOrCreate(User user) {

@@ -216,8 +216,12 @@ public class ApprovalService {
     private DailyLogResponse toResponse(DailyLog dailyLog) {
         return DailyLogResponse.from(
                 dailyLog,
-                deadlineService.isEditable(dailyLog.getStatus(), dailyLog.getLogDate()),
-                deadlineService.deadlineFor(dailyLog.getLogDate()),
+                deadlineService.isEditable(
+                        dailyLog.getUserId(),
+                        dailyLog.getStatus(),
+                        dailyLog.getLogDate()
+                ),
+                deadlineService.deadlineFor(dailyLog.getUserId(), dailyLog.getLogDate()),
                 calendarService.describe(dailyLog.getUserId(), dailyLog.getLogDate())
         );
     }

@@ -52,7 +52,7 @@ Saat ini backend Logbook memiliki **28 endpoint API** (termasuk penyesuaian/pena
 | 22 | GET | `/api/projects` | Mendapatkan daftar project pengguna | Pemilik data | Postman |
 | 23 | GET | `/api/tasks/master-data` | Mendapatkan data master task | Pengguna masuk | Postman |
 | 24 | GET | `/api/examples` | Mendapatkan data contoh penulisan logbook | Pengguna masuk | Postman |
-| 25 | GET | `/api/settings` | Mendapatkan pengaturan pengguna (jam kerja dan status onboarding) | Pengguna masuk | Unit test & Integration test (unit test lulus; integration test memerlukan DB lokal + fixture) |
+| 25 | GET | `/api/settings` | Mendapatkan pengaturan pengguna (jam kerja, status onboarding, dan hari aktif server) | Pengguna masuk | Unit test & Integration test (unit test lulus; integration test memerlukan DB lokal + fixture) |
 | 26 | PUT | `/api/settings` | Memperbarui pengaturan pengguna (jam kerja dan status onboarding) | Pengguna masuk | Unit test & Integration test (unit test lulus; integration test memerlukan DB lokal + fixture) |
 | 27 | GET | `/api/days/{date}` | Mendapatkan `DayDto` milik pengguna pada tanggal tertentu (SRS) | Pemilik data | Perlu verifikasi |
 | 28 | POST | `/api/days/{date}/tasks` | Menambahkan task pada tanggal tertentu dan mengembalikan `DayDto` terbaru (SRS) | Pemilik data | Perlu verifikasi |
@@ -211,11 +211,11 @@ Total: **6 test, seluruhnya lulus.**
 
 ### 4.8 SettingsServiceTest
 
-Pengujian dilakukan untuk memastikan pengambilan dan pembaruan pengaturan pengguna (jam kerja dan status onboarding) berjalan benar.
+Pengujian dilakukan untuk memastikan pengambilan dan pembaruan pengaturan pengguna (jam kerja, status onboarding, dan hari aktif server) berjalan benar.
 
 | No. | Skenario Pengujian | Hasil |
 |---|---|---|
-| 1 | Mengembalikan pengaturan yang sudah ada tanpa membuat data baru | Lulus |
+| 1 | Mengembalikan pengaturan yang sudah ada tanpa membuat data baru, termasuk `activeDate` dari hari aktif pengguna | Lulus |
 | 2 | Membuat pengaturan default (08:00–17:00, belum onboarding) bila belum ada | Lulus |
 | 3 | Memperbarui jam kerja (`workStart`/`workEnd`) | Lulus |
 | 4 | Menandai onboarding selesai (`onboarded=true`) dan mengisi `onboardedAt` | Lulus |
@@ -265,25 +265,30 @@ Total: **15 test, seluruhnya lulus.**
 
 ### 4.11 DeadlineServiceTest
 
-Pengujian dilakukan untuk memastikan perhitungan batas hari, penentuan hari ini, dan aturan hari yang dapat diisi berjalan benar.
+Pengujian dilakukan untuk memastikan perhitungan batas hari berdasarkan jam kerja pengguna, penentuan hari aktif, dan aturan hari yang dapat diisi berjalan benar.
 
 | No. | Skenario Pengujian | Hasil |
 |---|---|---|
-| 1 | Deadline adalah pukul 00:00 hari berikutnya pada zona waktu yang dikonfigurasi | Lulus |
-| 2 | Tanggal kemarin sudah melewati deadline | Lulus |
-| 3 | Tanggal hari ini dan besok belum melewati deadline | Lulus |
-| 4 | Hanya tanggal besok yang dianggap hari yang belum tiba | Lulus |
-| 5 | Hanya tanggal hari ini yang dianggap hari ini | Lulus |
-| 6 | Daily Log DRAF hari ini dapat disunting | Lulus |
-| 7 | Daily Log DRAF kemarin tidak dapat disunting | Lulus |
-| 8 | Daily Log DRAF besok tidak dapat disunting | Lulus |
-| 9 | Status selain DRAF tidak dapat disunting | Lulus |
-| 10 | Saat aturan dimatikan, hari yang sudah lewat tetap dapat disunting | Lulus |
-| 11 | Saat aturan dimatikan, hari yang belum tiba tetap dapat disunting | Lulus |
-| 12 | Daily Log DITOLAK hari ini dapat disunting untuk diperbaiki | Lulus |
-| 13 | Daily Log DITOLAK pada hari lain tidak dapat disunting | Lulus |
+| 1 | Deadline adalah pukul 23:59 pada tanggal tersebut menurut zona waktu yang dikonfigurasi | Lulus |
+| 2 | Shift malam (22.00-06.00, `work_end` < `work_start`) memakai pukul 06.00 tanggal berikutnya sebagai deadline | Lulus |
+| 3 | Tanggal kemarin sudah melewati deadline | Lulus |
+| 4 | Tanggal hari ini dan besok belum melewati deadline | Lulus |
+| 5 | Hanya tanggal besok yang dianggap hari yang belum tiba | Lulus |
+| 6 | Hanya tanggal hari ini yang dianggap hari ini | Lulus |
+| 7 | Daily Log DRAF hari ini dapat disunting | Lulus |
+| 8 | Daily Log DRAF kemarin tidak dapat disunting | Lulus |
+| 9 | Daily Log DRAF besok tidak dapat disunting | Lulus |
+| 10 | Status selain DRAF/DITOLAK tidak dapat disunting | Lulus |
+| 11 | Saat aturan dimatikan, hari yang sudah lewat tetap dapat disunting | Lulus |
+| 12 | Saat aturan dimatikan, hari yang belum tiba tetap dapat disunting | Lulus |
+| 13 | Daily Log DITOLAK hari ini dapat disunting untuk diperbaiki | Lulus |
+| 14 | Daily Log DITOLAK pada hari lain tidak dapat disunting | Lulus |
+| 15 | Setelah tengah malam, hari aktif shift malam masih tanggal mulai shift sehingga Daily Log-nya dapat disunting | Lulus |
+| 16 | Setelah `work_end`, hari aktif berpindah ke tanggal kalender dan hari shift sebelumnya terkunci | Lulus |
+| 17 | Jam kerja normal tetap memakai tanggal kalender setelah tengah malam | Lulus |
+| 18 | Hari TERLEWAT hanya dapat disunting saat aturan batas hari dimatikan | Lulus |
 
-Total: **13 test, seluruhnya lulus.**
+Total: **18 test, seluruhnya lulus.**
 
 ### 4.12 GlobalExceptionHandlerTest
 
@@ -459,8 +464,9 @@ Pengujian ini dijalankan dengan `logbook.batas-hari.aktif=true` untuk memastikan
 | 10 | Response hari ini menyertakan `editable=true` dan `deadline` | Lulus |
 | 11 | Daily Log DITOLAK hari ini dapat diperbaiki dan dikirim ulang, alasan penolakan dibersihkan | Lulus |
 | 12 | Daily Log DITOLAK pada hari yang sudah lewat tetap terkunci | Lulus |
+| 13 | Pengguna shift malam memperoleh `deadline` pukul 06.00 tanggal berikutnya melalui API | Lulus |
 
-Total: **12 test, seluruhnya lulus.**
+Total: **13 test, seluruhnya lulus.**
 
 ## 6. Rancangan Test Case Role Atasan & Admin
 
@@ -529,7 +535,7 @@ Berdasarkan hasil eksekusi pengujian otomatis backend Logbook, diperoleh hasil r
 | LogTaskRequestTest | 10 | 0 | 0 | Lulus |
 | LogTaskServiceTest | 22 | 0 | 0 | Lulus |
 | DailyLogServiceTest | 16 | 0 | 0 | Lulus |
-| DeadlineServiceTest | 13 | 0 | 0 | Lulus |
+| DeadlineServiceTest | 18 | 0 | 0 | Lulus |
 | RoleServiceTest | 17 | 0 | 0 | Lulus |
 | TeamServiceTest | 4 | 0 | 0 | Lulus |
 | AdminDailyLogServiceTest | 6 | 0 | 0 | Lulus |
@@ -538,10 +544,10 @@ Berdasarkan hasil eksekusi pengujian otomatis backend Logbook, diperoleh hasil r
 | ApiExceptionHandlerTest | 2 | 0 | 0 | Lulus |
 | LoggingTest | 4 | 0 | 0 | Lulus |
 | AdminControllerTest | 16 | 0 | 0 | Lulus |
-| DailyLogDeadlineIntegrationTest | 12 | 0 | 0 | Lulus |
+| DailyLogDeadlineIntegrationTest | 13 | 0 | 0 | Lulus |
 | LogbookApiIntegrationTest | 71 | 0 | 0 | Lulus |
 | LogbookBeApplicationTests | 1 | 0 | 0 | Lulus |
-| **Total** | **225** | **0** | **0** | **Lulus** |
+| **Total** | **231** | **0** | **0** | **Lulus** |
 
 ### 7.1 Kesimpulan Hasil Pengujian
 
@@ -551,7 +557,7 @@ Berdasarkan pengujian yang telah dilakukan, diperoleh hasil:
 - Tidak ditemukan failures maupun errors pada eksekusi pengujian otomatis.
 - Otorisasi berbasis peran (talent, atasan, admin) telah diuji pada level unit maupun integrasi.
 - Alur persetujuan Daily Log (setujui, tolak, ajukan perbaikan, setujui perbaikan), aturan alasan wajib, larangan memutuskan Daily Log sendiri, dan pencatatan log INFO setiap keputusan telah diuji.
-- Aturan batas hari telah diuji: hanya Daily Log tanggal hari ini yang dapat ditambah, diubah, atau dikirim, sedangkan hari yang sudah lewat maupun yang belum tiba ditolak dengan status 409.
+- Aturan batas hari telah diuji: hanya Daily Log pada hari aktif pengguna yang dapat ditambah, diubah, atau dikirim; hari yang sudah lewat maupun yang belum tiba ditolak dengan status 409. Deadline tanggal D adalah pukul 23:59 D, atau `work_end` pada D+1 untuk pengguna shift malam yang jam kerjanya melewati tengah malam.
 - Alur Daily Log DITOLAK telah diuji: pada hari yang sama task masih dapat diperbaiki lalu Daily Log dikirim ulang, sedangkan pada hari berikutnya hari tersebut tetap terkunci.
 
 Dengan demikian, backend Logbook berhasil melewati seluruh skenario pengujian yang telah disiapkan.

@@ -13,6 +13,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.OffsetDateTime;
 import java.util.Optional;
@@ -27,8 +28,13 @@ class SettingsServiceTest {
     @Mock
     private UserSettingsRepository userSettingsRepository;
 
+    @Mock
+    private DeadlineService deadlineService;
+
     @InjectMocks
     private SettingsService settingsService;
+
+    private static final LocalDate ACTIVE_DATE = LocalDate.of(2026, 11, 11);
 
     private User user;
 
@@ -36,6 +42,7 @@ class SettingsServiceTest {
     void setUp() {
         user = mock(User.class);
         when(user.getId()).thenReturn(1L);
+        when(deadlineService.activeDay(1L)).thenReturn(ACTIVE_DATE);
     }
 
     @Test
@@ -49,6 +56,7 @@ class SettingsServiceTest {
         assertEquals(LocalTime.of(9, 0), response.workStart());
         assertEquals(LocalTime.of(18, 0), response.workEnd());
         assertTrue(response.onboarded());
+        assertEquals(ACTIVE_DATE, response.activeDate());
         verify(userSettingsRepository, never()).save(any());
     }
 
@@ -82,6 +90,7 @@ class SettingsServiceTest {
         assertEquals(LocalTime.of(7, 30), response.workStart());
         assertEquals(LocalTime.of(16, 30), response.workEnd());
         assertFalse(response.onboarded());
+        assertEquals(ACTIVE_DATE, response.activeDate());
     }
 
     @Test

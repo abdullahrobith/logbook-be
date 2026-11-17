@@ -117,7 +117,7 @@ public class DailyLogAutomationService {
         int markedMissed = 0;
 
         for (DailyLog dailyLog : drafts) {
-            if (!deadlineService.isPastDeadline(dailyLog.getLogDate())) {
+            if (!deadlineService.isPastDeadline(dailyLog.getUserId(), dailyLog.getLogDate())) {
                 continue;
             }
 
@@ -230,6 +230,12 @@ public class DailyLogAutomationService {
 
             for (LocalDate date = startDate; !date.isAfter(lastDate); date = date.plusDays(1)) {
                 if (existingDates.contains(date)) {
+                    continue;
+                }
+
+                // Shift malam: hari baru benar-benar lewat setelah work_end
+                // tanggal berikutnya, jangan ditandai TERLEWAT lebih awal.
+                if (!deadlineService.isPastDeadline(user.getId(), date)) {
                     continue;
                 }
 

@@ -75,13 +75,17 @@ public class DayDtoMapper {
             else if (dayInfo.onLeave()) dayLabel = "Cuti";
         }
 
-        boolean editable = deadlineService.isEditable(dailyLog.getStatus(), dailyLog.getLogDate());
+        boolean editable = deadlineService.isEditable(
+                dailyLog.getUserId(),
+                dailyLog.getStatus(),
+                dailyLog.getLogDate()
+        );
         return new DayDto(
                 dailyLog.getLogDate(),
                 dailyLog.getStatus(),
                 statusLabel(dailyLog.getStatus()),
                 editable,
-                deadlineService.deadlineFor(dailyLog.getLogDate()),
+                deadlineService.deadlineFor(dailyLog.getUserId(), dailyLog.getLogDate()),
                 dayLabel,
                 range,
                 totalMinutes,
