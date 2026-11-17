@@ -1,11 +1,11 @@
 package com.logbook.masterdata;
 
+import com.logbook.service.MasterDataService;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import io.swagger.v3.oas.annotations.tags.Tag;
 
 import java.util.List;
 import java.util.Map;
@@ -16,10 +16,10 @@ import java.util.Map;
 @Tag(name = "Master Data API", description = "Endpoint untuk data referensi (Jenis Task, Durasi)")
 public class MasterDataController {
 
-    private final JdbcTemplate jdbcTemplate;
+    private final MasterDataService masterDataService;
 
-    public MasterDataController(JdbcTemplate jdbcTemplate) {
-        this.jdbcTemplate = jdbcTemplate;
+    public MasterDataController(MasterDataService masterDataService) {
+        this.masterDataService = masterDataService;
     }
 
     @GetMapping
@@ -27,22 +27,10 @@ public class MasterDataController {
         
         log.info("Menerima request GET untuk mengambil Master Data (Task Types, Statuses, Durations)");
 
-        List<Map<String, Object>> types = jdbcTemplate.queryForList(
-                "SELECT id, code, name FROM task_types WHERE is_active = true ORDER BY sort_order"
-        );
-        List<Map<String, Object>> statuses = jdbcTemplate.queryForList(
-                "SELECT id, code, name FROM work_statuses ORDER BY sort_order"
-        );
-        List<Map<String, Object>> durations = jdbcTemplate.queryForList(
-                "SELECT minutes, label FROM duration_options WHERE is_active = true ORDER BY sort_order"
-        );
+        Map<String, List<Map<String, Object>>> result = masterDataService.getMasterData();
 
         log.info("Berhasil mengambil data Master Data");
 
-        return Map.of(
-            "types", types,
-            "statuses", statuses,
-            "durations", durations
-        );
+        return result;
     }
 }

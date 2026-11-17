@@ -13,8 +13,11 @@ public interface HolidayRepository extends JpaRepository<Holiday, Long> {
 
     boolean existsByHolidayDate(LocalDate holidayDate);
 
+    List<Holiday> findAllByOrderByHolidayDateAsc();
+
     List<Holiday> findByHolidayDateBetweenOrderByHolidayDate(
             LocalDate startDate,
             LocalDate endDate
+            
     );
 }

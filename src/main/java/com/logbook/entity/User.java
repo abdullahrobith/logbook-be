@@ -38,6 +38,7 @@ public class User {
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;
 
+    // ===== GETTERS =====
     public Long getId() { return id; }
     public String getEmail() { return email; }
     public String getFullName() { return fullName; }
@@ -48,4 +49,15 @@ public class User {
     public boolean isMustChangePassword() { return mustChangePassword; }
     public boolean isActive() { return active; }
     public OffsetDateTime getCreatedAt() { return createdAt; }
+
+    public void setId(Long id) { this.id = id; }
+    public void setEmail(String email) { this.email = email; }
+    public void setFullName(String fullName) { this.fullName = fullName; }
+    public void setJenis(String jenis) { this.jenis = jenis; }
+    public void setEmailAtasan(String emailAtasan) { this.emailAtasan = emailAtasan; }
+    public void setAdmin(boolean admin) { this.admin = admin; }
+    public void setPasswordHash(String passwordHash) { this.passwordHash = passwordHash; }
+    public void setMustChangePassword(boolean mustChangePassword) { this.mustChangePassword = mustChangePassword; }
+    public void setActive(boolean active) { this.active = active; }
+    public void setCreatedAt(OffsetDateTime createdAt) { this.createdAt = createdAt; }
 }

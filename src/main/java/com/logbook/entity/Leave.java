@@ -33,6 +33,10 @@ public class Leave {
     @Column(name = "end_date", nullable = false)
     private LocalDate endDate;
 
+    // TAMBAHKAN FIELD INI
+    @Column(name = "note") 
+    private String reason;
+
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;
 
@@ -53,6 +57,11 @@ public class Leave {
 
     public LocalDate getEndDate() {
         return endDate;
+    }
+
+    // TAMBAHKAN GETTER INI
+    public String getReason() {
+        return reason;
     }
 
     public OffsetDateTime getCreatedAt() {
@@ -82,6 +91,11 @@ public class Leave {
 
     public void setEndDate(LocalDate endDate) {
         this.endDate = endDate;
+    }
+
+    // TAMBAHKAN SETTER INI
+    public void setReason(String reason) {
+        this.reason = reason;
     }
 
     public void setCreatedAt(OffsetDateTime createdAt) {

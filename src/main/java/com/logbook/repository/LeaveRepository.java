@@ -58,4 +58,6 @@ public interface LeaveRepository extends JpaRepository<Leave, Long> {
     );
 
     List<Leave> findByUserId(Long userId);
+
+    List<Leave> findAllByOrderByStartDateAsc(); 
 }
