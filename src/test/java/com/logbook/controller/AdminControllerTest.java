@@ -57,12 +57,21 @@ class AdminControllerTest {
 
     @Test
     void testImportUsersSuccessCreatesAndUpdates() {
-        String csvContent = "email,nama\nnew@example.com,New User\nexisting@example.com,Existing User";
+        String csvContent = "email,nama,jenis,email_atasan,admin\nnew@example.com,New User,Pekerja,atasan@contoh.id,true\nexisting@example.com,Existing User,Pekerja,sudah@example.id,false";
         MockMultipartFile file = new MockMultipartFile("file", "users.csv", "text/csv", csvContent.getBytes());
 
+        // Stub pengguna: baru (0) & ada (1)
         when(jdbcTemplate.queryForObject(eq("SELECT COUNT(*) FROM users WHERE email = ?"), eq(Integer.class), eq("new@example.com")))
                 .thenReturn(0);
         when(jdbcTemplate.queryForObject(eq("SELECT COUNT(*) FROM users WHERE email = ?"), eq(Integer.class), eq("existing@example.com")))
+                .thenReturn(1);
+        // Stub untuk cek atasan
+        when(jdbcTemplate.queryForObject(eq("SELECT COUNT(*) FROM users WHERE email = ?"), eq(Integer.class), eq("atasan@contoh.id")))
+                .thenReturn(1);
+        when(jdbcTemplate.queryForObject(eq("SELECT COUNT(*) FROM users WHERE email = ?"), eq(Integer.class), eq("sudah@example.id")))
+                .thenReturn(1);
+        // Stub untuk proteksi minimal 1 admin
+        when(jdbcTemplate.queryForObject(eq("SELECT COUNT(*) FROM users WHERE is_admin = true"), eq(Integer.class)))
                 .thenReturn(1);
 
         ResponseEntity<AdminImportResponse> response = adminController.importUsers(file, session);
@@ -74,8 +83,8 @@ class AdminControllerTest {
         assertEquals(1, response.getBody().tempPasswords().size());
         assertEquals("new@example.com", response.getBody().tempPasswords().get(0).get("email"));
 
-        verify(jdbcTemplate, times(1)).update(contains("INSERT INTO users"), eq("new@example.com"), eq("New User"), anyString());
-        verify(jdbcTemplate, times(1)).update(contains("UPDATE users SET full_name"), eq("Existing User"), eq("existing@example.com"));
+        verify(jdbcTemplate, times(1)).update(contains("INSERT INTO users"), eq("new@example.com"), eq("New User"), eq("Pekerja"), eq("atasan@contoh.id"), eq(true), anyString());
+        verify(jdbcTemplate, times(1)).update(contains("UPDATE users SET full_name"), eq("Existing User"), eq("Pekerja"), eq("sudah@example.id"), eq(false), eq("existing@example.com"));
     }
 
     @Test
@@ -91,14 +100,14 @@ class AdminControllerTest {
 
     @Test
     void testImportUsersRejectsBlankEmailOrName() {
-        String csvContent = "email,nama\n,John Doe";
+        String csvContent = "email,nama,jenis,email_atasan,admin\n,John Doe,Pekerja,atasan@contoh.id,true";
         MockMultipartFile file = new MockMultipartFile("file", "invalid.csv", "text/csv", csvContent.getBytes());
 
         ResponseStatusException ex = assertThrows(ResponseStatusException.class,
                 () -> adminController.importUsers(file, session));
 
         assertEquals(HttpStatus.BAD_REQUEST, ex.getStatusCode());
-        assertTrue(ex.getReason().contains("Email dan Nama wajib diisi"));
+        assertTrue(ex.getReason().contains("Email, Nama, dan Jenis wajib diisi"));
     }
 
     @Test
@@ -111,7 +120,7 @@ class AdminControllerTest {
                 () -> adminController.importUsers(brokenFile, session));
 
         assertEquals(HttpStatus.BAD_REQUEST, ex.getStatusCode());
-        assertEquals("Format file CSV tidak valid", ex.getReason());
+        assertEquals("Format CSV tidak valid. Pastikan header: email,nama,jenis,email_atasan,admin", ex.getReason());
     }
 
     @Test
