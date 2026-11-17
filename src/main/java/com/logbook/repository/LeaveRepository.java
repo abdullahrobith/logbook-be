@@ -56,4 +56,6 @@ public interface LeaveRepository extends JpaRepository<Leave, Long> {
             @Param("startDate") LocalDate startDate,
             @Param("endDate") LocalDate endDate
     );
+
+    List<Leave> findByUserId(Long userId);
 }
