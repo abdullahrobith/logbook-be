@@ -6,6 +6,7 @@ import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.Appender;
 import ch.qos.logback.core.read.ListAppender;
 import com.logbook.controller.AdminController;
+import com.logbook.exception.ApiException;
 import com.logbook.filter.RequestIdFilter;
 import com.logbook.service.AdminService;
 import com.logbook.service.RoleService;
@@ -34,6 +35,7 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -126,7 +128,7 @@ class LoggingTest {
         MockMultipartFile emptyFile = new MockMultipartFile("file", "test.csv", "text/csv", new byte[0]);
         assertThrows(ResponseStatusException.class, () -> adminController.importUsers(emptyFile, session));
 
-        assertThrows(ResponseStatusException.class, () -> adminController.addHoliday(Map.of(), session));
+        assertThrows(ApiException.class, () -> adminController.addHoliday(Map.of(), session));
 
         assertTrue(listAppender.list.stream()
                 .anyMatch(event -> event.getLoggerName().equals(AdminController.class.getName())

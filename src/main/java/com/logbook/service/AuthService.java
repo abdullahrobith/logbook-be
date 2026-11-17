@@ -2,13 +2,13 @@ package com.logbook.service;
 
 import com.logbook.dto.UserResponse;
 import com.logbook.entity.User;
+import com.logbook.exception.ApiException;
 import com.logbook.repository.UserRepository;
 import jakarta.servlet.http.HttpSession;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.server.ResponseStatusException;
 
 @Slf4j
 @Service
@@ -30,7 +30,7 @@ public class AuthService {
                 .findByEmailIgnoreCaseAndActiveTrue(email.trim())
                 .orElseThrow(() -> {
                     log.warn("Percobaan login gagal untuk email: {}", email.trim());
-                    return new ResponseStatusException(
+                    return new ApiException(
                             HttpStatus.UNAUTHORIZED,
                             "Email tidak terdaftar atau tidak aktif"
                     );
@@ -48,7 +48,7 @@ public class AuthService {
         Object value = session.getAttribute(SESSION_USER_ID);
         if (!(value instanceof Long userId)) {
             log.debug("Request tanpa sesi login yang valid");
-            throw new ResponseStatusException(
+            throw new ApiException(
                     HttpStatus.UNAUTHORIZED,
                     "Silakan login terlebih dahulu"
             );
@@ -64,7 +64,7 @@ public class AuthService {
                 .findByIdAndActiveTrue(userId)
                 .orElseThrow(() -> {
                     log.warn("Sesi tidak valid: User ID {} tidak ditemukan atau tidak aktif", userId);
-                    return new ResponseStatusException(
+                    return new ApiException(
                             HttpStatus.UNAUTHORIZED,
                             "Sesi tidak valid"
                     );

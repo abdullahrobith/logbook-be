@@ -1,6 +1,7 @@
 package com.logbook.controller;
 
 import com.logbook.dto.AdminImportResponse;
+import com.logbook.exception.ApiException;
 import com.logbook.entity.Holiday;
 import com.logbook.entity.Leave;
 import com.logbook.entity.User;
@@ -113,11 +114,11 @@ class AdminControllerTest {
         Map<String, String> request = new HashMap<>();
         request.put("date", "2026-08-17");
 
-        ResponseStatusException ex = assertThrows(ResponseStatusException.class,
+        ApiException ex = assertThrows(ApiException.class,
                 () -> adminController.addHoliday(request, session));
 
-        assertEquals(HttpStatus.BAD_REQUEST, ex.getStatusCode());
-        assertEquals("Tanggal dan Nama wajib diisi", ex.getReason());
+        assertEquals(HttpStatus.BAD_REQUEST, ex.getStatus());
+        assertEquals("Tanggal dan Nama wajib diisi", ex.getMessage());
     }
 
     @Test
@@ -169,11 +170,11 @@ class AdminControllerTest {
     void testAddLeaveRejectsMissingFields() {
         Map<String, String> request = Map.of("userId", "10");
 
-        ResponseStatusException ex = assertThrows(ResponseStatusException.class,
+        ApiException ex = assertThrows(ApiException.class,
                 () -> adminController.addLeave(request, session));
 
-        assertEquals(HttpStatus.BAD_REQUEST, ex.getStatusCode());
-        assertEquals("Data cuti tidak lengkap", ex.getReason());
+        assertEquals(HttpStatus.BAD_REQUEST, ex.getStatus());
+        assertEquals("Data cuti tidak lengkap", ex.getMessage());
     }
 
     @Test

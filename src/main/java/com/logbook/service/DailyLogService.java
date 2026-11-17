@@ -3,13 +3,13 @@ package com.logbook.service;
 import com.logbook.dto.DayDto;
 import com.logbook.dto.DailyLogResponse;
 import com.logbook.entity.DailyLog;
+import com.logbook.exception.ApiException;
 import com.logbook.repository.DailyLogRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.http.HttpStatus;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
@@ -76,7 +76,7 @@ public class DailyLogService {
                 .findByUserIdAndLogDate(userId, date)
                 .orElseThrow(() -> {
                     log.debug("Daily Log User ID {} tanggal {} tidak ditemukan", userId, date);
-                    return new ResponseStatusException(
+                    return new ApiException(
                             HttpStatus.NOT_FOUND,
                             "Daily log tidak ditemukan"
                     );
@@ -103,7 +103,7 @@ public class DailyLogService {
                     );
 
                     DailyLog created = dailyLogRepository.findByUserIdAndLogDate(userId, date)
-                            .orElseThrow(() -> new ResponseStatusException(
+                            .orElseThrow(() -> new ApiException(
                                     HttpStatus.INTERNAL_SERVER_ERROR,
                                     "Daily log gagal dibuat"
                             ));
@@ -120,7 +120,7 @@ public class DailyLogService {
                 .orElseThrow(() -> {
                     log.warn("Gagal submit: Daily Log ID {} tidak ditemukan atau bukan milik User ID {}",
                             dailyLogId, userId);
-                    return new ResponseStatusException(
+                    return new ApiException(
                             HttpStatus.NOT_FOUND,
                             "Daily log tidak ditemukan"
                     );
@@ -140,7 +140,7 @@ public class DailyLogService {
                 .orElseThrow(() -> {
                     log.warn("Gagal submit: Daily Log tanggal {} tidak ditemukan untuk User ID {}",
                             date, userId);
-                    return new ResponseStatusException(
+                    return new ApiException(
                             HttpStatus.NOT_FOUND,
                             "Daily log tanggal " + date + " tidak ditemukan"
                     );
@@ -166,7 +166,7 @@ public class DailyLogService {
                 && !STATUS_REJECTED.equalsIgnoreCase(dailyLog.getStatus())) {
             log.warn("Gagal submit: Daily Log ID {} berstatus {}, bukan DRAF/DITOLAK",
                     dailyLogId, dailyLog.getStatus());
-            throw new ResponseStatusException(
+            throw new ApiException(
                     HttpStatus.CONFLICT,
                     "Daily log tidak dapat dikirim pada status saat ini"
             );
@@ -174,7 +174,7 @@ public class DailyLogService {
 
         if (dailyLog.getTasks() == null || dailyLog.getTasks().isEmpty()) {
             log.warn("Gagal submit: Daily Log ID {} belum memiliki task", dailyLogId);
-            throw new ResponseStatusException(
+            throw new ApiException(
                     HttpStatus.BAD_REQUEST,
                     "Daily log belum memiliki task untuk dikirim"
             );
@@ -194,7 +194,7 @@ public class DailyLogService {
                 .orElseThrow(() -> {
                     log.warn("Gagal withdraw: Daily Log ID {} tidak ditemukan atau bukan milik User ID {}",
                             dailyLogId, userId);
-                    return new ResponseStatusException(
+                    return new ApiException(
                             HttpStatus.NOT_FOUND,
                             "Daily log tidak ditemukan"
                     );
@@ -210,7 +210,7 @@ public class DailyLogService {
         if (!STATUS_WAITING.equalsIgnoreCase(dailyLog.getStatus())) {
             log.warn("Gagal withdraw: Daily Log ID {} berstatus {}, bukan MENUNGGU",
                     dailyLogId, dailyLog.getStatus());
-            throw new ResponseStatusException(
+            throw new ApiException(
                     HttpStatus.CONFLICT,
                     "Daily log tidak dapat ditarik pada status saat ini"
             );
@@ -279,7 +279,7 @@ public class DailyLogService {
         if (deadlineService.isPastDeadline(userId, date)) {
             log.warn("Gagal {} Daily Log{}: batas hari tanggal {} sudah lewat",
                     action, dailyLogLabel, date);
-            throw new ResponseStatusException(
+            throw new ApiException(
                     HttpStatus.CONFLICT,
                     "Batas hari sudah lewat. Daily Log tanggal " + date
                             + " tidak dapat " + action + "."
@@ -289,7 +289,7 @@ public class DailyLogService {
         if (deadlineService.isFutureDay(userId, date)) {
             log.warn("Gagal {} Daily Log{}: tanggal {} belum tiba",
                     action, dailyLogLabel, date);
-            throw new ResponseStatusException(
+            throw new ApiException(
                     HttpStatus.CONFLICT,
                     "Tanggal " + date + " belum tiba. Daily Log hanya dapat " + action
                             + " pada tanggal hari ini."

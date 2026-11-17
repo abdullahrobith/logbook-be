@@ -4,6 +4,7 @@ import com.logbook.dto.AdminImportResponse;
 import com.logbook.entity.Holiday;
 import com.logbook.entity.Leave;
 import com.logbook.entity.User;
+import com.logbook.exception.ApiException;
 import com.logbook.service.AdminService;
 import com.logbook.service.RoleService;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -13,7 +14,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -72,7 +72,8 @@ public class AdminController {
 
         if (date == null || date.isBlank() || name == null || name.isBlank()) {
             log.warn("Validasi gagal: Tanggal atau Nama libur kosong");
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Tanggal dan Nama wajib diisi");
+            // UBAH KE ApiException
+            throw new ApiException(HttpStatus.BAD_REQUEST, "Tanggal dan Nama wajib diisi");
         }
 
         adminService.addHoliday(LocalDate.parse(date), name);
@@ -107,7 +108,8 @@ public class AdminController {
 
         if (userIdStr == null || fromDate == null || toDate == null) {
             log.warn("Validasi gagal: Data cuti tidak lengkap");
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Data cuti tidak lengkap");
+            // UBAH KE ApiException
+            throw new ApiException(HttpStatus.BAD_REQUEST, "Data cuti tidak lengkap");
         }
 
         adminService.addLeave(Long.parseLong(userIdStr), LocalDate.parse(fromDate), LocalDate.parse(toDate), request.get("note"));

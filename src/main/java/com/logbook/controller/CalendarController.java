@@ -2,6 +2,7 @@ package com.logbook.controller;
 
 import com.logbook.dto.DayInfoResponse;
 import com.logbook.entity.User;
+import com.logbook.exception.ApiException;
 import com.logbook.service.AuthService;
 import com.logbook.service.CalendarService;
 import com.logbook.service.RoleService;
@@ -13,7 +14,6 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -58,14 +58,16 @@ public class CalendarController {
         authService.requireUserId(session);
 
         if (to.isBefore(from)) {
-            throw new ResponseStatusException(
+            // UBAH KE ApiException
+            throw new ApiException(
                     HttpStatus.BAD_REQUEST,
                     "Tanggal akhir tidak boleh mendahului tanggal mulai"
             );
         }
 
         if (from.plusDays(MAX_RANGE_DAYS).isBefore(to)) {
-            throw new ResponseStatusException(
+            // UBAH KE ApiException
+            throw new ApiException(
                     HttpStatus.BAD_REQUEST,
                     "Rentang kalender maksimal " + MAX_RANGE_DAYS + " hari"
             );

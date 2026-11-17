@@ -2,10 +2,10 @@ package com.logbook.service;
 
 import com.logbook.dto.LeaveRequest;
 import com.logbook.entity.Leave;
+import com.logbook.exception.ApiException;
 import com.logbook.repository.LeaveRepository;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -27,7 +27,8 @@ public class LeaveService {
         );
 
         if (!overlapping.isEmpty()) {
-            throw new ResponseStatusException(
+            // UBAH KE ApiException
+            throw new ApiException(
                     HttpStatus.BAD_REQUEST,
                     "Gagal! Kamu sudah memiliki cuti di tanggal tersebut."
             );

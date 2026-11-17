@@ -1,18 +1,18 @@
 package com.logbook.service;
 
-import lombok.extern.slf4j.Slf4j;
 import com.logbook.dto.DailyLogResponse;
 import com.logbook.dto.LogTaskRequest;
 import com.logbook.entity.DailyLog;
 import com.logbook.entity.LogTask;
+import com.logbook.exception.ApiException;
 import com.logbook.project.ProjectRepository;
 import com.logbook.repository.DailyLogRepository;
 import com.logbook.repository.LogTaskRepository;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
-import org.springframework.jdbc.core.JdbcTemplate; 
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.time.OffsetDateTime;
 import java.util.Set;
@@ -62,12 +62,12 @@ public class LogTaskService {
         DailyLog dailyLog = dailyLogRepository.findById(dailyLogId)
                 .orElseThrow(() -> {
                     log.warn("Gagal membuat task: Daily Log ID {} tidak ditemukan", dailyLogId);
-                    return new ResponseStatusException(HttpStatus.NOT_FOUND, "Daily log tidak ditemukan");
+                    return new ApiException(HttpStatus.NOT_FOUND, "Daily log tidak ditemukan");
                 });
 
         if (!dailyLog.getUserId().equals(userId)) {
             log.warn("Gagal membuat task: User ID {} bukan pemilik Daily Log ID {}", userId, dailyLogId);
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Daily log bukan milik pengguna ini");
+            throw new ApiException(HttpStatus.FORBIDDEN, "Daily log bukan milik pengguna ini");
         }
 
         requireEditableDay(dailyLog, "ditambah");
@@ -163,7 +163,7 @@ public class LogTaskService {
         return logTaskRepository.findByIdAndUserId(taskId, userId)
                 .orElseThrow(() -> {
                     log.warn("Gagal: Task ID {} tidak ditemukan atau bukan milik User ID {}", taskId, userId);
-                    return new ResponseStatusException(HttpStatus.NOT_FOUND, "Task tidak ditemukan");
+                    return new ApiException(HttpStatus.NOT_FOUND, "Task tidak ditemukan");
                 });
     }
 
@@ -177,7 +177,7 @@ public class LogTaskService {
                 && !reopenMissedDay) {
             log.warn("Validasi gagal: Daily Log ID {} berstatus {}, bukan DRAF/DITOLAK",
                     dailyLog.getId(), status);
-            throw new ResponseStatusException(
+            throw new ApiException(
                     HttpStatus.CONFLICT,
                     "Task hanya dapat diubah pada Daily Log berstatus DRAF atau DITOLAK"
             );
@@ -194,7 +194,7 @@ public class LogTaskService {
         if (deadlineService.isPastDeadline(dailyLog.getUserId(), dailyLog.getLogDate())) {
             log.warn("Validasi gagal: batas hari Daily Log ID {} tanggal {} sudah lewat",
                     dailyLog.getId(), dailyLog.getLogDate());
-            throw new ResponseStatusException(
+            throw new ApiException(
                     HttpStatus.CONFLICT,
                     "Batas hari sudah lewat. Task pada tanggal " + dailyLog.getLogDate() + " tidak dapat " + action + "."
             );
@@ -202,7 +202,7 @@ public class LogTaskService {
 
         if (deadlineService.isFutureDay(dailyLog.getUserId(), dailyLog.getLogDate())) {
             log.warn("Validasi gagal: tanggal {} belum tiba", dailyLog.getLogDate());
-            throw new ResponseStatusException(
+            throw new ApiException(
                     HttpStatus.CONFLICT,
                     "Tanggal " + dailyLog.getLogDate() + " belum tiba. Task belum dapat " + action + "."
             );
@@ -212,23 +212,23 @@ public class LogTaskService {
     private void validateRequest(Long userId, LogTaskRequest request) {
         if (!VALID_WORK_STATUS_IDS.contains(request.workStatusId())) {
             log.warn("Validasi gagal: Work Status ID {} tidak valid", request.workStatusId());
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Status pekerjaan harus Selesai, Berjalan, atau Tertahan");
+            throw new ApiException(HttpStatus.BAD_REQUEST, "Status pekerjaan harus Selesai, Berjalan, atau Tertahan");
         }
 
         if (request.taskTypeId() == null || !logTaskRepository.existsActiveTaskType(request.taskTypeId())) {
             log.warn("Validasi gagal: Task Type ID {} tidak tersedia", request.taskTypeId());
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Jenis task tidak tersedia");
+            throw new ApiException(HttpStatus.BAD_REQUEST, "Jenis task tidak tersedia");
         }
 
         if (request.durationMinutes() == null || request.durationMinutes() < MIN_DURATION_MINUTES || request.durationMinutes() > MAX_DURATION_MINUTES) {
             log.warn("Validasi gagal: Durasi {} menit di luar batas", request.durationMinutes());
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Durasi harus antara 5 dan 1440 menit");
+            throw new ApiException(HttpStatus.BAD_REQUEST, "Durasi harus antara 5 dan 1440 menit");
         }
 
         boolean projectAvailable = projectRepository.existsActiveProjectForUser(request.projectId(), userId);
         if (!projectAvailable) {
             log.warn("Validasi gagal: Project ID {} tidak tersedia", request.projectId());
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Proyek tidak tersedia untuk pengguna ini");
+            throw new ApiException(HttpStatus.BAD_REQUEST, "Proyek tidak tersedia untuk pengguna ini");
         }
     }
 
@@ -252,7 +252,7 @@ public class LogTaskService {
 
         if (overlappingTasks >= MAX_CONCURRENT_TASKS) {
             log.warn("Validasi gagal: Maksimal task bersamaan ({}) terlampaui", MAX_CONCURRENT_TASKS);
-            throw new ResponseStatusException(
+            throw new ApiException(
                     HttpStatus.BAD_REQUEST,
                     "Maksimal 3 task dapat berjalan pada waktu yang bersamaan. Ubah jam atau durasi task terlebih dahulu."
             );
