@@ -23,6 +23,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -299,6 +300,100 @@ class LogbookApiIntegrationTest {
     }
 
     // ==========================================
+    // CONTINUE TESTING
+    // ==========================================
+
+    @Test
+    void getContinueShouldReturnInProgressTasksFromLatestFilledDay() throws Exception {
+        LocalDate today = LocalDate.now(ZoneId.of("Asia/Jakarta"));
+        LocalDate yesterday = today.minusDays(1);
+        OffsetDateTime now = OffsetDateTime.now();
+
+        // Basis data lokal dipakai bersama tes lain, jadi isi catatan pengguna
+        // dibersihkan lebih dulu agar hasilnya pasti. Semua perubahan dibatalkan
+        // setelah tes karena kelas ini transaksional.
+        clearDailyLogsOfUser(1L);
+
+        DailyLog olderDay = dailyLogRepository.save(new DailyLog(
+                1L, yesterday.minusDays(3), (short) 1, "DRAF", now, now
+        ));
+        logTaskRepository.save(logTask(olderDay, "OLD-001", (short) 2, 480,
+                "Pekerjaan lama yang masih berjalan."));
+
+        DailyLog latestDay = dailyLogRepository.save(new DailyLog(
+                1L, yesterday, (short) 1, "DRAF", now, now
+        ));
+        logTaskRepository.save(logTask(latestDay, "NEW-001", (short) 2, 540,
+                "Pekerjaan kemarin yang masih berjalan."));
+        logTaskRepository.save(logTask(latestDay, "NEW-002", (short) 3, 600,
+                "Pekerjaan kemarin yang tertahan."));
+        logTaskRepository.save(logTask(latestDay, "DONE-001", (short) 1, 660,
+                "Pekerjaan kemarin yang sudah selesai."));
+
+        DailyLog todayLog = dailyLogRepository.save(new DailyLog(
+                1L, today, (short) 1, "DRAF", now, now
+        ));
+        logTaskRepository.save(logTask(todayLog, "TODAY-001", (short) 2, 300,
+                "Pekerjaan hari ini."));
+
+        mockMvc.perform(
+                get("/api/continue")
+                        .session(session)
+        )
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.length()").value(2))
+        .andExpect(jsonPath("$[0].ticket").value("NEW-001"))
+        .andExpect(jsonPath("$[0].project").value("Mobile Banking"))
+        .andExpect(jsonPath("$[0].type").value("Pengembangan"))
+        .andExpect(jsonPath("$[0].workStatus").value("Berjalan"))
+        .andExpect(jsonPath("$[1].ticket").value("NEW-002"))
+        .andExpect(jsonPath("$[1].workStatus").value("Tertahan"));
+    }
+
+    @Test
+    void getContinueShouldReturnEmptyWhenNoPreviousDayHasContent() throws Exception {
+        clearDailyLogsOfUser(1L);
+
+        mockMvc.perform(
+                get("/api/continue")
+                        .session(session)
+        )
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.length()").value(0));
+    }
+
+    private void clearDailyLogsOfUser(Long userId) {
+        jdbcTemplate.update(
+                "DELETE FROM log_tasks WHERE daily_log_id IN (SELECT id FROM daily_logs WHERE user_id = ?)",
+                userId
+        );
+        jdbcTemplate.update("DELETE FROM daily_logs WHERE user_id = ?", userId);
+    }
+
+    private LogTask logTask(
+            DailyLog dailyLog,
+            String ticket,
+            short workStatusId,
+            int startMinute,
+            String summary
+    ) {
+        OffsetDateTime now = OffsetDateTime.now();
+        return new LogTask(
+                dailyLog,
+                1L,
+                (short) 1,
+                workStatusId,
+                ticket,
+                startMinute,
+                (short) 60,
+                summary,
+                null,
+                now,
+                now
+        );
+    }
+
+    // ==========================================
     // MASTER DATA TESTING
     // ==========================================
 
@@ -338,6 +433,14 @@ class LogbookApiIntegrationTest {
     void getCurrentUserWithoutLoginShouldReturnUnauthorized() throws Exception {
         mockMvc.perform(
                 get("/api/auth/me")
+        )
+        .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void getContinueWithoutLoginShouldReturnUnauthorized() throws Exception {
+        mockMvc.perform(
+                get("/api/continue")
         )
         .andExpect(status().isUnauthorized());
     }

@@ -48,36 +48,8 @@ public class DayDtoMapper {
     public DayDto toDayDto(DailyLog dailyLog) {
         List<LogTask> tasks = dailyLog.getTasks() == null ? List.of() : dailyLog.getTasks();
 
-        Map<Short, String> taskTypeNames = taskTypeRepository.findAll().stream()
-                .collect(Collectors.toMap(TaskType::getId, TaskType::getName, (a,b)->a));
-        Map<Short, String> workStatusNames = workStatusRepository.findAll().stream()
-                .collect(Collectors.toMap(WorkStatus::getId, WorkStatus::getName, (a,b)->a));
-
-        Map<Long, ProjectDto> projectInfo = new HashMap<>();
-        for (LogTask t : tasks) {
-            projectInfo.computeIfAbsent(t.getProjectId(), id ->
-                    projectRepository.findProjectInfoById(id).orElse(null));
-        }
-
-        List<TaskDto> taskDtos = tasks.stream().map(t -> {
-            ProjectDto p = projectInfo.get(t.getProjectId());
-            String projectName = p != null ? p.project_name() : null;
-            String color = p != null ? p.color() : null;
-            String typeName = taskTypeNames.getOrDefault(t.getTaskTypeId(), null);
-            String wsName = workStatusNames.getOrDefault(t.getWorkStatusId(), null);
-            return new TaskDto(
-                    t.getId(),
-                    projectName,
-                    color,
-                    t.getTicket(),
-                    t.getStartMinute(),
-                    t.getDurationMinutes(),
-                    typeName,
-                    t.getSummary(),
-                    wsName,
-                    t.getObstacle()
-            );
-        }).toList();
+        Map<Long, ProjectDto> projectInfo = projectInfoOf(tasks);
+        List<TaskDto> taskDtos = toTaskDtos(tasks, projectInfo);
 
         // perProject: jumlah durasi penuh per proyek (SRS: perProject dan rekap per jenis = jumlah durasi penuh)
         Map<Long, Integer> minutesPerProject = new LinkedHashMap<>();
@@ -117,6 +89,62 @@ public class DayDtoMapper {
                 taskDtos,
                 dailyLog.getRejectionReason()
         );
+    }
+
+    /**
+     * Memetakan task menjadi {@link TaskDto} lengkap dengan nama proyek, warna,
+     * jenis, dan status pekerjaan. Dipakai juga oleh saran "Lanjutkan" pada
+     * form task (LBK-TSK-07).
+     */
+    public List<TaskDto> toTaskDtos(List<LogTask> tasks) {
+        if (tasks == null || tasks.isEmpty()) {
+            return List.of();
+        }
+        return toTaskDtos(tasks, projectInfoOf(tasks));
+    }
+
+    private List<TaskDto> toTaskDtos(List<LogTask> tasks, Map<Long, ProjectDto> projectInfo) {
+        Map<Short, String> taskTypeNames = taskTypeNames();
+        Map<Short, String> workStatusNames = workStatusNames();
+
+        return tasks.stream().map(t -> {
+            ProjectDto p = projectInfo.get(t.getProjectId());
+            String projectName = p != null ? p.project_name() : null;
+            String color = p != null ? p.color() : null;
+            String typeName = taskTypeNames.getOrDefault(t.getTaskTypeId(), null);
+            String wsName = workStatusNames.getOrDefault(t.getWorkStatusId(), null);
+            return new TaskDto(
+                    t.getId(),
+                    projectName,
+                    color,
+                    t.getTicket(),
+                    t.getStartMinute(),
+                    t.getDurationMinutes(),
+                    typeName,
+                    t.getSummary(),
+                    wsName,
+                    t.getObstacle()
+            );
+        }).toList();
+    }
+
+    private Map<Short, String> taskTypeNames() {
+        return taskTypeRepository.findAll().stream()
+                .collect(Collectors.toMap(TaskType::getId, TaskType::getName, (a, b) -> a));
+    }
+
+    private Map<Short, String> workStatusNames() {
+        return workStatusRepository.findAll().stream()
+                .collect(Collectors.toMap(WorkStatus::getId, WorkStatus::getName, (a, b) -> a));
+    }
+
+    private Map<Long, ProjectDto> projectInfoOf(List<LogTask> tasks) {
+        Map<Long, ProjectDto> projectInfo = new HashMap<>();
+        for (LogTask t : tasks) {
+            projectInfo.computeIfAbsent(t.getProjectId(), id ->
+                    projectRepository.findProjectInfoById(id).orElse(null));
+        }
+        return projectInfo;
     }
 
     private DayDto.RangeDto computeRange(Long userId, List<LogTask> tasks) {
