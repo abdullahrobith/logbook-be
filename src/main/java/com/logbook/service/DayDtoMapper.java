@@ -55,7 +55,7 @@ public class DayDtoMapper {
         Map<Long, Integer> minutesPerProject = new LinkedHashMap<>();
         Map<Long, ProjectDto> perProjectInfo = new LinkedHashMap<>();
         for (LogTask t : tasks) {
-            minutesPerProject.merge(t.getProjectId(), (int) t.getDurationMinutes(), Integer::sum);
+            minutesPerProject.merge(t.getProjectId(), TaskDurationUtil.minutesOf(t), Integer::sum);
             perProjectInfo.putIfAbsent(t.getProjectId(), projectInfo.get(t.getProjectId()));
         }
         List<DayDto.PerProjectDto> perProject = minutesPerProject.entrySet().stream().map(e -> {
@@ -65,7 +65,7 @@ public class DayDtoMapper {
             return new DayDto.PerProjectDto(name, color, e.getValue());
         }).toList();
 
-        int totalMinutes = unionDuration(tasks);
+        int totalMinutes = TaskDurationUtil.unionMinutes(tasks);
         DayDto.RangeDto range = computeRange(dailyLog.getUserId(), tasks);
 
         DayInfoResponse dayInfo = calendarService.describe(dailyLog.getUserId(), dailyLog.getLogDate());
@@ -167,26 +167,6 @@ public class DayDtoMapper {
 
     private int toMinutes(LocalTime t) {
         return t.getHour() * 60 + t.getMinute();
-    }
-
-    private int unionDuration(List<LogTask> tasks) {
-        if (tasks == null || tasks.isEmpty()) return 0;
-        List<int[]> intervals = new ArrayList<>();
-        for (LogTask t : tasks) {
-            int s = t.getStartMinute() != null ? t.getStartMinute() : 0;
-            int e = s + (t.getDurationMinutes() != null ? t.getDurationMinutes() : 0);
-            intervals.add(new int[]{s,e});
-        }
-        intervals.sort(Comparator.comparingInt(a -> a[0]));
-        int total = 0;
-        int cs = intervals.get(0)[0], ce = intervals.get(0)[1];
-        for (int i=1;i<intervals.size();i++) {
-            int[] n = intervals.get(i);
-            if (n[0] <= ce) ce = Math.max(ce, n[1]);
-            else { total += ce - cs; cs = n[0]; ce = n[1]; }
-        }
-        total += ce - cs;
-        return total;
     }
 
     private String statusLabel(String status) {

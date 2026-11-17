@@ -124,7 +124,8 @@ public class AdminService {
                 newUser.setAdmin(isAdmin);
                 newUser.setPasswordHash("BCryptHashPlaceholder_" + tempPassword);
                 newUser.setMustChangePassword(true);
-                newUser.setActive(true); 
+                newUser.setActive(true);
+                newUser.setCreatedAt(OffsetDateTime.now());
                 userRepository.save(newUser);
 
                 Map<String, String> passMap = new HashMap<>();

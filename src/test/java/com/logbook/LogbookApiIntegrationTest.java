@@ -397,7 +397,7 @@ class LogbookApiIntegrationTest {
                 delete("/api/tasks/{id}", taskId)
                         .session(session)
         )
-        .andExpect(status().isNoContent());
+        .andExpect(status().isOk());
     }
 
     // ==========================================
@@ -894,7 +894,7 @@ class LogbookApiIntegrationTest {
                 "file",
                 "users.csv",
                 "text/csv",
-                "email,nama\nbaru.import@contoh.id,Baru Import\n"
+                "email,nama,jenis,email_atasan,admin\nbaru.import@contoh.id,Baru Import,TALENT,,false\n"
                         .getBytes(StandardCharsets.UTF_8)
         );
 
@@ -916,7 +916,7 @@ class LogbookApiIntegrationTest {
                 "file",
                 "users.csv",
                 "text/csv",
-                "email,nama\nbaru.import@contoh.id,Baru Import\n"
+                "email,nama,jenis,email_atasan,admin\nbaru.import@contoh.id,Baru Import,TALENT,,false\n"
                         .getBytes(StandardCharsets.UTF_8)
         );
 

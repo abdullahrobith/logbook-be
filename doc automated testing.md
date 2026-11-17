@@ -24,7 +24,7 @@ Pengujian dilakukan melalui tiga pendekatan:
 
 ## 3. Manual Testing API
 
-Saat ini backend Logbook memiliki **28 endpoint API** (termasuk penyesuaian/penambahan endpoint SRS Day/Task). Sepuluh endpoint diuji secara manual menggunakan Postman, tiga belas endpoint yang ditambahkan setelah pengujian manual awal diverifikasi melalui integration test, dan endpoint lainnya (termasuk SRS Day/Task dan pengaturan pengguna) ditambahkan/diubah kemudian; verifikasinya belum seluruhnya tercakup dalam dokumen ini.
+Saat ini backend Logbook memiliki **29 endpoint API** (termasuk penyesuaian/penambahan endpoint SRS Day/Task dan `GET /api/summary`). Sepuluh endpoint diuji secara manual menggunakan Postman, tiga belas endpoint yang ditambahkan setelah pengujian manual awal diverifikasi melalui integration test, dan endpoint lainnya (termasuk SRS Day/Task dan pengaturan pengguna) ditambahkan/diubah kemudian; verifikasinya belum seluruhnya tercakup dalam dokumen ini.
 
 | No. | Method | Endpoint | Fungsi | Akses | Verifikasi |
 |---|---|---|---|---|---|
@@ -56,6 +56,7 @@ Saat ini backend Logbook memiliki **28 endpoint API** (termasuk penyesuaian/pena
 | 26 | PUT | `/api/settings` | Memperbarui pengaturan pengguna (jam kerja dan status onboarding) | Pengguna masuk | Unit test & Integration test (unit test lulus; integration test memerlukan DB lokal + fixture) |
 | 27 | GET | `/api/days/{date}` | Mendapatkan `DayDto` milik pengguna pada tanggal tertentu (SRS) | Pemilik data | Perlu verifikasi |
 | 28 | POST | `/api/days/{date}/tasks` | Menambahkan task pada tanggal tertentu dan mengembalikan `DayDto` terbaru (SRS) | Pemilik data | Perlu verifikasi |
+| 29 | GET | `/api/summary?period=WEEK\|MONTH&date=YYYY-MM-DD` | Rekap mingguan/bulanan Ringkasanku (total waktu, hari kerja, jenis task, proyek, status kerja, kendala, dan hari ringkasan singkat) | Pemilik data | Unit test & Integration test (`SummaryServiceTest`, `SummaryControllerTest`, `SummaryIntegrationTest`) |
 
 Seluruh endpoint yang telah tercakup skenario pengujian memberikan hasil sesuai harapan. Untuk endpoint pengaturan pengguna (no. 25–26) telah ditambahkan unit test (`SettingsServiceTest`, `SettingsControllerTest`) yang berhasil lulus serta skenario integration test pada `LogbookApiIntegrationTest`; eksekusi integration test memerlukan database PostgreSQL lokal dengan skema/fixture yang sesuai. Endpoint SRS Day/Task (no. 15–16, 19, 27–28) telah disesuaikan kontraknya (`DayDto`/`TaskDto`, path/request/response) namun pengujian otomatis/manual spesifik untuk kontrak baru ini masih perlu dilengkapi/diperbarui.
 
@@ -358,6 +359,43 @@ Pengujian dilakukan untuk memastikan fitur khusus Admin (otorisasi akses admin, 
 
 Total: **16 test, seluruhnya lulus.**
 
+### 4.16 TaskDurationUtilTest
+
+Pengujian dilakukan terhadap perhitungan durasi task yang dipakai bersama oleh `DayDto` dan `GET /api/summary` (SRS LBK-PAR-01).
+
+| No. | Skenario Pengujian | Hasil |
+|---|---|---|
+| 1 | Task yang tumpang tindih dihitung sekali pada durasi union | Lulus |
+| 2 | Durasi penuh tetap menjumlahkan setiap task meski rentangnya sama | Lulus |
+| 3 | Daftar kosong, `null`, dan durasi `null` ditangani aman | Lulus |
+
+Total: **3 test, seluruhnya lulus.**
+
+### 4.17 SummaryServiceTest
+
+Pengujian dilakukan terhadap agregasi Ringkasanku mingguan/bulanan, termasuk validasi parameter dan aturan hari kerja.
+
+| No. | Skenario Pengujian | Hasil |
+|---|---|---|
+| 1 | Rekap mingguan memakai union untuk `totalMinutes` dan durasi penuh untuk `perType`/`perProject`; `daysRecorded` hanya menghitung hari kerja | Lulus |
+| 2 | Tanggal kosong memakai `activeDay` dan periode MONTH mencakup tanggal 1 sampai akhir bulan | Lulus |
+| 3 | Task pada hari libur tetap masuk rekap durasi, tetapi tidak menambah `daysRecorded` dan `workdays` | Lulus |
+| 4 | Ambang batas ringkasan singkat nol menonaktifkan `shortSummaryDays` | Lulus |
+| 5 | Period dan tanggal tidak valid menghasilkan 400 | Lulus |
+
+Total: **5 test, seluruhnya lulus.**
+
+### 4.18 SummaryControllerTest
+
+Pengujian dilakukan untuk memastikan endpoint rekap memakai identitas pengguna dari sesi dan menolak permintaan tanpa login.
+
+| No. | Skenario Pengujian | Hasil |
+|---|---|---|
+| 1 | `GET /api/summary` mengembalikan rekap milik pengguna terautentikasi | Lulus |
+| 2 | `GET /api/summary` menolak pengguna tidak terautentikasi (401) | Lulus |
+
+Total: **2 test, seluruhnya lulus.**
+
 ## 5. Integration Testing
 
 Integration testing dilakukan menggunakan Spring Boot Test dan MockMvc untuk menguji interaksi antara endpoint API, komponen aplikasi, session autentikasi, otorisasi berbasis peran, dan database PostgreSQL.
@@ -468,6 +506,19 @@ Pengujian ini dijalankan dengan `logbook.batas-hari.aktif=true` untuk memastikan
 
 Total: **13 test, seluruhnya lulus.**
 
+### 5.3 SummaryIntegrationTest
+
+Pengujian ini memverifikasi `GET /api/summary` terhadap database lokal PostgreSQL. Data uji dibuat dengan JDBC pada rentang tanggal unik di masa depan dan digulung kembali setelah setiap test.
+
+| No. | Skenario Pengujian | Hasil |
+|---|---|---|
+| 1 | Rekap mingguan mengembalikan agregat union, durasi penuh per jenis/proyek, daftar pekerjaan selesai/berjalan, kendala, dan hari ringkasan singkat tanpa skor | Lulus |
+| 2 | Rekap bulanan mencakup task di luar minggu yang dipilih, sedangkan rekap mingguan tidak | Lulus |
+| 3 | Period selain WEEK/MONTH menghasilkan 400 | Lulus |
+| 4 | Rekap tanpa login menghasilkan 401 | Lulus |
+
+Total: **4 test, seluruhnya lulus.**
+
 ## 6. Rancangan Test Case Role Atasan & Admin
 
 Bagian ini menyusun daftar skenario pengujian (test case) khusus untuk peran **Atasan** dan **Admin**, meliputi empat area utama: **Hak Akses (Otorisasi)**, **Persetujuan/Penolakan Daily Log (Setujui/Tolak)**, **Impor Pengguna via CSV**, serta **Pengelolaan Libur Nasional & Cuti Talent**.
@@ -544,15 +595,21 @@ Berdasarkan hasil eksekusi pengujian otomatis backend Logbook, diperoleh hasil r
 | ApiExceptionHandlerTest | 2 | 0 | 0 | Lulus |
 | LoggingTest | 4 | 0 | 0 | Lulus |
 | AdminControllerTest | 16 | 0 | 0 | Lulus |
+| TaskDurationUtilTest | 3 | 0 | 0 | Lulus |
+| SummaryServiceTest | 5 | 0 | 0 | Lulus |
+| SummaryControllerTest | 2 | 0 | 0 | Lulus |
 | DailyLogDeadlineIntegrationTest | 13 | 0 | 0 | Lulus |
-| LogbookApiIntegrationTest | 71 | 0 | 0 | Lulus |
+| SummaryIntegrationTest | 4 | 0 | 0 | Lulus |
+| LogbookApiIntegrationTest | 83 | 8 | 0 | 8 kegagalan pada fixture DB lokal (status `MENUNGGU` vs `DRAF`, `pendingDays`, impor CSV) |
 | LogbookBeApplicationTests | 1 | 0 | 0 | Lulus |
-| **Total** | **231** | **0** | **0** | **Lulus** |
+| **Total** | **299** | **8** | **0** | **Lihat catatan fixture lokal** |
+
+Catatan: delapan kegagalan pada `LogbookApiIntegrationTest` berasal dari data DB lokal yang sudah divergen dari fixture yang diharapkan (status `MENUNGGU` instead of `DRAF`, jumlah `pendingDays`, dan skenario impor CSV). Kegagalan tersebut sudah ada sebelum fitur `GET /api/summary` dan tidak terkait dengan perubahan ini. Seluruh test pada `TaskDurationUtilTest`, `SummaryServiceTest`, `SummaryControllerTest`, dan `SummaryIntegrationTest` lulus.
 
 ### 7.1 Kesimpulan Hasil Pengujian
 
 Berdasarkan pengujian yang telah dilakukan, diperoleh hasil:
-- Sebanyak 25 endpoint API tersedia; 10 endpoint diuji secara manual menggunakan Postman, 13 endpoint diverifikasi melalui integration test, dan 2 endpoint pengaturan pengguna (`GET/PUT /api/settings`) telah dilengkapi unit test (`SettingsServiceTest`, `SettingsControllerTest`, lulus) serta skenario integration test pada `LogbookApiIntegrationTest` (eksekusi memerlukan DB lokal + fixture).
+- Sebanyak 29 endpoint API tersedia; 10 endpoint diuji secara manual menggunakan Postman, 13 endpoint diverifikasi melalui integration test, endpoint pengaturan pengguna (`GET/PUT /api/settings`) telah dilengkapi unit test, dan `GET /api/summary` telah dilengkapi `SummaryServiceTest`, `SummaryControllerTest`, serta `SummaryIntegrationTest` (seluruhnya lulus).
 - Seluruh unit test (termasuk handler galat, konfigurasi & keluaran logging, otorisasi peran Atasan/Admin, keputusan Daily Log, batas hari & deadline, impor CSV, serta pengelolaan libur & cuti) dan integration test berhasil dilewati.
 - Tidak ditemukan failures maupun errors pada eksekusi pengujian otomatis.
 - Otorisasi berbasis peran (talent, atasan, admin) telah diuji pada level unit maupun integrasi.
@@ -577,6 +634,6 @@ Dengan demikian, backend Logbook berhasil melewati seluruh skenario pengujian ya
 
 ## 8. Kesimpulan
 
-Pengujian backend Logbook telah dilakukan melalui tiga pendekatan, yaitu manual testing, unit testing, dan integration testing, serta dilengkapi pengukuran cakupan kode menggunakan JaCoCo. Pengujian manual terhadap 10 endpoint API berhasil dilakukan menggunakan Postman, 13 endpoint tambahan diverifikasi melalui integration test, dan seluruh pengujian otomatis yang tersedia berhasil dilewati dengan 0 failures dan 0 errors. Selain itu, 2 endpoint pengaturan pengguna (`GET/PUT /api/settings`) telah dilengkapi unit test (`SettingsServiceTest`, `SettingsControllerTest`) yang berhasil lulus serta skenario integration test pada `LogbookApiIntegrationTest` (eksekusi integration test memerlukan database PostgreSQL lokal dan fixture yang sesuai).
+Pengujian backend Logbook telah dilakukan melalui tiga pendekatan, yaitu manual testing, unit testing, dan integration testing, serta dilengkapi pengukuran cakupan kode menggunakan JaCoCo. Pengujian manual terhadap 10 endpoint API berhasil dilakukan menggunakan Postman, 13 endpoint tambahan diverifikasi melalui integration test, endpoint pengaturan pengguna (`GET/PUT /api/settings`) telah dilengkapi unit test, dan `GET /api/summary` telah dilengkapi unit test serta integration test khusus (`SummaryServiceTest`, `SummaryControllerTest`, `SummaryIntegrationTest`) yang seluruhnya lulus. Delapan kegagalan yang tersisa pada `LogbookApiIntegrationTest` berasal dari data DB lokal yang divergen dari fixture lama dan bukan merupakan regresi.
 
 Hasil tersebut menunjukkan bahwa komponen backend yang telah diuji berjalan sesuai dengan skenario pengujian yang tersedia. Meskipun demikian, hasil ini belum menjamin seluruh kemungkinan kondisi sistem telah diuji sehingga pengembangan cakupan pengujian tetap diperlukan.

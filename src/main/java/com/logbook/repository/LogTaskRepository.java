@@ -2,6 +2,7 @@
 package com.logbook.repository;
 
 import com.logbook.entity.LogTask;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -55,4 +56,23 @@ public interface LogTaskRepository extends JpaRepository<LogTask, Long> {
             )
             """, nativeQuery = true)
     boolean existsActiveTaskType(@Param("taskTypeId") Short taskTypeId);
+
+    /**
+     * Seluruh task milik satu pengguna dalam rentang tanggal, beserta Daily Log
+     * induknya. Dipakai GET /api/summary untuk mengagregasi rekap tanpa
+     * mengambil data pengguna lain.
+     */
+    @EntityGraph(attributePaths = "dailyLog")
+    @Query("""
+            SELECT t
+            FROM LogTask t
+            WHERE t.dailyLog.userId = :userId
+              AND t.dailyLog.logDate BETWEEN :fromDate AND :toDate
+            ORDER BY t.dailyLog.logDate ASC, t.startMinute ASC, t.id ASC
+            """)
+    List<LogTask> findForUserBetween(
+            @Param("userId") Long userId,
+            @Param("fromDate") LocalDate fromDate,
+            @Param("toDate") LocalDate toDate
+    );
 }
