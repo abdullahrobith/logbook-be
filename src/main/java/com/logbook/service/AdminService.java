@@ -4,6 +4,7 @@ import com.logbook.dto.AdminImportResponse;
 import com.logbook.entity.Holiday;
 import com.logbook.entity.Leave;
 import com.logbook.entity.User;
+import com.logbook.exception.ApiException;
 import com.logbook.repository.HolidayRepository;
 import com.logbook.repository.LeaveRepository;
 import com.logbook.repository.UserRepository;
@@ -15,7 +16,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
@@ -44,21 +44,21 @@ public class AdminService {
     @Transactional
     public AdminImportResponse importUsers(MultipartFile file, String currentUserEmail) {
         if (file.isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "File CSV tidak boleh kosong");
+            throw new ApiException(HttpStatus.BAD_REQUEST, "File CSV tidak boleh kosong");
         }
 
         List<CSVRecord> records;
-        try (BufferedReader reader = new BufferedReader(new InputStreamReader(file.getInputStream()))) {
-            CSVFormat format = CSVFormat.DEFAULT.builder()
-                    .setHeader("email", "nama", "jenis", "email_atasan", "admin")
-                    .setSkipHeaderRecord(true)
-                    .setTrim(true)
-                    .build();
-            CSVParser parser = new CSVParser(reader, format);
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(file.getInputStream()));
+             CSVParser parser = new CSVParser(reader, CSVFormat.DEFAULT.builder()
+                     .setHeader("email", "nama", "jenis", "email_atasan", "admin")
+                     .setSkipHeaderRecord(true)
+                     .setTrim(true)
+                     .build())) {
+             
             records = parser.getRecords();
         } catch (Exception e) {
             log.warn("Gagal membaca file CSV: {}", e.getMessage());
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Format CSV tidak valid. Pastikan header: email,nama,jenis,email_atasan,admin");
+            throw new ApiException(HttpStatus.BAD_REQUEST, "Format CSV tidak valid. Pastikan header: email,nama,jenis,email_atasan,admin");
         }
 
         // 1. VALIDASI
@@ -69,20 +69,20 @@ public class AdminService {
             String adminStr = record.get("admin");
 
             if (email == null || email.isBlank() || record.get("nama").isBlank() || record.get("jenis").isBlank()) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Baris ke-" + lineNumber + " salah: Email, Nama, dan Jenis wajib diisi.");
+                throw new ApiException(HttpStatus.BAD_REQUEST, "Baris ke-" + lineNumber + " salah: Email, Nama, dan Jenis wajib diisi.");
             }
 
             if (!email.matches("^[A-Za-z0-9+_.-]+@(.+)$")) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Baris ke-" + lineNumber + " salah: Format email tidak valid.");
+                throw new ApiException(HttpStatus.BAD_REQUEST, "Baris ke-" + lineNumber + " salah: Format email tidak valid.");
             }
 
             // Pakai method dari UserRepository-mu
             if (emailAtasan != null && !emailAtasan.isBlank() && !userRepository.existsByEmailIgnoreCase(emailAtasan)) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Baris ke-" + lineNumber + " salah: Email atasan '" + emailAtasan + "' tidak ditemukan.");
+                throw new ApiException(HttpStatus.BAD_REQUEST, "Baris ke-" + lineNumber + " salah: Email atasan '" + emailAtasan + "' tidak ditemukan.");
             }
 
             if (adminStr != null && !adminStr.isBlank() && !adminStr.equalsIgnoreCase("true") && !adminStr.equalsIgnoreCase("false")) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Baris ke-" + lineNumber + " salah: Kolom admin harus 'true' atau 'false'.");
+                throw new ApiException(HttpStatus.BAD_REQUEST, "Baris ke-" + lineNumber + " salah: Kolom admin harus 'true' atau 'false'.");
             }
             lineNumber++;
         }
@@ -100,7 +100,7 @@ public class AdminService {
             boolean isAdmin = Boolean.parseBoolean(record.get("admin"));
 
             if (email.equalsIgnoreCase(currentUserEmail) && !isAdmin) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Anda tidak dapat mencabut hak admin milik sendiri melalui CSV.");
+                throw new ApiException(HttpStatus.BAD_REQUEST, "Anda tidak dapat mencabut hak admin milik sendiri melalui CSV.");
             }
 
             User user = userRepository.findByEmailIgnoreCase(email).orElse(null);
@@ -110,7 +110,7 @@ public class AdminService {
                 user.setFullName(nama);
                 user.setJenis(jenis);
                 user.setEmailAtasan((emailAtasan == null || emailAtasan.isBlank()) ? null : emailAtasan);
-                user.setAdmin(isAdmin); // Sesuaikan nama setter dengan Entity-mu (setAdmin / setIsAdmin)
+                user.setAdmin(isAdmin); 
                 userRepository.save(user);
                 updated++;
             } else {
@@ -124,7 +124,7 @@ public class AdminService {
                 newUser.setAdmin(isAdmin);
                 newUser.setPasswordHash("BCryptHashPlaceholder_" + tempPassword);
                 newUser.setMustChangePassword(true);
-                newUser.setActive(true); // Sesuaikan dengan field 'active' milikmu
+                newUser.setActive(true); 
                 userRepository.save(newUser);
 
                 Map<String, String> passMap = new HashMap<>();
@@ -137,7 +137,7 @@ public class AdminService {
 
         // 3. PROTEKSI MINIMAL 1 ADMIN
         if (userRepository.countByAdminTrue() == 0) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Impor dibatalkan: Sistem harus memiliki minimal 1 Admin.");
+            throw new ApiException(HttpStatus.BAD_REQUEST, "Impor dibatalkan: Sistem harus memiliki minimal 1 Admin.");
         }
 
         return new AdminImportResponse(created, updated, tempPasswords);
@@ -148,7 +148,6 @@ public class AdminService {
     }
 
     public List<Holiday> getHolidays() {
-        // Pastikan method ini ada di HolidayRepository
         return holidayRepository.findAllByOrderByHolidayDateAsc();
     }
 
@@ -164,35 +163,34 @@ public class AdminService {
 
     public void deleteHoliday(LocalDate date) {
         Holiday holiday = holidayRepository.findByHolidayDate(date)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Libur nasional tidak ditemukan"));
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Libur nasional tidak ditemukan"));
         holidayRepository.delete(holiday);
     }
 
     public List<Leave> getLeaves() {
-        // Pastikan method ini ada di LeaveRepository
         return leaveRepository.findAllByOrderByStartDateAsc();
     }
 
     public void addLeave(Long userId, LocalDate start, LocalDate end, String note) {
         if (start.isAfter(end)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Tanggal mulai tidak boleh melebihi tanggal selesai");
+            throw new ApiException(HttpStatus.BAD_REQUEST, "Tanggal mulai tidak boleh melebihi tanggal selesai");
         }
         
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User tidak ditemukan"));
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "User tidak ditemukan"));
 
         Leave leave = new Leave();
         leave.setUserId(user.getId());
         leave.setStartDate(start);
         leave.setEndDate(end);
-        leave.setReason(note); // note di request = reason di entity
+        leave.setReason(note);
         leave.setCreatedAt(OffsetDateTime.now());
         leaveRepository.save(leave);
     }
 
     public void deleteLeave(Long id) {
         Leave leave = leaveRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Cuti tidak ditemukan"));
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Cuti tidak ditemukan"));
         leaveRepository.delete(leave);
     }
 }

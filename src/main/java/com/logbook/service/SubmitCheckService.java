@@ -4,13 +4,13 @@ import com.logbook.dto.SubmitCheckResponse;
 import com.logbook.dto.SubmitCheckResponse.Hint;
 import com.logbook.entity.DailyLog;
 import com.logbook.entity.LogTask;
+import com.logbook.exception.ApiException;
 import com.logbook.repository.DailyLogRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -59,7 +59,7 @@ public class SubmitCheckService {
                 .orElseThrow(() -> {
                     log.warn("Gagal memeriksa: Daily Log ID {} tidak ditemukan atau bukan milik User ID {}",
                             dailyLogId, userId);
-                    return new ResponseStatusException(
+                    return new ApiException(
                             HttpStatus.NOT_FOUND,
                             "Daily log tidak ditemukan"
                     );
@@ -78,7 +78,7 @@ public class SubmitCheckService {
                 .orElseThrow(() -> {
                     log.warn("Gagal memeriksa: Daily Log tanggal {} tidak ditemukan untuk User ID {}",
                             date, userId);
-                    return new ResponseStatusException(
+                    return new ApiException(
                             HttpStatus.NOT_FOUND,
                             "Daily log tanggal " + date + " tidak ditemukan"
                     );

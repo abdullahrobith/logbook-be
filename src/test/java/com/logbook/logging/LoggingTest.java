@@ -33,6 +33,7 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -118,7 +119,7 @@ class LoggingTest {
 
     @Test
     void testAdminControllerLogsInfoAndWarn() {
-        AdminController adminController = new AdminController(jdbcTemplate, roleService);
+        AdminController controller = new AdminController(adminService, roleService); 
 
         MockMultipartFile emptyFile = new MockMultipartFile("file", "test.csv", "text/csv", new byte[0]);
         assertThrows(ResponseStatusException.class, () -> adminController.importUsers(emptyFile, session));

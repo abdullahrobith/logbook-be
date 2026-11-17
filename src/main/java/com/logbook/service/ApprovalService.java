@@ -3,13 +3,13 @@ package com.logbook.service;
 import com.logbook.dto.DailyLogResponse;
 import com.logbook.entity.DailyLog;
 import com.logbook.entity.User;
+import com.logbook.exception.ApiException;
 import com.logbook.repository.DailyLogRepository;
 import com.logbook.repository.UserRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.time.OffsetDateTime;
 
@@ -168,26 +168,26 @@ public class ApprovalService {
      */
     private DailyLog requireDecidableLog(User actor, Long dailyLogId) {
         DailyLog dailyLog = dailyLogRepository.findById(dailyLogId)
-                .orElseThrow(() -> new ResponseStatusException(
+                .orElseThrow(() -> new ApiException(
                         HttpStatus.NOT_FOUND,
                         "Daily Log tidak ditemukan"
                 ));
 
         if (dailyLog.getUserId().equals(actor.getId())) {
-            throw new ResponseStatusException(
+            throw new ApiException(
                     HttpStatus.FORBIDDEN,
                     "Tidak boleh memutuskan Daily Log milik sendiri"
             );
         }
 
         User owner = userRepository.findByIdAndActiveTrue(dailyLog.getUserId())
-                .orElseThrow(() -> new ResponseStatusException(
+                .orElseThrow(() -> new ApiException(
                         HttpStatus.NOT_FOUND,
                         "Pengguna tidak ditemukan"
                 ));
 
         if (!roleService.canDecideTalent(actor, owner)) {
-            throw new ResponseStatusException(
+            throw new ApiException(
                     HttpStatus.FORBIDDEN,
                     "Tidak berwenang memutuskan Daily Log pengguna ini"
             );
@@ -198,13 +198,13 @@ public class ApprovalService {
 
     private DailyLog requireOwnLog(User actor, Long dailyLogId) {
         DailyLog dailyLog = dailyLogRepository.findById(dailyLogId)
-                .orElseThrow(() -> new ResponseStatusException(
+                .orElseThrow(() -> new ApiException(
                         HttpStatus.NOT_FOUND,
                         "Daily Log tidak ditemukan"
                 ));
 
         if (!dailyLog.getUserId().equals(actor.getId())) {
-            throw new ResponseStatusException(
+            throw new ApiException(
                     HttpStatus.FORBIDDEN,
                     "Hanya pemilik Daily Log yang dapat mengajukan perbaikan"
             );
@@ -224,7 +224,7 @@ public class ApprovalService {
 
     private void requireStatus(DailyLog dailyLog, String expectedStatus, String action) {
         if (!expectedStatus.equalsIgnoreCase(dailyLog.getStatus())) {
-            throw new ResponseStatusException(
+            throw new ApiException(
                     HttpStatus.CONFLICT,
                     "Daily Log tidak dapat " + action + " pada status "
                             + dailyLog.getStatus() + "."
@@ -234,7 +234,7 @@ public class ApprovalService {
 
     private String requireReason(String reason) {
         if (reason == null || reason.isBlank()) {
-            throw new ResponseStatusException(
+            throw new ApiException(
                     HttpStatus.BAD_REQUEST,
                     "Alasan wajib diisi"
             );
@@ -243,7 +243,7 @@ public class ApprovalService {
         String normalizedReason = reason.trim();
 
         if (normalizedReason.length() > MAX_REASON_LENGTH) {
-            throw new ResponseStatusException(
+            throw new ApiException(
                     HttpStatus.BAD_REQUEST,
                     "Alasan maksimal " + MAX_REASON_LENGTH + " karakter"
             );
