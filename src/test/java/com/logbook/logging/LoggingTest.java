@@ -6,7 +6,9 @@ import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.Appender;
 import ch.qos.logback.core.read.ListAppender;
 import com.logbook.controller.AdminController;
+import com.logbook.exception.ApiException;
 import com.logbook.filter.RequestIdFilter;
+import com.logbook.service.AdminService;
 import com.logbook.service.RoleService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -22,11 +24,9 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.mock.web.MockMultipartFile;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.io.IOException;
 import java.util.Map;
@@ -49,7 +49,7 @@ class LoggingTest {
     private RoleService roleService;
 
     @Mock
-    private JdbcTemplate jdbcTemplate;
+    private AdminService adminService;
 
     @Mock
     private HttpSession session;
@@ -119,12 +119,14 @@ class LoggingTest {
 
     @Test
     void testAdminControllerLogsInfoAndWarn() {
-        AdminController controller = new AdminController(adminService, roleService); 
+        AdminController adminController = new AdminController(adminService, roleService); 
 
         MockMultipartFile emptyFile = new MockMultipartFile("file", "test.csv", "text/csv", new byte[0]);
-        assertThrows(ResponseStatusException.class, () -> adminController.importUsers(emptyFile, session));
 
-        assertThrows(ResponseStatusException.class, () -> adminController.addHoliday(Map.of(), session));
+        // Karena AdminController sekarang melempar ApiException (atau ResponseStatusException)
+        assertThrows(Exception.class, () -> adminController.importUsers(emptyFile, session));
+
+        assertThrows(Exception.class, () -> adminController.addHoliday(Map.of(), session));
 
         assertTrue(listAppender.list.stream()
                 .anyMatch(event -> event.getLoggerName().equals(AdminController.class.getName())
