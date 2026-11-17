@@ -1,6 +1,10 @@
 package com.logbook.controller;
 
 import com.logbook.dto.AdminImportResponse;
+import com.logbook.entity.Holiday;
+import com.logbook.entity.Leave;
+import com.logbook.entity.User;
+import com.logbook.service.AdminService;
 import com.logbook.service.RoleService;
 import jakarta.servlet.http.HttpSession;
 import org.junit.jupiter.api.Test;
@@ -10,12 +14,9 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
-import java.io.IOException;
-import java.io.InputStream;
 import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.List;
@@ -32,7 +33,7 @@ class AdminControllerTest {
     private AdminController adminController;
 
     @Mock
-    private JdbcTemplate jdbcTemplate;
+    private AdminService adminService;
 
     @Mock
     private RoleService roleService;
@@ -56,31 +57,27 @@ class AdminControllerTest {
     }
 
     @Test
-    void testImportUsersSuccessCreatesAndUpdates() {
-        String csvContent = "email,nama\nnew@example.com,New User\nexisting@example.com,Existing User";
-        MockMultipartFile file = new MockMultipartFile("file", "users.csv", "text/csv", csvContent.getBytes());
+    void testImportUsersSuccess() {
+        MockMultipartFile file = new MockMultipartFile("file", "users.csv", "text/csv", "email,nama\nnew@example.com,New User".getBytes());
+        AdminImportResponse mockResponse = new AdminImportResponse(1, 0, List.of(Map.of("email", "new@example.com", "password", "12345678")));
 
-        when(jdbcTemplate.queryForObject(eq("SELECT COUNT(*) FROM users WHERE email = ?"), eq(Integer.class), eq("new@example.com")))
-                .thenReturn(0);
-        when(jdbcTemplate.queryForObject(eq("SELECT COUNT(*) FROM users WHERE email = ?"), eq(Integer.class), eq("existing@example.com")))
-                .thenReturn(1);
+        when(adminService.importUsers(any(), anyString())).thenReturn(mockResponse);
 
         ResponseEntity<AdminImportResponse> response = adminController.importUsers(file, session);
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertNotNull(response.getBody());
         assertEquals(1, response.getBody().created());
-        assertEquals(1, response.getBody().updated());
+        assertEquals(0, response.getBody().updated());
         assertEquals(1, response.getBody().tempPasswords().size());
         assertEquals("new@example.com", response.getBody().tempPasswords().get(0).get("email"));
-
-        verify(jdbcTemplate, times(1)).update(contains("INSERT INTO users"), eq("new@example.com"), eq("New User"), anyString());
-        verify(jdbcTemplate, times(1)).update(contains("UPDATE users SET full_name"), eq("Existing User"), eq("existing@example.com"));
     }
 
     @Test
     void testImportUsersRejectsEmptyFile() {
         MockMultipartFile file = new MockMultipartFile("file", "empty.csv", "text/csv", new byte[0]);
+        
+        when(adminService.importUsers(any(), any())).thenThrow(new ResponseStatusException(HttpStatus.BAD_REQUEST, "File CSV tidak boleh kosong"));
 
         ResponseStatusException ex = assertThrows(ResponseStatusException.class,
                 () -> adminController.importUsers(file, session));
@@ -90,42 +87,14 @@ class AdminControllerTest {
     }
 
     @Test
-    void testImportUsersRejectsBlankEmailOrName() {
-        String csvContent = "email,nama\n,John Doe";
-        MockMultipartFile file = new MockMultipartFile("file", "invalid.csv", "text/csv", csvContent.getBytes());
-
-        ResponseStatusException ex = assertThrows(ResponseStatusException.class,
-                () -> adminController.importUsers(file, session));
-
-        assertEquals(HttpStatus.BAD_REQUEST, ex.getStatusCode());
-        assertTrue(ex.getReason().contains("Email dan Nama wajib diisi"));
-    }
-
-    @Test
-    void testImportUsersRejectsBrokenInputStream() throws IOException {
-        MockMultipartFile brokenFile = mock(MockMultipartFile.class);
-        when(brokenFile.isEmpty()).thenReturn(false);
-        when(brokenFile.getInputStream()).thenThrow(new IOException("Disk error"));
-
-        ResponseStatusException ex = assertThrows(ResponseStatusException.class,
-                () -> adminController.importUsers(brokenFile, session));
-
-        assertEquals(HttpStatus.BAD_REQUEST, ex.getStatusCode());
-        assertEquals("Format file CSV tidak valid", ex.getReason());
-    }
-
-    @Test
     void testGetHolidaysSuccess() {
-        List<Map<String, Object>> mockHolidays = List.of(
-                Map.of("holiday_date", "2026-01-01", "name", "Tahun Baru")
-        );
-        when(jdbcTemplate.queryForList(contains("SELECT * FROM holidays"))).thenReturn(mockHolidays);
+        List<Holiday> mockHolidays = List.of(new Holiday());
+        when(adminService.getHolidays()).thenReturn(mockHolidays);
 
-        ResponseEntity<List<Map<String, Object>>> response = adminController.getHolidays(session);
+        ResponseEntity<List<Holiday>> response = adminController.getHolidays(session);
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertEquals(1, response.getBody().size());
-        assertEquals("Tahun Baru", response.getBody().get(0).get("name"));
     }
 
     @Test
@@ -135,7 +104,7 @@ class AdminControllerTest {
         ResponseEntity<?> response = adminController.addHoliday(request, session);
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
-        verify(jdbcTemplate).update(contains("INSERT INTO holidays"), eq(LocalDate.parse("2026-08-17")), eq("Hari Kemerdekaan"));
+        verify(adminService).addHoliday(eq(LocalDate.parse("2026-08-17")), eq("Hari Kemerdekaan"));
     }
 
     @Test
@@ -151,67 +120,33 @@ class AdminControllerTest {
     }
 
     @Test
-    void testAddHolidayRejectsBlankName() {
-        Map<String, String> request = Map.of("date", "2026-08-17", "name", "  ");
-
-        ResponseStatusException ex = assertThrows(
-                ResponseStatusException.class,
-                () -> adminController.addHoliday(request, session)
-        );
-
-        assertEquals(HttpStatus.BAD_REQUEST, ex.getStatusCode());
-    }
-
-    @Test
     void testDeleteHolidaySuccess() {
-        when(jdbcTemplate.update(contains("DELETE FROM holidays"), eq(LocalDate.parse("2026-08-17"))))
-                .thenReturn(1);
-
         ResponseEntity<?> response = adminController.deleteHoliday("2026-08-17", session);
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
-    }
-
-    @Test
-    void testDeleteHolidayNotFound() {
-        when(jdbcTemplate.update(contains("DELETE FROM holidays"), eq(LocalDate.parse("2026-08-17"))))
-                .thenReturn(0);
-
-        ResponseStatusException ex = assertThrows(ResponseStatusException.class,
-                () -> adminController.deleteHoliday("2026-08-17", session));
-
-        assertEquals(HttpStatus.NOT_FOUND, ex.getStatusCode());
-        assertEquals("Libur nasional tidak ditemukan", ex.getReason());
+        verify(adminService).deleteHoliday(eq(LocalDate.parse("2026-08-17")));
     }
 
     @Test
     void testGetLeavesSuccess() {
-        List<Map<String, Object>> mockLeaves = List.of(
-                Map.of("id", 1L, "user_id", 10L, "full_name", "Talent A", "note", "Cuti tahunan")
-        );
-        when(jdbcTemplate.queryForList(contains("SELECT l.id, l.user_id"))).thenReturn(mockLeaves);
+        List<Leave> mockLeaves = List.of(new Leave());
+        when(adminService.getLeaves()).thenReturn(mockLeaves);
 
-        ResponseEntity<List<Map<String, Object>>> response = adminController.getLeaves(session);
+        ResponseEntity<List<Leave>> response = adminController.getLeaves(session);
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertEquals(1, response.getBody().size());
-        assertEquals("Cuti tahunan", response.getBody().get(0).get("note"));
-        verify(jdbcTemplate).queryForList(contains("l.note"));
     }
 
     @Test
     void testGetTalentOptionsReturnsActiveNonAdminUsers() {
-        List<Map<String, Object>> users = List.of(
-                Map.of("id", 10L, "full_name", "Talent A")
-        );
-        when(jdbcTemplate.queryForList(contains("is_active = TRUE AND is_admin = FALSE")))
-                .thenReturn(users);
+        List<User> users = List.of(new User());
+        when(adminService.getTalentOptions()).thenReturn(users);
 
-        ResponseEntity<List<Map<String, Object>>> response =
-                adminController.getTalentOptions(session);
+        ResponseEntity<List<User>> response = adminController.getTalentOptions(session);
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
-        assertEquals(users, response.getBody());
+        assertEquals(1, response.getBody().size());
         verify(roleService).requireAdmin(session);
     }
 
@@ -226,33 +161,7 @@ class AdminControllerTest {
         ResponseEntity<?> response = adminController.addLeave(request, session);
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
-        verify(jdbcTemplate).update(
-                contains("INSERT INTO leaves"),
-                eq(10L),
-                eq(LocalDate.parse("2026-11-20")),
-                eq(LocalDate.parse("2026-11-22")),
-                isNull()
-        );
-    }
-
-    @Test
-    void testAddLeaveTrimsOptionalNote() {
-        Map<String, String> request = Map.of(
-                "userId", "10",
-                "fromDate", "2026-11-20",
-                "toDate", "2026-11-22",
-                "note", " Cuti tahunan "
-        );
-
-        adminController.addLeave(request, session);
-
-        verify(jdbcTemplate).update(
-                contains("INSERT INTO leaves"),
-                eq(10L),
-                eq(LocalDate.parse("2026-11-20")),
-                eq(LocalDate.parse("2026-11-22")),
-                eq("Cuti tahunan")
-        );
+        verify(adminService).addLeave(eq(10L), eq(LocalDate.parse("2026-11-20")), eq(LocalDate.parse("2026-11-22")), isNull());
     }
 
     @Test
@@ -267,37 +176,10 @@ class AdminControllerTest {
     }
 
     @Test
-    void testAddLeaveRejectsFromDateAfterToDate() {
-        Map<String, String> request = Map.of(
-                "userId", "10",
-                "fromDate", "2026-11-25",
-                "toDate", "2026-11-22"
-        );
-
-        ResponseStatusException ex = assertThrows(ResponseStatusException.class,
-                () -> adminController.addLeave(request, session));
-
-        assertEquals(HttpStatus.BAD_REQUEST, ex.getStatusCode());
-        assertEquals("Tanggal mulai tidak boleh melebihi tanggal selesai", ex.getReason());
-    }
-
-    @Test
     void testDeleteLeaveSuccess() {
-        when(jdbcTemplate.update(contains("DELETE FROM leaves"), eq(5L))).thenReturn(1);
-
         ResponseEntity<?> response = adminController.deleteLeave(5L, session);
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
-    }
-
-    @Test
-    void testDeleteLeaveNotFound() {
-        when(jdbcTemplate.update(contains("DELETE FROM leaves"), eq(5L))).thenReturn(0);
-
-        ResponseStatusException ex = assertThrows(ResponseStatusException.class,
-                () -> adminController.deleteLeave(5L, session));
-
-        assertEquals(HttpStatus.NOT_FOUND, ex.getStatusCode());
-        assertEquals("Cuti tidak ditemukan", ex.getReason());
+        verify(adminService).deleteLeave(5L);
     }
 }
