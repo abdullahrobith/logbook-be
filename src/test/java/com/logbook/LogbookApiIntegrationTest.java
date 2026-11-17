@@ -204,6 +204,120 @@ class LogbookApiIntegrationTest {
     }
 
     @Test
+    void submitCheckShouldReturnHintsWithoutChangingStatus() throws Exception {
+        Long dailyLogId = createDayWithSuggestableTasks();
+
+        mockMvc.perform(
+                post("/api/daily-logs/{dailyLogId}/submit?check=true", dailyLogId)
+                        .session(session)
+        )
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.hints.length()").value(2))
+        .andExpect(jsonPath("$.hints[0].taskId").isNumber())
+        .andExpect(jsonPath("$.hints[0].kind").value("RINGKASAN_PENDEK"))
+        .andExpect(jsonPath("$.hints[0].message").isNotEmpty())
+        .andExpect(jsonPath("$.hints[1].kind").value("TASK_PANJANG"));
+
+        entityManager.flush();
+        entityManager.clear();
+        DailyLog reloaded = dailyLogRepository.findById(dailyLogId).orElseThrow();
+        assertEquals("DRAF", reloaded.getStatus());
+        assertNull(reloaded.getSubmittedAt());
+    }
+
+    @Test
+    void submitCheckShouldNotBlockSendingAnyway() throws Exception {
+        createDayWithSuggestableTasks();
+        LocalDate today = todayJakarta();
+
+        mockMvc.perform(
+                post("/api/days/{date}/submit?check=true", today)
+                        .session(session)
+        )
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.hints.length()").value(2));
+
+        mockMvc.perform(
+                post("/api/days/{date}/submit", today)
+                        .session(session)
+        )
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.status").value("MENUNGGU"))
+        .andExpect(jsonPath("$.submittedAt").isNotEmpty());
+    }
+
+    @Test
+    void submitCheckShouldReturnNoHintsForCompleteTasks() throws Exception {
+        clearDailyLogsOfUser(1L);
+        OffsetDateTime now = OffsetDateTime.now();
+        DailyLog dailyLog = dailyLogRepository.save(new DailyLog(
+                1L, todayJakarta(), (short) 1, "DRAF", now, now
+        ));
+        logTaskRepository.save(logTask(
+                dailyLog, "ABC-210", (short) 2, 480, 60,
+                "Menyelesaikan validasi form pendaftaran pengguna."
+        ));
+        Long dailyLogId = dailyLog.getId();
+        entityManager.flush();
+        entityManager.clear();
+
+        mockMvc.perform(
+                post("/api/daily-logs/{dailyLogId}/submit?check=true", dailyLogId)
+                        .session(session)
+        )
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.hints.length()").value(0));
+    }
+
+    @Test
+    void submitCheckForUnknownDateShouldReturnNotFound() throws Exception {
+        clearDailyLogsOfUser(1L);
+
+        mockMvc.perform(
+                post("/api/days/{date}/submit?check=true", todayJakarta().minusDays(30))
+                        .session(session)
+        )
+        .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void submitCheckWithoutLoginShouldReturnUnauthorized() throws Exception {
+        mockMvc.perform(
+                post("/api/daily-logs/1/submit?check=true")
+        )
+        .andExpect(status().isUnauthorized());
+    }
+
+    /**
+     * Hari terkendali dengan tiga task: satu ringkasan terlalu pendek, satu
+     * durasi terlalu panjang, dan satu sudah layak.
+     */
+    private Long createDayWithSuggestableTasks() {
+        clearDailyLogsOfUser(1L);
+        OffsetDateTime now = OffsetDateTime.now();
+        DailyLog dailyLog = dailyLogRepository.save(new DailyLog(
+                1L, todayJakarta(), (short) 1, "DRAF", now, now
+        ));
+        logTaskRepository.save(logTask(dailyLog, "ABC-201", (short) 2, 480, 60,
+                "Perbaiki validasi."));
+        logTaskRepository.save(logTask(dailyLog, "ABC-202", (short) 2, 540, 300,
+                "Menyelesaikan validasi form pendaftaran pengguna."));
+        logTaskRepository.save(logTask(dailyLog, "ABC-203", (short) 2, 600, 60,
+                "Menyelesaikan validasi form pendaftaran pengguna."));
+        Long dailyLogId = dailyLog.getId();
+
+        // Endpoint dijalankan pada transaksi request yang berbeda; muat ulang
+        // dari basis data agar koleksi task ikut terbaca.
+        entityManager.flush();
+        entityManager.clear();
+        return dailyLogId;
+    }
+
+    private LocalDate todayJakarta() {
+        return LocalDate.now(ZoneId.of("Asia/Jakarta"));
+    }
+
+    @Test
     void withdrawDailyLogShouldReturnDraftStatus() throws Exception {
         mockMvc.perform(
                 post("/api/daily-logs/{dailyLogId}/withdraw", SUBMITTED_DAILY_LOG_ID)
@@ -377,6 +491,17 @@ class LogbookApiIntegrationTest {
             int startMinute,
             String summary
     ) {
+        return logTask(dailyLog, ticket, workStatusId, startMinute, 60, summary);
+    }
+
+    private LogTask logTask(
+            DailyLog dailyLog,
+            String ticket,
+            short workStatusId,
+            int startMinute,
+            int durationMinutes,
+            String summary
+    ) {
         OffsetDateTime now = OffsetDateTime.now();
         return new LogTask(
                 dailyLog,
@@ -385,7 +510,7 @@ class LogbookApiIntegrationTest {
                 workStatusId,
                 ticket,
                 startMinute,
-                (short) 60,
+                (short) durationMinutes,
                 summary,
                 null,
                 now,

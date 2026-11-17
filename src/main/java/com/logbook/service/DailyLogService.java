@@ -126,6 +126,33 @@ public class DailyLogService {
                     );
                 });
 
+        return submitDailyLogEntity(dailyLog);
+    }
+
+    /**
+     * Submit berdasarkan tanggal, sesuai kontrak SRS LBK-KRM-01
+     * ({@code POST /api/days/{date}/submit}). Palang pemeriksaan sebelum kirim
+     * ditangani {@link SubmitCheckService}.
+     */
+    @Transactional
+    public DailyLogResponse submitDailyLogOn(Long userId, LocalDate date) {
+        DailyLog dailyLog = dailyLogRepository.findByUserIdAndLogDate(userId, date)
+                .orElseThrow(() -> {
+                    log.warn("Gagal submit: Daily Log tanggal {} tidak ditemukan untuk User ID {}",
+                            date, userId);
+                    return new ResponseStatusException(
+                            HttpStatus.NOT_FOUND,
+                            "Daily log tanggal " + date + " tidak ditemukan"
+                    );
+                });
+
+        return submitDailyLogEntity(dailyLog);
+    }
+
+    private DailyLogResponse submitDailyLogEntity(DailyLog dailyLog) {
+        Long dailyLogId = dailyLog.getId();
+        Long userId = dailyLog.getUserId();
+
         if (STATUS_WAITING.equalsIgnoreCase(dailyLog.getStatus())) {
             log.info("Daily Log ID {} sudah berstatus MENUNGGU, submit diabaikan", dailyLogId);
             return toResponse(dailyLog);

@@ -2,11 +2,13 @@ package com.logbook.controller;
 
 import com.logbook.dto.DailyLogResponse;
 import com.logbook.dto.DecisionRequest;
+import com.logbook.dto.SubmitCheckResponse;
 import com.logbook.entity.User;
 import com.logbook.service.ApprovalService;
 import com.logbook.service.AuthService;
 import com.logbook.service.DailyLogService;
 import com.logbook.service.RoleService;
+import com.logbook.service.SubmitCheckService;
 import jakarta.servlet.http.HttpSession;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -24,17 +26,20 @@ public class DailyLogController {
     private final ApprovalService approvalService;
     private final AuthService authService;
     private final RoleService roleService;
+    private final SubmitCheckService submitCheckService;
 
     public DailyLogController(
             DailyLogService dailyLogService,
             ApprovalService approvalService,
             AuthService authService,
-            RoleService roleService
+            RoleService roleService,
+            SubmitCheckService submitCheckService
     ) {
         this.dailyLogService = dailyLogService;
         this.approvalService = approvalService;
         this.authService = authService;
         this.roleService = roleService;
+        this.submitCheckService = submitCheckService;
     }
 
     @GetMapping
@@ -79,6 +84,20 @@ public class DailyLogController {
         Long userId = authService.requireUserId(session);
         log.info("Menerima request POST untuk membuat Daily Log tanggal {} untuk User ID {}", date, userId);
         return dailyLogService.createDailyLog(userId, date);
+    }
+
+    /**
+     * Mode pemeriksaan sebelum pengiriman (LBK-KUA-02): mengembalikan saran
+     * tanpa mengubah status Daily Log.
+     */
+    @PostMapping(value = "/{dailyLogId}/submit", params = "check=true")
+    public SubmitCheckResponse checkDailyLogBeforeSubmit(
+            @PathVariable Long dailyLogId,
+            HttpSession session
+    ) {
+        Long userId = authService.requireUserId(session);
+        log.info("Menerima request pemeriksaan submit Daily Log ID: {} oleh User ID {}", dailyLogId, userId);
+        return submitCheckService.check(userId, dailyLogId);
     }
 
     @PostMapping("/{dailyLogId}/submit")
