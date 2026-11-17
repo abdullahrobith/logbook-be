@@ -61,6 +61,7 @@ class AdminControllerTest {
         MockMultipartFile file = new MockMultipartFile("file", "users.csv", "text/csv", "email,nama\nnew@example.com,New User".getBytes());
         AdminImportResponse mockResponse = new AdminImportResponse(1, 0, List.of(Map.of("email", "new@example.com", "password", "12345678")));
 
+        when(session.getAttribute("email")).thenReturn("admin@contoh.id");
         when(adminService.importUsers(any(), anyString())).thenReturn(mockResponse);
 
         ResponseEntity<AdminImportResponse> response = adminController.importUsers(file, session);
