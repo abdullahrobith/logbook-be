@@ -1,5 +1,6 @@
 package com.logbook.entity;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.*;
 import java.time.OffsetDateTime;
 
@@ -14,31 +15,40 @@ public class User {
     @Column(nullable = false, unique = true)
     private String email;
 
+
+    @JsonProperty("full_name")
     @Column(name = "full_name", nullable = false)
     private String fullName;
 
     @Column(name = "jenis")
     private String jenis;
 
+  
+    @JsonProperty("email_atasan")
     @Column(name = "email_atasan")
     private String emailAtasan;
 
+
+    @JsonProperty("is_admin")
     @Column(name = "is_admin", nullable = false)
     private boolean admin;
 
+    @JsonProperty("password_hash")
     @Column(name = "password_hash")
     private String passwordHash;
 
+    @JsonProperty("must_change_password")
     @Column(name = "must_change_password", nullable = false)
     private boolean mustChangePassword;
 
+    @JsonProperty("is_active")
     @Column(name = "is_active", nullable = false)
     private boolean active;
 
+    @JsonProperty("created_at")
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;
 
-    // ===== GETTERS =====
     public Long getId() { return id; }
     public String getEmail() { return email; }
     public String getFullName() { return fullName; }

@@ -1,5 +1,6 @@
 package com.logbook.entity;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -24,19 +25,28 @@ public class Leave {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    // Tambahkan @JsonProperty agar JSON-nya tetap "user_id"
+    @JsonProperty("user_id")
     @Column(name = "user_id", nullable = false)
     private Long userId;
 
+    // Tambahkan @JsonProperty agar JSON-nya tetap "start_date"
+    @JsonProperty("start_date")
     @Column(name = "start_date", nullable = false)
     private LocalDate startDate;
 
+    // Tambahkan @JsonProperty agar JSON-nya tetap "end_date"
+    @JsonProperty("end_date")
     @Column(name = "end_date", nullable = false)
     private LocalDate endDate;
 
-    // TAMBAHKAN FIELD INI
+    // Tambahkan @JsonProperty agar JSON-nya tetap "note"
+    @JsonProperty("note")
     @Column(name = "note") 
     private String reason;
 
+    // Tambahkan @JsonProperty agar JSON-nya tetap "created_at"
+    @JsonProperty("created_at")
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;
 
@@ -59,7 +69,6 @@ public class Leave {
         return endDate;
     }
 
-    // TAMBAHKAN GETTER INI
     public String getReason() {
         return reason;
     }
@@ -93,7 +102,6 @@ public class Leave {
         this.endDate = endDate;
     }
 
-    // TAMBAHKAN SETTER INI
     public void setReason(String reason) {
         this.reason = reason;
     }

@@ -1,5 +1,6 @@
 package com.logbook.entity;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -24,12 +25,16 @@ public class Holiday {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    // Tambahkan @JsonProperty agar JSON-nya tetap "holiday_date"
+    @JsonProperty("holiday_date")
     @Column(name = "holiday_date", nullable = false, unique = true)
     private LocalDate holidayDate;
 
     @Column(nullable = false, length = 120)
     private String name;
 
+    // Tambahkan @JsonProperty agar JSON-nya tetap "created_at"
+    @JsonProperty("created_at")
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;
 
