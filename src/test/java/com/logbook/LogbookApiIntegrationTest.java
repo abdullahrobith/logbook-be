@@ -855,8 +855,10 @@ class LogbookApiIntegrationTest {
                         .session(supervisorSession)
         )
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.id").value(4))
-        .andExpect(jsonPath("$.userId").value(2));
+        .andExpect(jsonPath("$.date").value(DAILY_LOG_DATE))
+        .andExpect(jsonPath("$.status").value("DRAF"))
+        .andExpect(jsonPath("$.totalMinutes").value(180))
+        .andExpect(jsonPath("$.tasks.length()").value(2));
     }
 
     @Test
@@ -885,7 +887,8 @@ class LogbookApiIntegrationTest {
                         .session(adminSession)
         )
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.id").value(4));
+        .andExpect(jsonPath("$.date").value(DAILY_LOG_DATE))
+        .andExpect(jsonPath("$.totalMinutes").value(180));
     }
 
     @Test
@@ -1007,8 +1010,10 @@ class LogbookApiIntegrationTest {
                         .session(supervisorSession)
         )
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.id").value(4))
-        .andExpect(jsonPath("$.userId").value(2));
+        .andExpect(jsonPath("$.date").value(DAILY_LOG_DATE))
+        .andExpect(jsonPath("$.status").value("DRAF"))
+        .andExpect(jsonPath("$.totalMinutes").value(180))
+        .andExpect(jsonPath("$.tasks.length()").value(2));
     }
 
     @Test
@@ -1044,7 +1049,48 @@ class LogbookApiIntegrationTest {
                         .session(adminSession)
         )
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.id").value(4));
+        .andExpect(jsonPath("$.date").value(DAILY_LOG_DATE))
+        .andExpect(jsonPath("$.totalMinutes").value(180));
+    }
+
+    @Test
+    void memberDayReadEndpointsReturnSameDayDtoAsOwner() throws Exception {
+        insertUser("atasan.konsisten@contoh.id", "Atasan Konsisten", false);
+        jdbcTemplate.update(
+                "UPDATE users SET email_atasan = ? WHERE id = 2",
+                "atasan.konsisten@contoh.id"
+        );
+
+        MockHttpSession supervisorSession = loginAs("atasan.konsisten@contoh.id");
+        MockHttpSession ownerSession = loginAs("budi.santoso@contoh.id");
+
+        String ownerDay = mockMvc.perform(
+                        get("/api/days/{date}", DAILY_LOG_DATE).session(ownerSession)
+                )
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        mockMvc.perform(
+                        get("/api/team/2/days/{date}", DAILY_LOG_DATE)
+                                .session(supervisorSession)
+                )
+                .andExpect(status().isOk())
+                .andExpect(content().json(ownerDay));
+
+        mockMvc.perform(
+                        get("/api/team/2/daily-logs/{date}", DAILY_LOG_DATE)
+                                .session(supervisorSession)
+                )
+                .andExpect(status().isOk())
+                .andExpect(content().json(ownerDay));
+
+        mockMvc.perform(
+                        get("/api/daily-logs/users/2")
+                                .param("date", DAILY_LOG_DATE)
+                                .session(supervisorSession)
+                )
+                .andExpect(status().isOk())
+                .andExpect(content().json(ownerDay));
     }
 
     // ==========================================

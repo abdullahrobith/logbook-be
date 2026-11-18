@@ -1,5 +1,6 @@
 package com.logbook.controller;
 
+import com.logbook.dto.DayDto;
 import com.logbook.dto.DailyLogResponse;
 import com.logbook.dto.DecisionRequest;
 import com.logbook.dto.SubmitCheckResponse;
@@ -56,10 +57,12 @@ public class DailyLogController {
 
     /**
      * Daily Log milik pengguna lain: talent hanya boleh membaca miliknya,
-     * atasan hanya timnya, dan admin boleh membaca semua.
+     * atasan hanya timnya, dan admin boleh membaca semua. Respons memakai
+     * {@link DayDto} agar sama dengan kontrak SRS pada {@code /api/days/{date}}
+     * dan {@code /api/team/{userId}/days/{date}}.
      */
     @GetMapping("/users/{userId}")
-    public DailyLogResponse getTalentDailyLog(
+    public DayDto getTalentDailyLog(
             @PathVariable Long userId,
             @RequestParam
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
@@ -68,9 +71,9 @@ public class DailyLogController {
     ) {
         User actor = roleService.requireCurrentUser(session);
         User talent = roleService.requireCanViewTalent(actor, userId);
-        log.info("Menerima request GET Daily Log User ID {} tanggal {} oleh User ID {} ({})",
+        log.info("Menerima request GET DayDto User ID {} tanggal {} oleh User ID {} ({})",
                 talent.getId(), date, actor.getId(), actor.getEmail());
-        return dailyLogService.getDailyLog(talent.getId(), date);
+        return dailyLogService.getDay(talent.getId(), date);
     }
 
     @PostMapping
