@@ -17,10 +17,12 @@ Pengujian dilakukan melalui tiga pendekatan:
 | Framework | Spring Boot 4.0.0 |
 | Build tool | Maven |
 | Database | PostgreSQL 18.4 |
-| Database name | logbook |
+| Database name | `logbook` (aplikasi), `logbook_test` (automated test) |
 | API testing | Postman |
 | Automated testing | JUnit 5, Spring Boot Test, Mockito, MockMvc, Logback ListAppender |
 | Code coverage | JaCoCo Maven Plugin 0.8.12 |
+
+Database `logbook_test` dibuat sekali dengan skema dan fixture yang sama seperti `logbook` (dari `logbook.sql` dan migrasi Flyway). Kredensial bawaan adalah `postgres`/`postgres`; apabila berbeda, timpa lewat `-Dtest.datasource.url=...`, `-Dtest.datasource.username=...`, dan `-Dtest.datasource.password=...` saat menjalankan Maven.
 
 ## 3. Manual Testing API
 
@@ -400,7 +402,7 @@ Total: **2 test, seluruhnya lulus.**
 
 Integration testing dilakukan menggunakan Spring Boot Test dan MockMvc untuk menguji interaksi antara endpoint API, komponen aplikasi, session autentikasi, otorisasi berbasis peran, dan database PostgreSQL.
 
-Pengujian menggunakan database `logbook` dengan konfigurasi transaksi `@Transactional` untuk membantu melakukan rollback perubahan data setelah setiap test selesai. Terdapat dua kelas integration test dengan konfigurasi aturan batas hari yang berbeda agar keduanya dapat berjalan di database lokal yang sama.
+Pengujian menggunakan database `logbook_test` yang terpisah dari database aplikasi (`logbook`). Koneksi test diatur oleh `maven-surefire-plugin` di `pom.xml` dan dapat ditimpa lewat properti `test.datasource.url`, `test.datasource.username`, dan `test.datasource.password`. Konfigurasi transaksi `@Transactional` membantu melakukan rollback perubahan data setelah setiap test selesai. Kelas integration test memakai konfigurasi aturan batas hari yang berbeda agar dapat berjalan di database yang sama.
 
 ### 5.1 LogbookApiIntegrationTest
 
@@ -477,12 +479,12 @@ Pengujian menggunakan database `logbook` dengan konfigurasi transaksi `@Transact
 | 69 | Atasan dapat menyetujui perbaikan sehingga hari dibuka kembali sebagai DRAF | Lulus |
 | 70 | Persetujuan perbaikan hanya untuk status PERBAIKAN_DIAJUKAN | Lulus |
 | 71 | Daily Log DITOLAK dapat diperbaiki dan dikirim ulang menjadi MENUNGGU | Lulus |
-| 72 | `GET/PUT /api/settings` menolak akses tanpa autentikasi | Ditambahkan (belum dieksekusi; memerlukan DB lokal + fixture) |
-| 73 | `GET /api/settings` mengembalikan pengaturan default untuk pengguna terautentikasi | Ditambahkan (belum dieksekusi; memerlukan DB lokal + fixture) |
-| 74 | `PUT /api/settings` memperbarui jam kerja dan status onboarding | Ditambahkan (belum dieksekusi; memerlukan DB lokal + fixture) |
-| 75 | `PUT /api/settings` mendukung pembaruan parsial dan pengosongan onboarding | Ditambahkan (belum dieksekusi; memerlukan DB lokal + fixture) |
+| 72 | `GET/PUT /api/settings` menolak akses tanpa autentikasi | Lulus |
+| 73 | `GET /api/settings` mengembalikan pengaturan default untuk pengguna terautentikasi | Lulus |
+| 74 | `PUT /api/settings` memperbarui jam kerja dan status onboarding | Lulus |
+| 75 | `PUT /api/settings` mendukung pembaruan parsial dan pengosongan onboarding | Lulus |
 
-Total: **71 test lulus** (sebelumnya), ditambah **4 skenario integration test pengaturan pengguna** yang ditambahkan pada `LogbookApiIntegrationTest` dan belum dieksekusi pada lingkungan ini.
+Total: seluruh skenario pada `LogbookApiIntegrationTest` (**83 test**) lulus, termasuk 4 skenario integration test pengaturan pengguna.
 
 ### 5.2 DailyLogDeadlineIntegrationTest
 
@@ -600,11 +602,11 @@ Berdasarkan hasil eksekusi pengujian otomatis backend Logbook, diperoleh hasil r
 | SummaryControllerTest | 2 | 0 | 0 | Lulus |
 | DailyLogDeadlineIntegrationTest | 13 | 0 | 0 | Lulus |
 | SummaryIntegrationTest | 4 | 0 | 0 | Lulus |
-| LogbookApiIntegrationTest | 83 | 8 | 0 | 8 kegagalan pada fixture DB lokal (status `MENUNGGU` vs `DRAF`, `pendingDays`, impor CSV) |
+| LogbookApiIntegrationTest | 83 | 0 | 0 | Lulus |
 | LogbookBeApplicationTests | 1 | 0 | 0 | Lulus |
-| **Total** | **299** | **8** | **0** | **Lihat catatan fixture lokal** |
+| **Total** | **301** | **0** | **0** | **Lulus** |
 
-Catatan: delapan kegagalan pada `LogbookApiIntegrationTest` berasal dari data DB lokal yang sudah divergen dari fixture yang diharapkan (status `MENUNGGU` instead of `DRAF`, jumlah `pendingDays`, dan skenario impor CSV). Kegagalan tersebut sudah ada sebelum fitur `GET /api/summary` dan tidak terkait dengan perubahan ini. Seluruh test pada `TaskDurationUtilTest`, `SummaryServiceTest`, `SummaryControllerTest`, dan `SummaryIntegrationTest` lulus.
+Catatan: test memakai database `logbook_test` yang diisi dari fixture `logbook.sql` beserta migrasi Flyway. Isolasi ini mencegah perubahan pada database aplikasi (`logbook`), misalnya oleh tugas berkala yang mengubah DRAF menjadi `MENUNGGU`, sehingga hasil pengujian tidak lagi bergantung pada kondisi DB aplikasi.
 
 ### 7.1 Kesimpulan Hasil Pengujian
 
@@ -634,6 +636,6 @@ Dengan demikian, backend Logbook berhasil melewati seluruh skenario pengujian ya
 
 ## 8. Kesimpulan
 
-Pengujian backend Logbook telah dilakukan melalui tiga pendekatan, yaitu manual testing, unit testing, dan integration testing, serta dilengkapi pengukuran cakupan kode menggunakan JaCoCo. Pengujian manual terhadap 10 endpoint API berhasil dilakukan menggunakan Postman, 13 endpoint tambahan diverifikasi melalui integration test, endpoint pengaturan pengguna (`GET/PUT /api/settings`) telah dilengkapi unit test, dan `GET /api/summary` telah dilengkapi unit test serta integration test khusus (`SummaryServiceTest`, `SummaryControllerTest`, `SummaryIntegrationTest`) yang seluruhnya lulus. Delapan kegagalan yang tersisa pada `LogbookApiIntegrationTest` berasal dari data DB lokal yang divergen dari fixture lama dan bukan merupakan regresi.
+Pengujian backend Logbook telah dilakukan melalui tiga pendekatan, yaitu manual testing, unit testing, dan integration testing, serta dilengkapi pengukuran cakupan kode menggunakan JaCoCo. Pengujian manual terhadap 10 endpoint API berhasil dilakukan menggunakan Postman, 13 endpoint tambahan diverifikasi melalui integration test, endpoint pengaturan pengguna (`GET/PUT /api/settings`) telah dilengkapi unit test, dan `GET /api/summary` telah dilengkapi unit test serta integration test khusus (`SummaryServiceTest`, `SummaryControllerTest`, `SummaryIntegrationTest`) yang seluruhnya lulus. Seluruh 301 test lulus tanpa kegagalan setelah test diisolasi ke database `logbook_test`.
 
 Hasil tersebut menunjukkan bahwa komponen backend yang telah diuji berjalan sesuai dengan skenario pengujian yang tersedia. Meskipun demikian, hasil ini belum menjamin seluruh kemungkinan kondisi sistem telah diuji sehingga pengembangan cakupan pengujian tetap diperlukan.
