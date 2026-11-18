@@ -3,6 +3,7 @@ package com.logbook;
 
 import com.logbook.entity.DailyLog;
 import com.logbook.entity.LogTask;
+import com.logbook.filter.RequestIdFilter;
 import com.logbook.repository.DailyLogRepository;
 import com.logbook.repository.LogTaskRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -34,7 +35,10 @@ import static org.hamcrest.Matchers.hasItems;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -130,6 +134,61 @@ class LogbookApiIntegrationTest {
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.id").value(1))
         .andExpect(jsonPath("$.email").value(EMAIL));
+    }
+
+    @Test
+    void validRequestIdHeaderIsEchoedBack() throws Exception {
+        mockMvc.perform(
+                get("/api/auth/me")
+                        .session(session)
+                        .header(RequestIdFilter.REQUEST_ID_HEADER, "abc12345")
+        )
+        .andExpect(status().isOk())
+        .andExpect(header().string(RequestIdFilter.REQUEST_ID_HEADER, "abc12345"));
+    }
+
+    @Test
+    void missingRequestIdHeaderGetsGeneratedId() throws Exception {
+        MvcResult result = mockMvc.perform(
+                get("/api/auth/me").session(session)
+        )
+        .andExpect(status().isOk())
+        .andReturn();
+
+        String requestId = result.getResponse().getHeader(RequestIdFilter.REQUEST_ID_HEADER);
+        assertNotNull(requestId, "Header X-Request-Id harus selalu ada");
+        assertTrue(requestId.matches("^[A-Za-z0-9_-]{8,64}$"),
+                "ID buatan harus memenuhi format yang diizinkan: " + requestId);
+    }
+
+    @Test
+    void invalidRequestIdHeaderIsReplaced() throws Exception {
+        for (String invalidValue : List.of("x y", "x\ny", "short", "a".repeat(65), "bad@id")) {
+            MvcResult result = mockMvc.perform(
+                    get("/api/auth/me")
+                            .session(session)
+                            .header(RequestIdFilter.REQUEST_ID_HEADER, invalidValue)
+            )
+            .andExpect(status().isOk())
+            .andReturn();
+
+            String requestId = result.getResponse().getHeader(RequestIdFilter.REQUEST_ID_HEADER);
+            assertNotNull(requestId);
+            assertTrue(requestId.matches("^[A-Za-z0-9_-]{8,64}$"),
+                    "ID buatan harus memenuhi format yang diizinkan: " + requestId);
+            assertNotEquals(invalidValue, requestId, "Nilai klien yang tidak valid tidak boleh dipakai");
+        }
+    }
+
+    @Test
+    void errorResponseContainsRequestIdMatchingHeader() throws Exception {
+        mockMvc.perform(
+                get("/api/auth/me")
+                        .header(RequestIdFilter.REQUEST_ID_HEADER, "error12345")
+        )
+        .andExpect(status().isUnauthorized())
+        .andExpect(header().string(RequestIdFilter.REQUEST_ID_HEADER, "error12345"))
+        .andExpect(jsonPath("$.requestId").value("error12345"));
     }
 
     @Test
