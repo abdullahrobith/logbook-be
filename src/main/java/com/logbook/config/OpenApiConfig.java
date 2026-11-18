@@ -13,19 +13,20 @@ public class OpenApiConfig {
 
     @Bean
     public OpenAPI customOpenAPI() {
-        final String securitySchemeName = "BearerAuth";
+        final String securitySchemeName = "CookieAuth";
         return new OpenAPI()
                 .info(new Info()
                         .title("Logbook API Padepokan HRMS 3.0")
                         .version("1.0")
-                        .description("Dokumentasi API Logbook dengan dukungan Autentikasi JWT Bearer Token."))
+                        .description("Dokumentasi API Logbook dengan autentikasi Sesi Cookie (LOGBOOK_SESSION). " +
+                                     "Silakan login melalui endpoint POST /api/auth/login untuk mengaktifkan sesi browser."))
                 .addSecurityItem(new SecurityRequirement().addList(securitySchemeName))
                 .components(new Components()
                         .addSecuritySchemes(securitySchemeName,
                                 new SecurityScheme()
-                                        .name(securitySchemeName)
-                                        .type(SecurityScheme.Type.HTTP)
-                                        .scheme("bearer")
-                                        .bearerFormat("JWT")));
+                                        .name("LOGBOOK_SESSION")
+                                        .type(SecurityScheme.Type.APIKEY)
+                                        .in(SecurityScheme.In.COOKIE)
+                                        .description("Cookie Sesi HTTP-only yang dihasilkan oleh endpoint POST /api/auth/login")));
     }
 }
