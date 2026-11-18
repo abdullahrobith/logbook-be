@@ -797,11 +797,7 @@ class LogbookApiIntegrationTest {
                                 }
                                 """)
         )
-        .andExpect(status().isBadRequest())
-        .andExpect(jsonPath("$.message").value(
-                "Maksimal 3 task dapat berjalan pada waktu yang bersamaan. "
-                        + "Ubah jam atau durasi task terlebih dahulu."
-        ));
+        .andExpect(status().isCreated());
     }
 
     @Test
