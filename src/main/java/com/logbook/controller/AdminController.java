@@ -1,8 +1,8 @@
 package com.logbook.controller;
 
 import com.logbook.dto.AdminImportResponse;
+import com.logbook.dto.AdminLeaveResponse;
 import com.logbook.entity.Holiday;
-import com.logbook.entity.Leave;
 import com.logbook.entity.User;
 import com.logbook.exception.ApiException;
 import com.logbook.service.AdminService;
@@ -92,7 +92,7 @@ public class AdminController {
 
     // ==================== 3. API CRUD CUTI (LEAVES) ====================
     @GetMapping("/leaves")
-    public ResponseEntity<List<Leave>> getLeaves(HttpSession session) {
+    public ResponseEntity<List<AdminLeaveResponse>> getLeaves(HttpSession session) {
         roleService.requireAdmin(session);
         log.info("Menerima request GET untuk daftar Cuti Talent");
         return ResponseEntity.ok(adminService.getLeaves());

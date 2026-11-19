@@ -1,6 +1,7 @@
 package com.logbook.service;
 
 import com.logbook.dto.AdminImportResponse;
+import com.logbook.dto.AdminLeaveResponse;
 import com.logbook.entity.Holiday;
 import com.logbook.entity.Leave;
 import com.logbook.entity.User;
@@ -26,6 +27,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -168,8 +170,15 @@ public class AdminService {
         holidayRepository.delete(holiday);
     }
 
-    public List<Leave> getLeaves() {
-        return leaveRepository.findAllByOrderByStartDateAsc();
+    public List<AdminLeaveResponse> getLeaves() {
+        List<Leave> leaves = leaveRepository.findAllByOrderByStartDateAsc();
+        List<Long> userIds = leaves.stream().map(Leave::getUserId).distinct().toList();
+        Map<Long, User> usersById = userRepository.findAllById(userIds).stream()
+                .collect(Collectors.toMap(User::getId, user -> user));
+
+        return leaves.stream()
+                .map(leave -> AdminLeaveResponse.from(leave, usersById.get(leave.getUserId())))
+                .toList();
     }
 
     public void addLeave(Long userId, LocalDate start, LocalDate end, String note) {

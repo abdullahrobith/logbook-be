@@ -1,9 +1,9 @@
 package com.logbook.controller;
 
 import com.logbook.dto.AdminImportResponse;
+import com.logbook.dto.AdminLeaveResponse;
 import com.logbook.exception.ApiException;
 import com.logbook.entity.Holiday;
-import com.logbook.entity.Leave;
 import com.logbook.entity.User;
 import com.logbook.service.AdminService;
 import com.logbook.service.RoleService;
@@ -131,13 +131,22 @@ class AdminControllerTest {
 
     @Test
     void testGetLeavesSuccess() {
-        List<Leave> mockLeaves = List.of(new Leave());
-        when(adminService.getLeaves()).thenReturn(mockLeaves);
+        AdminLeaveResponse leave = new AdminLeaveResponse(
+                1L,
+                10L,
+                "Rina Talent",
+                LocalDate.parse("2026-11-20"),
+                LocalDate.parse("2026-11-22"),
+                null,
+                null
+        );
+        when(adminService.getLeaves()).thenReturn(List.of(leave));
 
-        ResponseEntity<List<Leave>> response = adminController.getLeaves(session);
+        ResponseEntity<List<AdminLeaveResponse>> response = adminController.getLeaves(session);
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertEquals(1, response.getBody().size());
+        assertEquals("Rina Talent", response.getBody().get(0).fullName());
     }
 
     @Test
