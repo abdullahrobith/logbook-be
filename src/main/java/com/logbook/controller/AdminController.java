@@ -2,8 +2,8 @@ package com.logbook.controller;
 
 import com.logbook.dto.AdminImportResponse;
 import com.logbook.dto.AdminLeaveResponse;
+import com.logbook.dto.AdminTalentOption;
 import com.logbook.entity.Holiday;
-import com.logbook.entity.User;
 import com.logbook.exception.ApiException;
 import com.logbook.service.AdminService;
 import com.logbook.service.RoleService;
@@ -51,7 +51,7 @@ public class AdminController {
 
     // ==================== 2. API CRUD LIBUR NASIONAL (HOLIDAYS) ====================
     @GetMapping("/users")
-    public ResponseEntity<List<User>> getTalentOptions(HttpSession session) {
+    public ResponseEntity<List<AdminTalentOption>> getTalentOptions(HttpSession session) {
         roleService.requireAdmin(session);
         return ResponseEntity.ok(adminService.getTalentOptions());
     }

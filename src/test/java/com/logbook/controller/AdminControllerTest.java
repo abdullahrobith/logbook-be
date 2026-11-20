@@ -2,9 +2,9 @@ package com.logbook.controller;
 
 import com.logbook.dto.AdminImportResponse;
 import com.logbook.dto.AdminLeaveResponse;
+import com.logbook.dto.AdminTalentOption;
 import com.logbook.exception.ApiException;
 import com.logbook.entity.Holiday;
-import com.logbook.entity.User;
 import com.logbook.service.AdminService;
 import com.logbook.service.RoleService;
 import jakarta.servlet.http.HttpSession;
@@ -151,13 +151,14 @@ class AdminControllerTest {
 
     @Test
     void testGetTalentOptionsReturnsActiveNonAdminUsers() {
-        List<User> users = List.of(new User());
+        List<AdminTalentOption> users = List.of(new AdminTalentOption(1L, "Rina Talent"));
         when(adminService.getTalentOptions()).thenReturn(users);
 
-        ResponseEntity<List<User>> response = adminController.getTalentOptions(session);
+        ResponseEntity<List<AdminTalentOption>> response = adminController.getTalentOptions(session);
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertEquals(1, response.getBody().size());
+        assertEquals("Rina Talent", response.getBody().get(0).fullName());
         verify(roleService).requireAdmin(session);
     }
 

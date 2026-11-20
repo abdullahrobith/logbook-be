@@ -55,7 +55,8 @@ class SummaryIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
-                                    "email": "rina.talent@contoh.id"
+                                    "email": "rina.talent@contoh.id",
+                                    "password": "Logbook@2026"
                                 }
                                 """)
         )

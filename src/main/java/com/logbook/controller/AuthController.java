@@ -5,6 +5,7 @@ import com.logbook.dto.RoleResponse;
 import com.logbook.dto.UserResponse;
 import com.logbook.service.AuthService;
 import com.logbook.service.RoleService;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;
@@ -35,9 +36,13 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    public UserResponse login(@Valid @RequestBody LoginRequest request, HttpSession session) {
+    public UserResponse login(
+            @Valid @RequestBody LoginRequest request,
+            HttpSession session,
+            HttpServletRequest httpRequest
+    ) {
         log.info("Menerima request POST /api/auth/login");
-        return authService.login(request.email(), session);
+        return authService.login(request.email(), request.password(), session, httpRequest);
     }
 
     @GetMapping("/me")

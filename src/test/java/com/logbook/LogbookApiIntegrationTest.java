@@ -65,6 +65,8 @@ class LogbookApiIntegrationTest {
     private MockHttpSession session;
 
     private static final String EMAIL = "rina.talent@contoh.id";
+    private static final String PASSWORD = "Logbook@2026";
+    private static final String PASSWORD_HASH = "$2a$10$2YCvQ1fDOiHQQa2ou4sVpO4LZW32jLX6Rt/UVljh6hLH/ayH.4H0q";
     private static final String DAILY_LOG_ID = "3";
     private static final String SUBMITTED_DAILY_LOG_ID = "1";
     private static final String DAILY_LOG_DATE = "2026-10-29";
@@ -91,7 +93,8 @@ class LogbookApiIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
-                                    "email": "rina.talent@contoh.id"
+                                    "email": "rina.talent@contoh.id",
+                                    "password": "Logbook@2026"
                                 }
                                 """)
         )
@@ -116,7 +119,8 @@ class LogbookApiIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
-                                    "email": "rina.talent@contoh.id"
+                                    "email": "rina.talent@contoh.id",
+                                    "password": "Logbook@2026"
                                 }
                                 """)
         )
@@ -213,7 +217,8 @@ class LogbookApiIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
-                                    "email": "emailtidakterdaftar@example.com"
+                                    "email": "emailtidakterdaftar@example.com",
+                                    "password": "Logbook@2026"
                                 }
                                 """)
         )
@@ -227,7 +232,38 @@ class LogbookApiIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
-                                    "email": ""
+                                    "email": "",
+                                    "password": "Logbook@2026"
+                                }
+                                """)
+        )
+        .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void loginWithWrongPasswordReturnsGenericUnauthorizedMessage() throws Exception {
+        mockMvc.perform(
+                post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                    "email": "rina.talent@contoh.id",
+                                    "password": "kata-sandi-salah"
+                                }
+                                """)
+        )
+        .andExpect(status().isUnauthorized())
+        .andExpect(jsonPath("$.message").value("Email atau kata sandi salah"));
+    }
+
+    @Test
+    void loginWithoutPasswordReturnsBadRequest() throws Exception {
+        mockMvc.perform(
+                post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                    "email": "rina.talent@contoh.id"
                                 }
                                 """)
         )
@@ -1947,14 +1983,22 @@ class LogbookApiIntegrationTest {
     }
 
     private MockHttpSession loginAs(String email) throws Exception {
+        jdbcTemplate.update(
+                "UPDATE users SET password_hash = ?, must_change_password = false WHERE lower(email) = lower(?)",
+                PASSWORD_HASH,
+                email
+        );
+        entityManager.clear();
+
         MvcResult result = mockMvc.perform(
                 post("/api/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
-                                    "email": "%s"
+                                    "email": "%s",
+                                    "password": "%s"
                                 }
-                                """.formatted(email))
+                                """.formatted(email, PASSWORD))
         )
         .andExpect(status().isOk())
         .andReturn();
