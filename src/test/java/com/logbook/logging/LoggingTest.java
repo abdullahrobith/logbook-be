@@ -8,6 +8,7 @@ import ch.qos.logback.core.read.ListAppender;
 import com.logbook.controller.AdminController;
 import com.logbook.exception.ApiException;
 import com.logbook.filter.RequestIdFilter;
+import com.logbook.repository.UserRepository;
 import com.logbook.service.AdminService;
 import com.logbook.service.RoleService;
 import jakarta.servlet.FilterChain;
@@ -53,6 +54,9 @@ class LoggingTest {
 
     @Mock
     private AdminService adminService;
+
+    @Mock
+    private UserRepository userRepository;
 
     @Mock
     private HttpSession session;
@@ -173,7 +177,7 @@ class LoggingTest {
 
     @Test
     void testAdminControllerLogsInfoAndWarn() {
-        AdminController adminController = new AdminController(adminService, roleService);
+        AdminController adminController = new AdminController(adminService, roleService, userRepository);
         when(adminService.importUsers(any(), any()))
                 .thenThrow(new ResponseStatusException(HttpStatus.BAD_REQUEST, "File CSV tidak boleh kosong"));
 
