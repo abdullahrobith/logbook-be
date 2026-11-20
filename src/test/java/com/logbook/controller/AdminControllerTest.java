@@ -2,9 +2,12 @@ package com.logbook.controller;
 
 import com.logbook.dto.AdminImportResponse;
 import com.logbook.dto.AdminLeaveResponse;
-import com.logbook.dto.AdminTalentOption;
-import com.logbook.exception.ApiException;
+import com.logbook.dto.UserResponse;
 import com.logbook.entity.Holiday;
+import com.logbook.entity.User;
+import com.logbook.exception.ApiException;
+import com.logbook.repository.UserRepository;
+import com.logbook.security.Role;
 import com.logbook.service.AdminService;
 import com.logbook.service.RoleService;
 import jakarta.servlet.http.HttpSession;
@@ -22,6 +25,7 @@ import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
@@ -38,6 +42,9 @@ class AdminControllerTest {
 
     @Mock
     private RoleService roleService;
+
+    @Mock
+    private UserRepository userRepository;
 
     @Mock
     private HttpSession session;
@@ -78,7 +85,7 @@ class AdminControllerTest {
     @Test
     void testImportUsersRejectsEmptyFile() {
         MockMultipartFile file = new MockMultipartFile("file", "empty.csv", "text/csv", new byte[0]);
-        
+
         when(adminService.importUsers(any(), any())).thenThrow(new ResponseStatusException(HttpStatus.BAD_REQUEST, "File CSV tidak boleh kosong"));
 
         ResponseStatusException ex = assertThrows(ResponseStatusException.class,
@@ -150,16 +157,18 @@ class AdminControllerTest {
     }
 
     @Test
-    void testGetTalentOptionsReturnsActiveNonAdminUsers() {
-        List<AdminTalentOption> users = List.of(new AdminTalentOption(1L, "Rina Talent"));
-        when(adminService.getTalentOptions()).thenReturn(users);
+    void testGetUsersReturnsUserResponsesWithoutPasswordHash() {
+        User user = new User();
+        when(userRepository.findAll()).thenReturn(List.of(user));
+        when(roleService.rolesOf(user)).thenReturn(Set.of(Role.values()[0]));
 
-        ResponseEntity<List<AdminTalentOption>> response = adminController.getTalentOptions(session);
+        ResponseEntity<List<UserResponse>> response = adminController.getUsers(session);
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertNotNull(response.getBody());
         assertEquals(1, response.getBody().size());
-        assertEquals("Rina Talent", response.getBody().get(0).fullName());
         verify(roleService).requireAdmin(session);
+        verify(userRepository).findAll();
     }
 
     @Test
