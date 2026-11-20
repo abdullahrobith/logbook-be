@@ -74,9 +74,13 @@ public class GlobalExceptionHandler {
     public ResponseEntity<?> handleApiException(ApiException ex, HttpSession session) {
         String userEmail = getUserEmail(session);
         log.error("[User: {}] Error Bisnis: {} - {}", userEmail, ex.getStatus().value(), ex.getMessage());
-        
+
+        Object code = ex instanceof PasswordChangeRequiredException passwordException
+                ? passwordException.code()
+                : ex.getStatus().value();
+
         return ResponseEntity.status(ex.getStatus()).body(Map.of(
-            "code", ex.getStatus().value(),
+            "code", code,
             "status", ex.getStatus().name(),
             "message", ex.getMessage(),
             "timestamp", OffsetDateTime.now().toString(),

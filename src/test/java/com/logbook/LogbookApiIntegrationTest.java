@@ -148,6 +148,132 @@ class LogbookApiIntegrationTest {
     }
 
     @Test
+    void userWithMustChangePasswordIsBlockedUntilPasswordChanged() throws Exception {
+        String email = "wajib.ganti@contoh.id";
+        insertUser(email, "Wajib Ganti", false);
+        jdbcTemplate.update(
+                "UPDATE users SET password_hash = ? WHERE lower(email) = lower(?)",
+                PASSWORD_HASH,
+                email
+        );
+        entityManager.clear();
+
+        MvcResult loginResult = mockMvc.perform(
+                post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                    "email": "%s",
+                                    "password": "%s"
+                                }
+                                """.formatted(email, PASSWORD))
+        )
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.mustChangePassword").value(true))
+        .andReturn();
+
+        MockHttpSession forcedSession = (MockHttpSession) loginResult.getRequest().getSession(false);
+        assertNotNull(forcedSession);
+
+        mockMvc.perform(get("/api/auth/me").session(forcedSession))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.mustChangePassword").value(true));
+
+        mockMvc.perform(get("/api/auth/roles").session(forcedSession))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("PASSWORD_CHANGE_REQUIRED"));
+
+        mockMvc.perform(get("/api/examples").session(forcedSession))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("PASSWORD_CHANGE_REQUIRED"));
+
+        mockMvc.perform(
+                post("/api/auth/change-password")
+                        .session(forcedSession)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                    "currentPassword": "Logbook@2026",
+                                    "newPassword": "Logbook@2027"
+                                }
+                                """)
+        )
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.email").value(email))
+        .andExpect(jsonPath("$.mustChangePassword").value(false));
+
+        mockMvc.perform(get("/api/auth/roles").session(forcedSession))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.roles", hasItem("TALENT")));
+
+        mockMvc.perform(get("/api/examples").session(forcedSession))
+                .andExpect(status().isOk());
+
+        Integer stillRequired = jdbcTemplate.queryForObject(
+                "SELECT count(*) FROM users WHERE lower(email) = lower(?) AND must_change_password",
+                Integer.class,
+                email
+        );
+        assertEquals(0, stillRequired);
+    }
+
+    @Test
+    void changePasswordRejectsWrongCurrentPasswordAndShortNewPassword() throws Exception {
+        String email = "ganti.salah@contoh.id";
+        insertUser(email, "Ganti Salah", false);
+        jdbcTemplate.update(
+                "UPDATE users SET password_hash = ? WHERE lower(email) = lower(?)",
+                PASSWORD_HASH,
+                email
+        );
+        entityManager.clear();
+
+        MvcResult loginResult = mockMvc.perform(
+                post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                    "email": "%s",
+                                    "password": "%s"
+                                }
+                                """.formatted(email, PASSWORD))
+        )
+        .andExpect(status().isOk())
+        .andReturn();
+
+        MockHttpSession forcedSession = (MockHttpSession) loginResult.getRequest().getSession(false);
+        assertNotNull(forcedSession);
+
+        mockMvc.perform(
+                post("/api/auth/change-password")
+                        .session(forcedSession)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                    "currentPassword": "salah",
+                                    "newPassword": "Logbook@2027"
+                                }
+                                """)
+        )
+        .andExpect(status().isUnauthorized())
+        .andExpect(jsonPath("$.message").value("Email atau kata sandi salah"));
+
+        mockMvc.perform(
+                post("/api/auth/change-password")
+                        .session(forcedSession)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                    "currentPassword": "Logbook@2026",
+                                    "newPassword": "pendek"
+                                }
+                                """)
+        )
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.field").value("newPassword"));
+    }
+
+    @Test
     void getCurrentUserShouldReturnUserData() throws Exception {
         mockMvc.perform(
                 get("/api/auth/me")
