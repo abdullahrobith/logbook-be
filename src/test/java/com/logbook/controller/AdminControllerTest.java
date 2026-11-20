@@ -67,7 +67,7 @@ class AdminControllerTest {
     @Test
     void testImportUsersSuccess() {
         MockMultipartFile file = new MockMultipartFile("file", "users.csv", "text/csv", "email,nama\nnew@example.com,New User".getBytes());
-        AdminImportResponse mockResponse = new AdminImportResponse(1, 0, List.of(Map.of("email", "new@example.com", "password", "12345678")));
+        AdminImportResponse mockResponse = new AdminImportResponse(1, 0, List.of("new@example.com"));
 
         when(session.getAttribute("email")).thenReturn("admin@contoh.id");
         when(adminService.importUsers(any(), anyString())).thenReturn(mockResponse);
@@ -78,8 +78,8 @@ class AdminControllerTest {
         assertNotNull(response.getBody());
         assertEquals(1, response.getBody().created());
         assertEquals(0, response.getBody().updated());
-        assertEquals(1, response.getBody().tempPasswords().size());
-        assertEquals("new@example.com", response.getBody().tempPasswords().get(0).get("email"));
+        assertEquals(1, response.getBody().importedEmails().size());
+        assertEquals("new@example.com", response.getBody().importedEmails().get(0));
     }
 
     @Test
