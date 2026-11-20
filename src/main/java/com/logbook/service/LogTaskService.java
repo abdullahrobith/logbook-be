@@ -26,7 +26,6 @@ public class LogTaskService {
     private static final String STATUS_MISSED = "TERLEWAT";
     private static final short MIN_DURATION_MINUTES = 5;
     private static final short MAX_DURATION_MINUTES = 1440;
-    private static final int MAX_CONCURRENT_TASKS = 3;
 
     private static final Set<Short> VALID_WORK_STATUS_IDS =
             Set.of((short) 1, (short) 2, (short) 3);
@@ -73,7 +72,6 @@ public class LogTaskService {
         requireEditableDay(dailyLog, "ditambah");
         requireEditableStatus(dailyLog);
         validateRequest(userId, request);
-        validateConcurrentTaskLimit(dailyLog, request.startMinute(), request.durationMinutes(), null);
 
         OffsetDateTime now = OffsetDateTime.now();
         LogTask logTask = new LogTask(
@@ -115,12 +113,6 @@ public class LogTaskService {
         requireEditableDay(logTask.getDailyLog(), "diubah");
         requireEditableStatus(logTask.getDailyLog());
         validateRequest(userId, request);
-        validateConcurrentTaskLimit(
-                logTask.getDailyLog(),
-                request.startMinute(),
-                request.durationMinutes(),
-                logTask.getId()
-        );
 
         logTask.update(
                 request.projectId(),
@@ -229,33 +221,6 @@ public class LogTaskService {
         if (!projectAvailable) {
             log.warn("Validasi gagal: Project ID {} tidak tersedia", request.projectId());
             throw new ApiException(HttpStatus.BAD_REQUEST, "Proyek tidak tersedia untuk pengguna ini");
-        }
-    }
-
-    private void validateConcurrentTaskLimit(
-            DailyLog dailyLog,
-            Integer startMinute,
-            Short durationMinutes,
-            Long excludedTaskId
-    ) {
-        long start = startMinute.longValue();
-        long end = start + durationMinutes.longValue();
-
-        long overlappingTasks = dailyLog.getTasks().stream()
-                .filter(task -> excludedTaskId == null || !excludedTaskId.equals(task.getId()))
-                .filter(task -> {
-                    long otherStart = task.getStartMinute() == null ? 0 : task.getStartMinute().longValue();
-                    long otherEnd = otherStart + (task.getDurationMinutes() == null ? 0 : task.getDurationMinutes().longValue());
-                    return start < otherEnd && otherStart < end;
-                })
-                .count();
-
-        if (overlappingTasks >= MAX_CONCURRENT_TASKS) {
-            log.warn("Validasi gagal: Maksimal task bersamaan ({}) terlampaui", MAX_CONCURRENT_TASKS);
-            throw new ApiException(
-                    HttpStatus.BAD_REQUEST,
-                    "Maksimal 3 task dapat berjalan pada waktu yang bersamaan. Ubah jam atau durasi task terlebih dahulu."
-            );
         }
     }
 

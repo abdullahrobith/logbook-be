@@ -3,6 +3,7 @@ package com.logbook;
 
 import com.logbook.entity.DailyLog;
 import com.logbook.entity.LogTask;
+import com.logbook.filter.RequestIdFilter;
 import com.logbook.repository.DailyLogRepository;
 import com.logbook.repository.LogTaskRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -34,7 +35,10 @@ import static org.hamcrest.Matchers.hasItems;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -61,6 +65,8 @@ class LogbookApiIntegrationTest {
     private MockHttpSession session;
 
     private static final String EMAIL = "rina.talent@contoh.id";
+    private static final String PASSWORD = "Logbook@2026";
+    private static final String PASSWORD_HASH = "$2a$10$2YCvQ1fDOiHQQa2ou4sVpO4LZW32jLX6Rt/UVljh6hLH/ayH.4H0q";
     private static final String DAILY_LOG_ID = "3";
     private static final String SUBMITTED_DAILY_LOG_ID = "1";
     private static final String DAILY_LOG_DATE = "2026-10-29";
@@ -87,7 +93,8 @@ class LogbookApiIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
-                                    "email": "rina.talent@contoh.id"
+                                    "email": "rina.talent@contoh.id",
+                                    "password": "Logbook@2026"
                                 }
                                 """)
         )
@@ -112,13 +119,158 @@ class LogbookApiIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
-                                    "email": "rina.talent@contoh.id"
+                                    "email": "rina.talent@contoh.id",
+                                    "password": "Logbook@2026"
                                 }
                                 """)
         )
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.id").value(1))
         .andExpect(jsonPath("$.email").value(EMAIL));
+    }
+
+    @Test
+    void admin1CanLoginWithDemoPassword() throws Exception {
+        mockMvc.perform(
+                post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                    "email": "admin1@contoh.id",
+                                    "password": "Logbook@2026"
+                                }
+                                """)
+        )
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.email").value("admin1@contoh.id"))
+        .andExpect(jsonPath("$.admin").value(true))
+        .andExpect(jsonPath("$.roles", hasItem("ADMIN")));
+    }
+
+    @Test
+    void userWithMustChangePasswordIsBlockedUntilPasswordChanged() throws Exception {
+        String email = "wajib.ganti@contoh.id";
+        insertUser(email, "Wajib Ganti", false);
+        jdbcTemplate.update(
+                "UPDATE users SET password_hash = ? WHERE lower(email) = lower(?)",
+                PASSWORD_HASH,
+                email
+        );
+        entityManager.clear();
+
+        MvcResult loginResult = mockMvc.perform(
+                post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                    "email": "%s",
+                                    "password": "%s"
+                                }
+                                """.formatted(email, PASSWORD))
+        )
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.mustChangePassword").value(true))
+        .andReturn();
+
+        MockHttpSession forcedSession = (MockHttpSession) loginResult.getRequest().getSession(false);
+        assertNotNull(forcedSession);
+
+        mockMvc.perform(get("/api/auth/me").session(forcedSession))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.mustChangePassword").value(true));
+
+        mockMvc.perform(get("/api/auth/roles").session(forcedSession))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("PASSWORD_CHANGE_REQUIRED"));
+
+        mockMvc.perform(get("/api/examples").session(forcedSession))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("PASSWORD_CHANGE_REQUIRED"));
+
+        mockMvc.perform(
+                post("/api/auth/change-password")
+                        .session(forcedSession)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                    "currentPassword": "Logbook@2026",
+                                    "newPassword": "Logbook@2027"
+                                }
+                                """)
+        )
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.email").value(email))
+        .andExpect(jsonPath("$.mustChangePassword").value(false));
+
+        mockMvc.perform(get("/api/auth/roles").session(forcedSession))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.roles", hasItem("TALENT")));
+
+        mockMvc.perform(get("/api/examples").session(forcedSession))
+                .andExpect(status().isOk());
+
+        Integer stillRequired = jdbcTemplate.queryForObject(
+                "SELECT count(*) FROM users WHERE lower(email) = lower(?) AND must_change_password",
+                Integer.class,
+                email
+        );
+        assertEquals(0, stillRequired);
+    }
+
+    @Test
+    void changePasswordRejectsWrongCurrentPasswordAndShortNewPassword() throws Exception {
+        String email = "ganti.salah@contoh.id";
+        insertUser(email, "Ganti Salah", false);
+        jdbcTemplate.update(
+                "UPDATE users SET password_hash = ? WHERE lower(email) = lower(?)",
+                PASSWORD_HASH,
+                email
+        );
+        entityManager.clear();
+
+        MvcResult loginResult = mockMvc.perform(
+                post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                    "email": "%s",
+                                    "password": "%s"
+                                }
+                                """.formatted(email, PASSWORD))
+        )
+        .andExpect(status().isOk())
+        .andReturn();
+
+        MockHttpSession forcedSession = (MockHttpSession) loginResult.getRequest().getSession(false);
+        assertNotNull(forcedSession);
+
+        mockMvc.perform(
+                post("/api/auth/change-password")
+                        .session(forcedSession)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                    "currentPassword": "salah",
+                                    "newPassword": "Logbook@2027"
+                                }
+                                """)
+        )
+        .andExpect(status().isUnauthorized())
+        .andExpect(jsonPath("$.message").value("Email atau kata sandi salah"));
+
+        mockMvc.perform(
+                post("/api/auth/change-password")
+                        .session(forcedSession)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                    "currentPassword": "Logbook@2026",
+                                    "newPassword": "pendek"
+                                }
+                                """)
+        )
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.field").value("newPassword"));
     }
 
     @Test
@@ -130,6 +282,61 @@ class LogbookApiIntegrationTest {
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.id").value(1))
         .andExpect(jsonPath("$.email").value(EMAIL));
+    }
+
+    @Test
+    void validRequestIdHeaderIsEchoedBack() throws Exception {
+        mockMvc.perform(
+                get("/api/auth/me")
+                        .session(session)
+                        .header(RequestIdFilter.REQUEST_ID_HEADER, "abc12345")
+        )
+        .andExpect(status().isOk())
+        .andExpect(header().string(RequestIdFilter.REQUEST_ID_HEADER, "abc12345"));
+    }
+
+    @Test
+    void missingRequestIdHeaderGetsGeneratedId() throws Exception {
+        MvcResult result = mockMvc.perform(
+                get("/api/auth/me").session(session)
+        )
+        .andExpect(status().isOk())
+        .andReturn();
+
+        String requestId = result.getResponse().getHeader(RequestIdFilter.REQUEST_ID_HEADER);
+        assertNotNull(requestId, "Header X-Request-Id harus selalu ada");
+        assertTrue(requestId.matches("^[A-Za-z0-9_-]{8,64}$"),
+                "ID buatan harus memenuhi format yang diizinkan: " + requestId);
+    }
+
+    @Test
+    void invalidRequestIdHeaderIsReplaced() throws Exception {
+        for (String invalidValue : List.of("x y", "x\ny", "short", "a".repeat(65), "bad@id")) {
+            MvcResult result = mockMvc.perform(
+                    get("/api/auth/me")
+                            .session(session)
+                            .header(RequestIdFilter.REQUEST_ID_HEADER, invalidValue)
+            )
+            .andExpect(status().isOk())
+            .andReturn();
+
+            String requestId = result.getResponse().getHeader(RequestIdFilter.REQUEST_ID_HEADER);
+            assertNotNull(requestId);
+            assertTrue(requestId.matches("^[A-Za-z0-9_-]{8,64}$"),
+                    "ID buatan harus memenuhi format yang diizinkan: " + requestId);
+            assertNotEquals(invalidValue, requestId, "Nilai klien yang tidak valid tidak boleh dipakai");
+        }
+    }
+
+    @Test
+    void errorResponseContainsRequestIdMatchingHeader() throws Exception {
+        mockMvc.perform(
+                get("/api/auth/me")
+                        .header(RequestIdFilter.REQUEST_ID_HEADER, "error12345")
+        )
+        .andExpect(status().isUnauthorized())
+        .andExpect(header().string(RequestIdFilter.REQUEST_ID_HEADER, "error12345"))
+        .andExpect(jsonPath("$.requestId").value("error12345"));
     }
 
     @Test
@@ -154,7 +361,8 @@ class LogbookApiIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
-                                    "email": "emailtidakterdaftar@example.com"
+                                    "email": "emailtidakterdaftar@example.com",
+                                    "password": "Logbook@2026"
                                 }
                                 """)
         )
@@ -168,7 +376,38 @@ class LogbookApiIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
-                                    "email": ""
+                                    "email": "",
+                                    "password": "Logbook@2026"
+                                }
+                                """)
+        )
+        .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void loginWithWrongPasswordReturnsGenericUnauthorizedMessage() throws Exception {
+        mockMvc.perform(
+                post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                    "email": "rina.talent@contoh.id",
+                                    "password": "kata-sandi-salah"
+                                }
+                                """)
+        )
+        .andExpect(status().isUnauthorized())
+        .andExpect(jsonPath("$.message").value("Email atau kata sandi salah"));
+    }
+
+    @Test
+    void loginWithoutPasswordReturnsBadRequest() throws Exception {
+        mockMvc.perform(
+                post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                    "email": "rina.talent@contoh.id"
                                 }
                                 """)
         )
@@ -738,11 +977,7 @@ class LogbookApiIntegrationTest {
                                 }
                                 """)
         )
-        .andExpect(status().isBadRequest())
-        .andExpect(jsonPath("$.message").value(
-                "Maksimal 3 task dapat berjalan pada waktu yang bersamaan. "
-                        + "Ubah jam atau durasi task terlebih dahulu."
-        ));
+        .andExpect(status().isCreated());
     }
 
     @Test
@@ -855,8 +1090,10 @@ class LogbookApiIntegrationTest {
                         .session(supervisorSession)
         )
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.id").value(4))
-        .andExpect(jsonPath("$.userId").value(2));
+        .andExpect(jsonPath("$.date").value(DAILY_LOG_DATE))
+        .andExpect(jsonPath("$.status").value("DRAF"))
+        .andExpect(jsonPath("$.totalMinutes").value(180))
+        .andExpect(jsonPath("$.tasks.length()").value(2));
     }
 
     @Test
@@ -885,7 +1122,8 @@ class LogbookApiIntegrationTest {
                         .session(adminSession)
         )
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.id").value(4));
+        .andExpect(jsonPath("$.date").value(DAILY_LOG_DATE))
+        .andExpect(jsonPath("$.totalMinutes").value(180));
     }
 
     @Test
@@ -1007,8 +1245,10 @@ class LogbookApiIntegrationTest {
                         .session(supervisorSession)
         )
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.id").value(4))
-        .andExpect(jsonPath("$.userId").value(2));
+        .andExpect(jsonPath("$.date").value(DAILY_LOG_DATE))
+        .andExpect(jsonPath("$.status").value("DRAF"))
+        .andExpect(jsonPath("$.totalMinutes").value(180))
+        .andExpect(jsonPath("$.tasks.length()").value(2));
     }
 
     @Test
@@ -1044,7 +1284,48 @@ class LogbookApiIntegrationTest {
                         .session(adminSession)
         )
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.id").value(4));
+        .andExpect(jsonPath("$.date").value(DAILY_LOG_DATE))
+        .andExpect(jsonPath("$.totalMinutes").value(180));
+    }
+
+    @Test
+    void memberDayReadEndpointsReturnSameDayDtoAsOwner() throws Exception {
+        insertUser("atasan.konsisten@contoh.id", "Atasan Konsisten", false);
+        jdbcTemplate.update(
+                "UPDATE users SET email_atasan = ? WHERE id = 2",
+                "atasan.konsisten@contoh.id"
+        );
+
+        MockHttpSession supervisorSession = loginAs("atasan.konsisten@contoh.id");
+        MockHttpSession ownerSession = loginAs("budi.santoso@contoh.id");
+
+        String ownerDay = mockMvc.perform(
+                        get("/api/days/{date}", DAILY_LOG_DATE).session(ownerSession)
+                )
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        mockMvc.perform(
+                        get("/api/team/2/days/{date}", DAILY_LOG_DATE)
+                                .session(supervisorSession)
+                )
+                .andExpect(status().isOk())
+                .andExpect(content().json(ownerDay));
+
+        mockMvc.perform(
+                        get("/api/team/2/daily-logs/{date}", DAILY_LOG_DATE)
+                                .session(supervisorSession)
+                )
+                .andExpect(status().isOk())
+                .andExpect(content().json(ownerDay));
+
+        mockMvc.perform(
+                        get("/api/daily-logs/users/2")
+                                .param("date", DAILY_LOG_DATE)
+                                .session(supervisorSession)
+                )
+                .andExpect(status().isOk())
+                .andExpect(content().json(ownerDay));
     }
 
     // ==========================================
@@ -1846,14 +2127,22 @@ class LogbookApiIntegrationTest {
     }
 
     private MockHttpSession loginAs(String email) throws Exception {
+        jdbcTemplate.update(
+                "UPDATE users SET password_hash = ?, must_change_password = false WHERE lower(email) = lower(?)",
+                PASSWORD_HASH,
+                email
+        );
+        entityManager.clear();
+
         MvcResult result = mockMvc.perform(
                 post("/api/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
-                                    "email": "%s"
+                                    "email": "%s",
+                                    "password": "%s"
                                 }
-                                """.formatted(email))
+                                """.formatted(email, PASSWORD))
         )
         .andExpect(status().isOk())
         .andReturn();

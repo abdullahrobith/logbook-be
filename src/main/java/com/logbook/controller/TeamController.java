@@ -1,7 +1,6 @@
 package com.logbook.controller;
 
 import com.logbook.dto.DayDto;
-import com.logbook.dto.DailyLogResponse;
 import com.logbook.dto.TeamMemberResponse;
 import com.logbook.entity.User;
 import com.logbook.service.DailyLogService;
@@ -47,8 +46,12 @@ public class TeamController {
         return teamService.getTeam(actor);
     }
 
+    /**
+     * Path lama tetap tersedia, tetapi responsnya disamakan dengan
+     * {@code GET /api/team/{userId}/days/{date}} dan {@code GET /api/days/{date}}.
+     */
     @GetMapping("/{userId}/daily-logs/{date}")
-    public DailyLogResponse getTeamMemberDailyLog(
+    public DayDto getTeamMemberDailyLog(
             @PathVariable Long userId,
             @PathVariable
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
@@ -57,9 +60,9 @@ public class TeamController {
     ) {
         User actor = roleService.requireSupervisorOrAdmin(session);
         User member = roleService.requireCanViewTalent(actor, userId);
-        log.info("Menerima request GET Daily Log User ID {} tanggal {} oleh User ID {} ({})",
+        log.info("Menerima request GET DayDto anggota User ID {} tanggal {} oleh User ID {} ({})",
                 member.getId(), date, actor.getId(), actor.getEmail());
-        return dailyLogService.getDailyLog(member.getId(), date);
+        return dailyLogService.getDay(member.getId(), date);
     }
 
     @GetMapping("/{userId}/days/{date}")

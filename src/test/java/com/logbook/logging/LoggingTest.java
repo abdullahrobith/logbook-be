@@ -8,6 +8,7 @@ import ch.qos.logback.core.read.ListAppender;
 import com.logbook.controller.AdminController;
 import com.logbook.exception.ApiException;
 import com.logbook.filter.RequestIdFilter;
+import com.logbook.repository.UserRepository;
 import com.logbook.service.AdminService;
 import com.logbook.service.RoleService;
 import jakarta.servlet.FilterChain;
@@ -31,6 +32,7 @@ import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.io.IOException;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -52,6 +54,9 @@ class LoggingTest {
 
     @Mock
     private AdminService adminService;
+
+    @Mock
+    private UserRepository userRepository;
 
     @Mock
     private HttpSession session;
@@ -105,6 +110,55 @@ class LoggingTest {
         assertTrue(listAppender.list.stream()
                 .anyMatch(event -> event.getLoggerName().equals(RequestIdFilter.class.getName())
                         && event.getFormattedMessage().contains("GET /api/test selesai dengan status 200")));
+        assertEquals(8, response.getHeader(RequestIdFilter.REQUEST_ID_HEADER).length(),
+                "Header respons berisi ID baru saat klien tidak mengirim header");
+    }
+
+    @Test
+    void testValidClientRequestIdIsReusedAndReturned() throws ServletException, IOException {
+        MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/test");
+        request.addHeader(RequestIdFilter.REQUEST_ID_HEADER, "abc12345");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+
+        AtomicReference<String> capturedRequestId = new AtomicReference<>();
+        doAnswer(invocation -> {
+            capturedRequestId.set(MDC.get("requestId"));
+            return null;
+        }).when(filterChain).doFilter(any(HttpServletRequest.class), any(HttpServletResponse.class));
+
+        requestIdFilter.doFilter(request, response, filterChain);
+
+        assertEquals("abc12345", capturedRequestId.get(), "Header valid dipakai apa adanya di MDC");
+        assertEquals("abc12345", response.getHeader(RequestIdFilter.REQUEST_ID_HEADER),
+                "Header valid dikirim balik ke klien");
+        assertNull(MDC.get("requestId"), "MDC dibersihkan setelah request selesai");
+    }
+
+    @Test
+    void testInvalidClientRequestIdIsReplaced() throws ServletException, IOException {
+        List<String> invalidValues = List.of("x y", "x\ny", "short", "a".repeat(65), "bad@id");
+
+        for (String invalidValue : invalidValues) {
+            MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/test");
+            request.addHeader(RequestIdFilter.REQUEST_ID_HEADER, invalidValue);
+            MockHttpServletResponse response = new MockHttpServletResponse();
+
+            AtomicReference<String> capturedRequestId = new AtomicReference<>();
+            doAnswer(invocation -> {
+                capturedRequestId.set(MDC.get("requestId"));
+                return null;
+            }).when(filterChain).doFilter(any(HttpServletRequest.class), any(HttpServletResponse.class));
+
+            requestIdFilter.doFilter(request, response, filterChain);
+
+            assertNotNull(capturedRequestId.get());
+            assertTrue(capturedRequestId.get().matches("^[A-Za-z0-9_-]{8,64}$"),
+                    "ID buatan harus memenuhi format yang diizinkan");
+            assertNotEquals(invalidValue, capturedRequestId.get(), "Nilai klien yang tidak valid tidak boleh dipakai");
+            assertEquals(capturedRequestId.get(), response.getHeader(RequestIdFilter.REQUEST_ID_HEADER),
+                    "Header respons memakai ID buatan yang sama dengan MDC");
+            assertNull(MDC.get("requestId"), "MDC dibersihkan setelah request selesai");
+        }
     }
 
     @Test
@@ -116,12 +170,14 @@ class LoggingTest {
                 .when(filterChain).doFilter(any(HttpServletRequest.class), any(HttpServletResponse.class));
 
         assertThrows(RuntimeException.class, () -> requestIdFilter.doFilter(request, response, filterChain));
+        assertNotNull(response.getHeader(RequestIdFilter.REQUEST_ID_HEADER),
+                "Header ID tetap dikirim meskipun terjadi exception (respons 5xx)");
         assertNull(MDC.get("requestId"), "MDC requestId harus tetap dibersihkan meskipun terjadi exception");
     }
 
     @Test
     void testAdminControllerLogsInfoAndWarn() {
-        AdminController adminController = new AdminController(adminService, roleService);
+        AdminController adminController = new AdminController(adminService, roleService, userRepository);
         when(adminService.importUsers(any(), any()))
                 .thenThrow(new ResponseStatusException(HttpStatus.BAD_REQUEST, "File CSV tidak boleh kosong"));
 

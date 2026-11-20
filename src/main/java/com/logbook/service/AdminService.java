@@ -1,6 +1,8 @@
 package com.logbook.service;
 
 import com.logbook.dto.AdminImportResponse;
+import com.logbook.dto.AdminLeaveResponse;
+import com.logbook.dto.AdminTalentOption;
 import com.logbook.entity.Holiday;
 import com.logbook.entity.Leave;
 import com.logbook.entity.User;
@@ -13,6 +15,7 @@ import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
 import org.apache.commons.csv.CSVRecord;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -26,6 +29,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -34,11 +38,18 @@ public class AdminService {
     private final UserRepository userRepository;
     private final HolidayRepository holidayRepository;
     private final LeaveRepository leaveRepository;
+    private final PasswordEncoder passwordEncoder;
 
-    public AdminService(UserRepository userRepository, HolidayRepository holidayRepository, LeaveRepository leaveRepository) {
+    public AdminService(
+            UserRepository userRepository,
+            HolidayRepository holidayRepository,
+            LeaveRepository leaveRepository,
+            PasswordEncoder passwordEncoder
+    ) {
         this.userRepository = userRepository;
         this.holidayRepository = holidayRepository;
         this.leaveRepository = leaveRepository;
+        this.passwordEncoder = passwordEncoder;
     }
 
     @Transactional
@@ -122,7 +133,7 @@ public class AdminService {
                 newUser.setJenis(jenis);
                 newUser.setEmailAtasan((emailAtasan == null || emailAtasan.isBlank()) ? null : emailAtasan);
                 newUser.setAdmin(isAdmin);
-                newUser.setPasswordHash("BCryptHashPlaceholder_" + tempPassword);
+                newUser.setPasswordHash(passwordEncoder.encode(tempPassword));
                 newUser.setMustChangePassword(true);
                 newUser.setActive(true);
                 newUser.setCreatedAt(OffsetDateTime.now());
@@ -144,8 +155,11 @@ public class AdminService {
         return new AdminImportResponse(created, updated, tempPasswords);
     }
 
-    public List<User> getTalentOptions() {
-        return userRepository.findByActiveTrueAndAdminFalseOrderByFullNameAsc();
+    public List<AdminTalentOption> getTalentOptions() {
+        return userRepository.findByActiveTrueAndAdminFalseOrderByFullNameAsc()
+                .stream()
+                .map(AdminTalentOption::from)
+                .toList();
     }
 
     public List<Holiday> getHolidays() {
@@ -168,8 +182,15 @@ public class AdminService {
         holidayRepository.delete(holiday);
     }
 
-    public List<Leave> getLeaves() {
-        return leaveRepository.findAllByOrderByStartDateAsc();
+    public List<AdminLeaveResponse> getLeaves() {
+        List<Leave> leaves = leaveRepository.findAllByOrderByStartDateAsc();
+        List<Long> userIds = leaves.stream().map(Leave::getUserId).distinct().toList();
+        Map<Long, User> usersById = userRepository.findAllById(userIds).stream()
+                .collect(Collectors.toMap(User::getId, user -> user));
+
+        return leaves.stream()
+                .map(leave -> AdminLeaveResponse.from(leave, usersById.get(leave.getUserId())))
+                .toList();
     }
 
     public void addLeave(Long userId, LocalDate start, LocalDate end, String note) {

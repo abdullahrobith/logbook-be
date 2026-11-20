@@ -35,7 +35,7 @@ Saat ini backend Logbook memiliki **29 endpoint API** (termasuk penyesuaian/pena
 | 3 | GET | `/api/auth/roles` | Mendapatkan peran pengguna pada permintaan saat ini | Pengguna masuk | Integration test |
 | 4 | POST | `/api/auth/logout` | Logout pengguna | Pengguna masuk | Postman |
 | 5 | GET | `/api/daily-logs?date=YYYY-MM-DD` | Mendapatkan Daily Log milik pengguna pada tanggal tertentu | Pemilik data | Postman |
-| 6 | GET | `/api/daily-logs/users/{userId}?date=YYYY-MM-DD` | Mendapatkan Daily Log pengguna lain | Atasan (timnya), admin (semua) | Integration test |
+| 6 | GET | `/api/daily-logs/users/{userId}?date=YYYY-MM-DD` | Mendapatkan `DayDto` pengguna lain (path lama, respons disamakan) | Atasan (timnya), admin (semua) | Integration test |
 | 7 | POST | `/api/daily-logs?date=YYYY-MM-DD` | Membuat Daily Log baru | Pemilik data | Integration test |
 | 8 | POST | `/api/daily-logs/{dailyLogId}/submit` | Mengirim Daily Log untuk persetujuan | Pemilik data | Integration test |
 | 9 | POST | `/api/daily-logs/{dailyLogId}/withdraw` | Menarik kembali Daily Log menjadi DRAF | Pemilik data | Integration test |
@@ -47,8 +47,8 @@ Saat ini backend Logbook memiliki **29 endpoint API** (termasuk penyesuaian/pena
 | 15 | PUT | `/api/tasks/{id}` | Memperbarui task dan mengembalikan `DayDto` terbaru (SRS) | Pemilik data | Perlu verifikasi |
 | 16 | DELETE | `/api/tasks/{id}` | Menghapus task dan mengembalikan `DayDto` terbaru (SRS) | Pemilik data | Perlu verifikasi |
 | 17 | GET | `/api/team` | Mendapatkan daftar tim dengan status dan total jam hari ini | Atasan (timnya), admin (semua) | Integration test |
-| 18 | GET | `/api/team/{userId}/daily-logs/{date}` | Mendapatkan Daily Log anggota tim pada tanggal tertentu (kontrak lama) | Atasan (timnya), admin (semua) | Integration test |
-| 19 | GET | `/api/team/{userId}/days/{date}` | Mendapatkan `DayDto` anggota tim pada tanggal tertentu (SRS) | Atasan (timnya), admin (semua) | Perlu verifikasi |
+| 18 | GET | `/api/team/{userId}/daily-logs/{date}` | Mendapatkan `DayDto` anggota tim (path lama, respons disamakan) | Atasan (timnya), admin (semua) | Integration test |
+| 19 | GET | `/api/team/{userId}/days/{date}` | Mendapatkan `DayDto` anggota tim pada tanggal tertentu (SRS) | Atasan (timnya), admin (semua) | Integration test |
 | 20 | POST | `/api/admin/users/import` | Mengimpor pengguna dari CSV | Admin | Integration test |
 | 21 | GET | `/api/admin/daily-logs` | Mendapatkan daftar Daily Log seluruh talent dengan filter tanggal, pengguna, dan status | Admin | Integration test |
 | 22 | GET | `/api/projects` | Mendapatkan daftar project pengguna | Pemilik data | Postman |
@@ -60,7 +60,7 @@ Saat ini backend Logbook memiliki **29 endpoint API** (termasuk penyesuaian/pena
 | 28 | POST | `/api/days/{date}/tasks` | Menambahkan task pada tanggal tertentu dan mengembalikan `DayDto` terbaru (SRS) | Pemilik data | Perlu verifikasi |
 | 29 | GET | `/api/summary?period=WEEK\|MONTH&date=YYYY-MM-DD` | Rekap mingguan/bulanan Ringkasanku (total waktu, hari kerja, jenis task, proyek, status kerja, kendala, dan hari ringkasan singkat) | Pemilik data | Unit test & Integration test (`SummaryServiceTest`, `SummaryControllerTest`, `SummaryIntegrationTest`) |
 
-Seluruh endpoint yang telah tercakup skenario pengujian memberikan hasil sesuai harapan. Untuk endpoint pengaturan pengguna (no. 25–26) telah ditambahkan unit test (`SettingsServiceTest`, `SettingsControllerTest`) yang berhasil lulus serta skenario integration test pada `LogbookApiIntegrationTest`; eksekusi integration test memerlukan database PostgreSQL lokal dengan skema/fixture yang sesuai. Endpoint SRS Day/Task (no. 15–16, 19, 27–28) telah disesuaikan kontraknya (`DayDto`/`TaskDto`, path/request/response) namun pengujian otomatis/manual spesifik untuk kontrak baru ini masih perlu dilengkapi/diperbarui.
+Seluruh endpoint yang telah tercakup skenario pengujian memberikan hasil sesuai harapan. Untuk endpoint pengaturan pengguna (no. 25–26) telah ditambahkan unit test (`SettingsServiceTest`, `SettingsControllerTest`) yang berhasil lulus serta skenario integration test pada `LogbookApiIntegrationTest`; eksekusi integration test memerlukan database PostgreSQL lokal dengan skema/fixture yang sesuai. Endpoint baca anggota (no. 6, 18, 19, 27) kini mengembalikan struktur `DayDto` yang identik, termasuk `totalMinutes`, `perProject`, `range`, dan `tasks`; kesetaraan respons pemilik dan atasan diuji pada `LogbookApiIntegrationTest` serta `TeamControllerTest`. Endpoint SRS Task (no. 15–16, 28) telah memakai `DayDto`/`TaskDto`, namun pengujian spesifik untuk kontrak baru tersebut masih perlu dilengkapi.
 
 ## 4. Unit Testing
 
@@ -440,19 +440,19 @@ Pengujian menggunakan database `logbook_test` yang terpisah dari database aplika
 | 30 | Peran ATASAN muncul saat email_atasan pengguna lain menunjuk ke pengguna tersebut | Lulus |
 | 31 | Peran ADMIN muncul saat flag is_admin aktif | Lulus |
 | 32 | Talent tidak dapat membaca Daily Log talent lain | Lulus |
-| 33 | Atasan dapat membaca Daily Log anggota timnya | Lulus |
+| 33 | Atasan dapat membaca `DayDto` anggota timnya | Lulus |
 | 34 | Atasan tidak dapat membaca Daily Log di luar timnya | Lulus |
-| 35 | Admin dapat membaca Daily Log talent mana pun | Lulus |
+| 35 | Admin dapat membaca `DayDto` talent mana pun | Lulus |
 | 36 | Non-admin tidak dapat mengimpor pengguna | Lulus |
 | 37 | Admin dapat mengimpor pengguna | Lulus |
 | 38 | Talent tidak dapat mengakses daftar tim | Lulus |
 | 39 | Atasan hanya melihat anggota timnya pada daftar tim | Lulus |
 | 40 | Daftar tim menampilkan status hari ini, total union, dan jumlah hari MENUNGGU | Lulus |
 | 41 | Admin melihat seluruh pengguna pada daftar tim | Lulus |
-| 42 | Atasan dapat membaca Daily Log tim melalui endpoint tim | Lulus |
+| 42 | Atasan dapat membaca `DayDto` tim melalui endpoint tim | Lulus |
 | 43 | Atasan tidak dapat membaca Daily Log di luar tim melalui endpoint tim | Lulus |
 | 44 | Talent tidak dapat memakai endpoint Daily Log tim | Lulus |
-| 45 | Admin dapat membaca Daily Log mana pun melalui endpoint tim | Lulus |
+| 45 | Admin dapat membaca `DayDto` mana pun melalui endpoint tim | Lulus |
 | 46 | Talent tidak dapat mengakses daftar Daily Log admin | Lulus |
 | 47 | Admin mendapatkan daftar Daily Log seluruh talent | Lulus |
 | 48 | Admin dapat memfilter daftar Daily Log berdasarkan tanggal | Lulus |
@@ -483,8 +483,9 @@ Pengujian menggunakan database `logbook_test` yang terpisah dari database aplika
 | 73 | `GET /api/settings` mengembalikan pengaturan default untuk pengguna terautentikasi | Lulus |
 | 74 | `PUT /api/settings` memperbarui jam kerja dan status onboarding | Lulus |
 | 75 | `PUT /api/settings` mendukung pembaruan parsial dan pengosongan onboarding | Lulus |
+| 76 | Endpoint baca anggota (`/api/days`, `/api/daily-logs/users`, `/api/team/.../days`, `/api/team/.../daily-logs`) mengembalikan `DayDto` yang identik | Lulus |
 
-Total: seluruh skenario pada `LogbookApiIntegrationTest` (**83 test**) lulus, termasuk 4 skenario integration test pengaturan pengguna.
+Total: seluruh skenario pada `LogbookApiIntegrationTest` (**84 test**) lulus, termasuk 4 skenario integration test pengaturan pengguna dan kesetaraan kontrak `DayDto`.
 
 ### 5.2 DailyLogDeadlineIntegrationTest
 
@@ -534,9 +535,9 @@ Bagian ini menyusun daftar skenario pengujian (test case) khusus untuk peran **A
 | TC-ACC-03 | Talent | `GET /api/team` | Talent biasa mencoba mengakses daftar tim | Ditolak dengan `403 Forbidden` | `RoleServiceTest`, `LogbookApiIntegrationTest` |
 | TC-ACC-04 | Atasan | `GET /api/team` | Atasan melihat daftar anggota tim dan ringkasan status hari ini | `200 OK`, hanya menampilkan bawahan langsung (`email_atasan` sesuai) | `TeamServiceTest`, `LogbookApiIntegrationTest` |
 | TC-ACC-05 | Admin | `GET /api/team` | Admin melihat daftar anggota tim | `200 OK`, menampilkan seluruh pengguna aktif | `TeamServiceTest`, `LogbookApiIntegrationTest` |
-| TC-ACC-06 | Atasan | `GET /api/team/{userId}/daily-logs/{date}` | Atasan membuka Daily Log milik anggota timnya | `200 OK`, detail Daily Log & task bawahan tampil | `RoleServiceTest`, `LogbookApiIntegrationTest` |
-| TC-ACC-07 | Atasan | `GET /api/team/{userId}/daily-logs/{date}` | Atasan mencoba membuka Daily Log talent di luar timnya | Ditolak dengan `403 Forbidden` | `RoleServiceTest`, `LogbookApiIntegrationTest` |
-| TC-ACC-08 | Admin | `GET /api/team/{userId}/daily-logs/{date}` | Admin membuka Daily Log talent mana pun | `200 OK`, detail Daily Log tampil | `RoleServiceTest`, `LogbookApiIntegrationTest` |
+| TC-ACC-06 | Atasan | `GET /api/team/{userId}/days/{date}` | Atasan membuka Daily Log milik anggota timnya | `200 OK`, `DayDto` bawahan tampil (sama dengan kontrak pemilik) | `RoleServiceTest`, `LogbookApiIntegrationTest`, `TeamControllerTest` |
+| TC-ACC-07 | Atasan | `GET /api/team/{userId}/days/{date}` | Atasan mencoba membuka Daily Log talent di luar timnya | Ditolak dengan `403 Forbidden` | `RoleServiceTest`, `LogbookApiIntegrationTest` |
+| TC-ACC-08 | Admin | `GET /api/team/{userId}/days/{date}` | Admin membuka Daily Log talent mana pun | `200 OK`, `DayDto` talent tampil | `RoleServiceTest`, `LogbookApiIntegrationTest` |
 | TC-ACC-09 | Talent / Atasan | `GET /api/admin/daily-logs` | Pengguna non-admin mengakses rekap Daily Log seluruh talent | Ditolak dengan `403 Forbidden` | `RoleServiceTest`, `LogbookApiIntegrationTest` |
 | TC-ACC-10 | Admin | `GET /api/admin/daily-logs` | Admin mengakses dan memfilter daftar Daily Log (`date`, `userId`, `status`) | `200 OK`, daftar sesuai filter; `400 Bad Request` bila parameter tidak valid | `AdminDailyLogServiceTest`, `LogbookApiIntegrationTest` |
 
@@ -597,14 +598,15 @@ Berdasarkan hasil eksekusi pengujian otomatis backend Logbook, diperoleh hasil r
 | ApiExceptionHandlerTest | 2 | 0 | 0 | Lulus |
 | LoggingTest | 4 | 0 | 0 | Lulus |
 | AdminControllerTest | 16 | 0 | 0 | Lulus |
+| TeamControllerTest | 3 | 0 | 0 | Lulus |
 | TaskDurationUtilTest | 3 | 0 | 0 | Lulus |
 | SummaryServiceTest | 5 | 0 | 0 | Lulus |
 | SummaryControllerTest | 2 | 0 | 0 | Lulus |
 | DailyLogDeadlineIntegrationTest | 13 | 0 | 0 | Lulus |
 | SummaryIntegrationTest | 4 | 0 | 0 | Lulus |
-| LogbookApiIntegrationTest | 83 | 0 | 0 | Lulus |
+| LogbookApiIntegrationTest | 84 | 0 | 0 | Lulus |
 | LogbookBeApplicationTests | 1 | 0 | 0 | Lulus |
-| **Total** | **301** | **0** | **0** | **Lulus** |
+| **Total** | **303** | **0** | **0** | **Lulus** |
 
 Catatan: test memakai database `logbook_test` yang diisi dari fixture `logbook.sql` beserta migrasi Flyway. Isolasi ini mencegah perubahan pada database aplikasi (`logbook`), misalnya oleh tugas berkala yang mengubah DRAF menjadi `MENUNGGU`, sehingga hasil pengujian tidak lagi bergantung pada kondisi DB aplikasi.
 
@@ -636,6 +638,6 @@ Dengan demikian, backend Logbook berhasil melewati seluruh skenario pengujian ya
 
 ## 8. Kesimpulan
 
-Pengujian backend Logbook telah dilakukan melalui tiga pendekatan, yaitu manual testing, unit testing, dan integration testing, serta dilengkapi pengukuran cakupan kode menggunakan JaCoCo. Pengujian manual terhadap 10 endpoint API berhasil dilakukan menggunakan Postman, 13 endpoint tambahan diverifikasi melalui integration test, endpoint pengaturan pengguna (`GET/PUT /api/settings`) telah dilengkapi unit test, dan `GET /api/summary` telah dilengkapi unit test serta integration test khusus (`SummaryServiceTest`, `SummaryControllerTest`, `SummaryIntegrationTest`) yang seluruhnya lulus. Seluruh 301 test lulus tanpa kegagalan setelah test diisolasi ke database `logbook_test`.
+Pengujian backend Logbook telah dilakukan melalui tiga pendekatan, yaitu manual testing, unit testing, dan integration testing, serta dilengkapi pengukuran cakupan kode menggunakan JaCoCo. Pengujian manual terhadap 10 endpoint API berhasil dilakukan menggunakan Postman, 13 endpoint tambahan diverifikasi melalui integration test, endpoint pengaturan pengguna (`GET/PUT /api/settings`) telah dilengkapi unit test, dan `GET /api/summary` telah dilengkapi unit test serta integration test khusus (`SummaryServiceTest`, `SummaryControllerTest`, `SummaryIntegrationTest`) yang seluruhnya lulus. Seluruh 303 test lulus tanpa kegagalan setelah test diisolasi ke database `logbook_test`, termasuk kesetaraan kontrak `DayDto` antara pemilik dan atasan.
 
 Hasil tersebut menunjukkan bahwa komponen backend yang telah diuji berjalan sesuai dengan skenario pengujian yang tersedia. Meskipun demikian, hasil ini belum menjamin seluruh kemungkinan kondisi sistem telah diuji sehingga pengembangan cakupan pengujian tetap diperlukan.

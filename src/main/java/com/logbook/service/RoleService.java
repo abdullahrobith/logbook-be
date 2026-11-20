@@ -2,6 +2,7 @@ package com.logbook.service;
 
 import com.logbook.dto.RoleResponse;
 import com.logbook.entity.User;
+import com.logbook.exception.PasswordChangeRequiredException;
 import com.logbook.repository.UserRepository;
 import com.logbook.security.Role;
 import jakarta.servlet.http.HttpSession;
@@ -40,7 +41,7 @@ public class RoleService {
             );
         }
 
-        return userRepository
+        User user = userRepository
                 .findByIdAndActiveTrue(userId)
                 .orElseThrow(() -> {
                     log.warn("Sesi tidak valid: User ID {} tidak ditemukan atau tidak aktif", userId);
@@ -49,6 +50,13 @@ public class RoleService {
                             "Sesi tidak valid"
                     );
                 });
+
+        if (user.isMustChangePassword()) {
+            log.info("Akses ditunda untuk User ID {}: kata sandi belum diganti", userId);
+            throw new PasswordChangeRequiredException();
+        }
+
+        return user;
     }
 
     @Transactional(readOnly = true)

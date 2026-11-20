@@ -262,7 +262,7 @@ class LogTaskServiceTest {
     }
 
     @Test
-    void createTaskShouldFailWhenThreeTasksAlreadyOverlap() {
+    void createTaskShouldSucceedWhenMoreThanThreeTasksOverlap() {
         LogTask firstTask = overlappingTask(
                 1L,
                 480,
@@ -285,19 +285,16 @@ class LogTaskServiceTest {
                 secondTask,
                 thirdTask
         ));
+        when(logTaskRepository.save(any(LogTask.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
 
-        ResponseStatusException exception = assertThrows(
-                ResponseStatusException.class,
-                () -> service.createTask(userId, dailyLogId, validRequest())
-        );
+        assertDoesNotThrow(() -> service.createTask(
+                userId,
+                dailyLogId,
+                validRequest()
+        ));
 
-        assertEquals(HttpStatus.BAD_REQUEST, exception.getStatusCode());
-        assertEquals(
-                "Maksimal 3 task dapat berjalan pada waktu yang bersamaan. "
-                        + "Ubah jam atau durasi task terlebih dahulu.",
-                exception.getReason()
-        );
-        verify(logTaskRepository, never()).save(any());
+        verify(logTaskRepository).save(any(LogTask.class));
     }
 
     @Test

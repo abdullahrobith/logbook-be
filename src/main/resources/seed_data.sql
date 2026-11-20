@@ -2,16 +2,16 @@
 -- SEED DATA LENGKAP UNTUK SIT LOG BOOK
 -- ==========================================
 
--- 1. BIKIN USERS 
+-- 1. BIKIN USERS (kata sandi demo: Logbook@2026)
 INSERT INTO users (id, email, full_name, jenis, email_atasan, is_admin, password_hash, must_change_password, is_active) VALUES 
 -- Admin (Atasan-nya null, Admin=true)
-(100, 'admin@padepokan.com', 'Bambang Hendrayanto', 'KARYAWAN', null, true, '$2a$10$7EqJtq98hPqEX7fNZaFWoO5S6mI.2T.w76d1G.4h5n6e7r8t9y0u1', false, true),
+(100, 'admin@padepokan.com', 'Bambang Hendrayanto', 'KARYAWAN', null, true, '$2a$10$2YCvQ1fDOiHQQa2ou4sVpO4LZW32jLX6Rt/UVljh6hLH/ayH.4H0q', false, true),
 -- Atasan (Atasan-nya null, Admin=false)
-(101, 'atasan@padepokan.com', 'Herlina Rastiana', 'KARYAWAN', null, false, '$2a$10$7EqJtq98hPqEX7fNZaFWoO5S6mI.2T.w76d1G.4h5n6e7r8t9y0u1', false, true),
+(101, 'atasan@padepokan.com', 'Herlina Rastiana', 'KARYAWAN', null, false, '$2a$10$2YCvQ1fDOiHQQa2ou4sVpO4LZW32jLX6Rt/UVljh6hLH/ayH.4H0q', false, true),
 -- Talent Rina (Atasannya Pak Atasan)
-(1, 'rina@padepokan.com', 'Rina Talent', 'MAGANG', 'atasan@padepokan.com', false, '$2a$10$7EqJtq98hPqEX7fNZaFWoO5S6mI.2T.w76d1G.4h5n6e7r8t9y0u1', false, true),
+(1, 'rina@padepokan.com', 'Rina Talent', 'MAGANG', 'atasan@padepokan.com', false, '$2a$10$2YCvQ1fDOiHQQa2ou4sVpO4LZW32jLX6Rt/UVljh6hLH/ayH.4H0q', false, true),
 -- Talent Budi (Atasannya Pak Atasan)
-(2, 'budi@padepokan.com', 'Budi Talent', 'PKL', 'atasan@padepokan.com', false, '$2a$10$7EqJtq98hPqEX7fNZaFWoO5S6mI.2T.w76d1G.4h5n6e7r8t9y0u1', false, true)
+(2, 'budi@padepokan.com', 'Budi Talent', 'PKL', 'atasan@padepokan.com', false, '$2a$10$2YCvQ1fDOiHQQa2ou4sVpO4LZW32jLX6Rt/UVljh6hLH/ayH.4H0q', false, true)
 ON CONFLICT (id) DO UPDATE SET 
     full_name = EXCLUDED.full_name,
     jenis = EXCLUDED.jenis;

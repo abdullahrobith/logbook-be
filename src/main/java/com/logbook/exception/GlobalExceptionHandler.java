@@ -1,6 +1,7 @@
 package com.logbook.exception;
 
 import lombok.extern.slf4j.Slf4j;
+import org.slf4j.MDC;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
@@ -33,6 +34,12 @@ public class GlobalExceptionHandler {
         return "Anonymous";
     }
 
+    // Sama dengan ID yang ditaruh RequestIdFilter di MDC dan di header respons.
+    private String currentRequestId() {
+        String requestId = MDC.get("requestId");
+        return requestId == null ? "" : requestId;
+    }
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<?> handleValidationExceptions(MethodArgumentNotValidException ex, HttpSession session) {
         FieldError fieldError = ex.getBindingResult().getFieldError();
@@ -58,6 +65,7 @@ public class GlobalExceptionHandler {
         body.put("message", errorMessage);
         body.put("fieldErrors", fieldErrors); // Ini buat Frontend
         body.put("timestamp", OffsetDateTime.now().toString());
+        body.put("requestId", currentRequestId());
 
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
     }
@@ -66,12 +74,17 @@ public class GlobalExceptionHandler {
     public ResponseEntity<?> handleApiException(ApiException ex, HttpSession session) {
         String userEmail = getUserEmail(session);
         log.error("[User: {}] Error Bisnis: {} - {}", userEmail, ex.getStatus().value(), ex.getMessage());
-        
+
+        Object code = ex instanceof PasswordChangeRequiredException passwordException
+                ? passwordException.code()
+                : ex.getStatus().value();
+
         return ResponseEntity.status(ex.getStatus()).body(Map.of(
-            "code", ex.getStatus().value(),
+            "code", code,
             "status", ex.getStatus().name(),
             "message", ex.getMessage(),
-            "timestamp", OffsetDateTime.now().toString()
+            "timestamp", OffsetDateTime.now().toString(),
+            "requestId", currentRequestId()
         ));
     }
 
@@ -84,7 +97,8 @@ public class GlobalExceptionHandler {
             "code", 500,
             "status", "INTERNAL_SERVER_ERROR",
             "message", "Terjadi kesalahan pada server. Silakan hubungi admin.",
-            "timestamp", OffsetDateTime.now().toString()
+            "timestamp", OffsetDateTime.now().toString(),
+            "requestId", currentRequestId()
         ));
     }
 
@@ -96,7 +110,8 @@ public class GlobalExceptionHandler {
             "code", 400,
             "status", "BAD_REQUEST",
             "message", "Format request body tidak valid atau tipe data salah.",
-            "timestamp", OffsetDateTime.now().toString()
+            "timestamp", OffsetDateTime.now().toString(),
+            "requestId", currentRequestId()
         ));
     }
 
@@ -108,7 +123,8 @@ public class GlobalExceptionHandler {
             "code", 400,
             "status", "BAD_REQUEST",
             "message", "Data yang dikirim tidak valid.",
-            "timestamp", OffsetDateTime.now().toString()
+            "timestamp", OffsetDateTime.now().toString(),
+            "requestId", currentRequestId()
         ));
     }
 
@@ -120,7 +136,8 @@ public class GlobalExceptionHandler {
             "code", 404,
             "status", "NOT_FOUND",
             "message", "Endpoint API tidak ditemukan. Pastikan URL sudah benar.",
-            "timestamp", OffsetDateTime.now().toString()
+            "timestamp", OffsetDateTime.now().toString(),
+            "requestId", currentRequestId()
         ));
     }
 
@@ -133,7 +150,8 @@ public class GlobalExceptionHandler {
             "code", ex.getStatusCode().value(),
             "status", ex.getStatusCode().toString(),
             "message", ex.getReason() != null ? ex.getReason() : "Terjadi kesalahan pada permintaan.",
-            "timestamp", java.time.OffsetDateTime.now().toString()
+            "timestamp", java.time.OffsetDateTime.now().toString(),
+            "requestId", currentRequestId()
         ));
     }
 }
