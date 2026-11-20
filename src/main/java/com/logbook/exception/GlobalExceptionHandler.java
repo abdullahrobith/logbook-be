@@ -77,7 +77,9 @@ public class GlobalExceptionHandler {
 
         Object code = ex instanceof PasswordChangeRequiredException passwordException
                 ? passwordException.code()
-                : ex.getStatus().value();
+                : ex instanceof CsrfHeaderRequiredException csrfException
+                    ? csrfException.code()
+                    : ex.getStatus().value();
 
         return ResponseEntity.status(ex.getStatus()).body(Map.of(
             "code", code,

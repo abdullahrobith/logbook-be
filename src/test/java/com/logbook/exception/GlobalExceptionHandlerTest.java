@@ -191,4 +191,19 @@ class GlobalExceptionHandlerTest {
         assertEquals(403, body.get("code"));
         assertEquals("Akses dilarang", body.get("message"));
     }
+
+    @Test
+    void testHandleCsrfHeaderRequiredExceptionUsesStableCode() {
+        ResponseEntity<?> response = exceptionHandler.handleApiException(
+                new CsrfHeaderRequiredException(), session);
+
+        assertEquals(HttpStatus.FORBIDDEN, response.getStatusCode());
+        @SuppressWarnings("unchecked")
+        Map<String, Object> body = (Map<String, Object>) response.getBody();
+        assertEquals(CsrfHeaderRequiredException.CODE, body.get("code"));
+        assertEquals("FORBIDDEN", body.get("status"));
+        assertEquals(
+                "Header X-Requested-With wajib disertakan pada permintaan ini",
+                body.get("message"));
+    }
 }
