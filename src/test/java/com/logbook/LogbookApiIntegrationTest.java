@@ -130,6 +130,24 @@ class LogbookApiIntegrationTest {
     }
 
     @Test
+    void admin1CanLoginWithDemoPassword() throws Exception {
+        mockMvc.perform(
+                post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                    "email": "admin1@contoh.id",
+                                    "password": "Logbook@2026"
+                                }
+                                """)
+        )
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.email").value("admin1@contoh.id"))
+        .andExpect(jsonPath("$.admin").value(true))
+        .andExpect(jsonPath("$.roles", hasItem("ADMIN")));
+    }
+
+    @Test
     void getCurrentUserShouldReturnUserData() throws Exception {
         mockMvc.perform(
                 get("/api/auth/me")
