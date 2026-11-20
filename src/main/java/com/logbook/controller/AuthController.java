@@ -1,5 +1,6 @@
 package com.logbook.controller;
 
+import com.logbook.dto.ChangePasswordRequest;
 import com.logbook.dto.LoginRequest;
 import com.logbook.dto.RoleResponse;
 import com.logbook.dto.UserResponse;
@@ -43,6 +44,21 @@ public class AuthController {
     ) {
         log.info("Menerima request POST /api/auth/login");
         return authService.login(request.email(), request.password(), session, httpRequest);
+    }
+
+    @PostMapping("/change-password")
+    public UserResponse changePassword(
+            @Valid @RequestBody ChangePasswordRequest request,
+            HttpSession session,
+            HttpServletRequest httpRequest
+    ) {
+        log.info("Menerima request POST /api/auth/change-password");
+        return authService.changePassword(
+                session,
+                request.currentPassword(),
+                request.newPassword(),
+                httpRequest
+        );
     }
 
     @GetMapping("/me")

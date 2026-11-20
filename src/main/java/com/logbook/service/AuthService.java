@@ -3,6 +3,7 @@ package com.logbook.service;
 import com.logbook.dto.UserResponse;
 import com.logbook.entity.User;
 import com.logbook.exception.ApiException;
+import com.logbook.exception.PasswordChangeRequiredException;
 import com.logbook.repository.UserRepository;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
@@ -17,6 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class AuthService {
 
     public static final String SESSION_USER_ID = "userId";
+    public static final String PASSWORD_CHANGE_REQUIRED = "passwordChangeRequired";
 
     private static final String INVALID_CREDENTIALS = "Email atau kata sandi salah";
 
@@ -42,8 +44,10 @@ public class AuthService {
         verifyPassword(user, password);
 
         httpRequest.changeSessionId();
-        session.setAttribute(SESSION_USER_ID, user.getId());
-        session.setAttribute("email", user.getEmail());
+        HttpSession currentSession = httpRequest.getSession();
+        currentSession.setAttribute(SESSION_USER_ID, user.getId());
+        currentSession.setAttribute("email", user.getEmail());
+        currentSession.setAttribute(PASSWORD_CHANGE_REQUIRED, user.isMustChangePassword());
         log.info("Login berhasil untuk User ID {} ({})", user.getId(), user.getEmail());
 
         return UserResponse.from(user, roleService.rolesOf(user));
@@ -72,6 +76,16 @@ public class AuthService {
     }
 
     public Long requireUserId(HttpSession session) {
+        Long userId = sessionUserId(session);
+        User user = requireActiveUser(userId);
+
+        if (user.isMustChangePassword()) {
+            throw new PasswordChangeRequiredException();
+        }
+        return userId;
+    }
+
+    private Long sessionUserId(HttpSession session) {
         Object value = session.getAttribute(SESSION_USER_ID);
         if (!(value instanceof Long userId)) {
             log.debug("Request tanpa sesi login yang valid");
@@ -83,19 +97,56 @@ public class AuthService {
         return userId;
     }
 
-    @Transactional(readOnly = true)
-    public UserResponse me(HttpSession session) {
-        Long userId = requireUserId(session);
-
-        User user = userRepository
+    private User requireActiveUser(Long userId) {
+        return userRepository
                 .findByIdAndActiveTrue(userId)
                 .orElseThrow(() -> {
                     log.warn("Sesi tidak valid: User ID {} tidak ditemukan atau tidak aktif", userId);
-                    return new ApiException(
-                            HttpStatus.UNAUTHORIZED,
-                            "Sesi tidak valid"
-                    );
+                    return new ApiException(HttpStatus.UNAUTHORIZED, "Sesi tidak valid");
                 });
+    }
+
+    /**
+     * Mengganti kata sandi pengguna yang sedang login. Endpoint ini sengaja
+     * tetap tersedia ketika flag wajib ganti kata sandi masih aktif.
+     */
+    @Transactional
+    public UserResponse changePassword(
+            HttpSession session,
+            String currentPassword,
+            String newPassword,
+            HttpServletRequest httpRequest
+    ) {
+        Long userId = sessionUserId(session);
+        User user = requireActiveUser(userId);
+
+        verifyPassword(user, currentPassword);
+
+        if (newPassword.equals(currentPassword)) {
+            throw new ApiException(
+                    HttpStatus.BAD_REQUEST,
+                    "Kata sandi baru harus berbeda dari kata sandi saat ini"
+            );
+        }
+
+        user.setPasswordHash(passwordEncoder.encode(newPassword));
+        user.setMustChangePassword(false);
+        userRepository.save(user);
+
+        httpRequest.changeSessionId();
+        HttpSession currentSession = httpRequest.getSession();
+        currentSession.setAttribute(SESSION_USER_ID, user.getId());
+        currentSession.setAttribute("email", user.getEmail());
+        currentSession.setAttribute(PASSWORD_CHANGE_REQUIRED, false);
+        log.info("Kata sandi berhasil diganti untuk User ID {}", user.getId());
+
+        return UserResponse.from(user, roleService.rolesOf(user));
+    }
+
+    @Transactional(readOnly = true)
+    public UserResponse me(HttpSession session) {
+        Long userId = sessionUserId(session);
+        User user = requireActiveUser(userId);
 
         return UserResponse.from(user, roleService.rolesOf(user));
     }

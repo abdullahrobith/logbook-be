@@ -2,6 +2,7 @@ package com.logbook.service;
 
 import com.logbook.entity.User;
 import com.logbook.exception.ApiException;
+import com.logbook.exception.PasswordChangeRequiredException;
 import com.logbook.repository.UserRepository;
 import com.logbook.security.Role;
 import org.junit.jupiter.api.BeforeEach;
@@ -114,5 +115,90 @@ class AuthServiceTest {
 
         assertEquals(HttpStatus.UNAUTHORIZED, exception.getStatus());
         assertEquals("Email atau kata sandi salah", exception.getMessage());
+    }
+
+    @Test
+    void loginReturnsMustChangePasswordFlag() {
+        user.setMustChangePassword(true);
+        when(userRepository.findByEmailIgnoreCaseAndActiveTrue("rina.talent@contoh.id"))
+                .thenReturn(Optional.of(user));
+        when(passwordEncoder.matches("secret", user.getPasswordHash())).thenReturn(true);
+        when(roleService.rolesOf(user)).thenReturn(Set.of(Role.TALENT));
+
+        var response = authService.login("rina.talent@contoh.id", "secret", session, httpRequest);
+
+        assertEquals(true, response.mustChangePassword());
+    }
+
+    @Test
+    void changePasswordSavesNewHashAndClearsFlag() {
+        user.setMustChangePassword(true);
+        session.setAttribute(AuthService.SESSION_USER_ID, user.getId());
+        when(userRepository.findByIdAndActiveTrue(user.getId())).thenReturn(Optional.of(user));
+        when(passwordEncoder.matches("oldPassword", user.getPasswordHash())).thenReturn(true);
+        when(passwordEncoder.encode("newPassword")).thenReturn("newHash");
+        when(roleService.rolesOf(user)).thenReturn(Set.of(Role.TALENT));
+
+        var response = authService.changePassword(session, "oldPassword", "newPassword", httpRequest);
+
+        assertEquals("newHash", user.getPasswordHash());
+        assertEquals(false, user.isMustChangePassword());
+        assertEquals(false, response.mustChangePassword());
+        assertEquals(user.getId(), session.getAttribute(AuthService.SESSION_USER_ID));
+        verify(userRepository).save(user);
+    }
+
+    @Test
+    void changePasswordRejectsWrongCurrentPassword() {
+        session.setAttribute(AuthService.SESSION_USER_ID, user.getId());
+        when(userRepository.findByIdAndActiveTrue(user.getId())).thenReturn(Optional.of(user));
+        when(passwordEncoder.matches(anyString(), anyString())).thenReturn(false);
+
+        ApiException exception = assertThrows(
+                ApiException.class,
+                () -> authService.changePassword(session, "salah", "newPassword", httpRequest)
+        );
+
+        assertEquals(HttpStatus.UNAUTHORIZED, exception.getStatus());
+        verify(passwordEncoder, never()).encode(anyString());
+    }
+
+    @Test
+    void changePasswordRejectsSamePassword() {
+        session.setAttribute(AuthService.SESSION_USER_ID, user.getId());
+        when(userRepository.findByIdAndActiveTrue(user.getId())).thenReturn(Optional.of(user));
+        when(passwordEncoder.matches("samePassword", user.getPasswordHash())).thenReturn(true);
+
+        ApiException exception = assertThrows(
+                ApiException.class,
+                () -> authService.changePassword(session, "samePassword", "samePassword", httpRequest)
+        );
+
+        assertEquals(HttpStatus.BAD_REQUEST, exception.getStatus());
+        verify(passwordEncoder, never()).encode(anyString());
+    }
+
+    @Test
+    void requireUserIdRejectsUserWhoMustChangePassword() {
+        user.setMustChangePassword(true);
+        session.setAttribute(AuthService.SESSION_USER_ID, user.getId());
+        when(userRepository.findByIdAndActiveTrue(user.getId())).thenReturn(Optional.of(user));
+
+        assertThrows(
+                PasswordChangeRequiredException.class,
+                () -> authService.requireUserId(session)
+        );
+    }
+
+    @Test
+    void meRemainsAvailableWhilePasswordChangeIsRequired() {
+        user.setMustChangePassword(true);
+        session.setAttribute(AuthService.SESSION_USER_ID, user.getId());
+        when(userRepository.findByIdAndActiveTrue(user.getId())).thenReturn(Optional.of(user));
+        when(roleService.rolesOf(user)).thenReturn(Set.of(Role.TALENT));
+
+        var response = authService.me(session);
+
+        assertEquals(true, response.mustChangePassword());
     }
 }
