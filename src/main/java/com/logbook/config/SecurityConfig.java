@@ -38,6 +38,11 @@ public class SecurityConfig {
             )
             .sessionManagement(session -> session
                 .sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED)
+                // Rotasi sudah dilakukan eksplisit oleh AuthService saat login dan
+                // ganti kata sandi. Rotasi tambahan oleh Spring Security pada
+                // request pertama setelah login membuat request parallel saling
+                // meng-invalidasi cookie sesi dan memicu logout spontan.
+                .sessionFixation(fixation -> fixation.none())
             )
             .addFilterBefore(sessionAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
             .exceptionHandling(ex -> ex

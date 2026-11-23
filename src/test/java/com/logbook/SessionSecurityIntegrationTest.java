@@ -14,11 +14,14 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.util.List;
 import java.util.Locale;
+import java.util.concurrent.CompletableFuture;
+import java.util.stream.IntStream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -91,6 +94,26 @@ class SessionSecurityIntegrationTest {
 
         ApiResponse oldSession = send("/api/auth/me", "GET", null, COOKIE_NAME + "=" + oldId);
         assertEquals(401, oldSession.status(), oldSession.body());
+    }
+
+    @Test
+    void parallelRequestsAfterLoginDoNotInvalidateSessionCookie() {
+        ApiResponse login = login();
+        String sessionCookie = cookiePair(login.setCookie());
+
+        List<CompletableFuture<ApiResponse>> futures = IntStream.range(0, 5)
+                .mapToObj(index -> CompletableFuture.supplyAsync(
+                        () -> send("/api/auth/me", "GET", null, sessionCookie)))
+                .toList();
+
+        CompletableFuture.allOf(futures.toArray(CompletableFuture[]::new)).join();
+
+        for (CompletableFuture<ApiResponse> future : futures) {
+            ApiResponse response = future.join();
+            assertEquals(200, response.status(), response.body());
+            assertNull(response.setCookie(),
+                    "Request setelah login tidak boleh mengganti cookie sesi yang masih berlaku");
+        }
     }
 
     @Test
