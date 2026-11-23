@@ -129,11 +129,31 @@ class AdminControllerTest {
     }
 
     @Test
+    void testAddHolidayWithInvalidDateFormatShouldReturnBadRequest() {
+        Map<String, String> request = Map.of("date", "17-08-2026", "name", "Hari Kemerdekaan");
+
+        ApiException ex = assertThrows(ApiException.class,
+                () -> adminController.addHoliday(request, session));
+
+        assertEquals(HttpStatus.BAD_REQUEST, ex.getStatus());
+        verify(adminService, never()).addHoliday(any(), any());
+    }
+
+    @Test
     void testDeleteHolidaySuccess() {
         ResponseEntity<?> response = adminController.deleteHoliday("2026-08-17", session);
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
         verify(adminService).deleteHoliday(eq(LocalDate.parse("2026-08-17")));
+    }
+
+    @Test
+    void testDeleteHolidayWithInvalidDateFormatShouldReturnBadRequest() {
+        ApiException ex = assertThrows(ApiException.class,
+                () -> adminController.deleteHoliday("bukan-tanggal", session));
+
+        assertEquals(HttpStatus.BAD_REQUEST, ex.getStatus());
+        verify(adminService, never()).deleteHoliday(any());
     }
 
     @Test
@@ -197,10 +217,79 @@ class AdminControllerTest {
     }
 
     @Test
+    void testAddLeaveWithInvalidUserIdShouldReturnBadRequest() {
+        Map<String, String> request = Map.of(
+                "userId", "abc",
+                "fromDate", "2026-11-20",
+                "toDate", "2026-11-22"
+        );
+
+        ApiException ex = assertThrows(ApiException.class,
+                () -> adminController.addLeave(request, session));
+
+        assertEquals(HttpStatus.BAD_REQUEST, ex.getStatus());
+        verify(adminService, never()).addLeave(any(), any(), any(), any());
+    }
+
+    @Test
+    void testAddLeaveWithNonPositiveUserIdShouldReturnBadRequest() {
+        Map<String, String> request = Map.of(
+                "userId", "0",
+                "fromDate", "2026-11-20",
+                "toDate", "2026-11-22"
+        );
+
+        ApiException ex = assertThrows(ApiException.class,
+                () -> adminController.addLeave(request, session));
+
+        assertEquals(HttpStatus.BAD_REQUEST, ex.getStatus());
+        verify(adminService, never()).addLeave(any(), any(), any(), any());
+    }
+
+    @Test
+    void testAddLeaveWithInvalidDateFormatShouldReturnBadRequest() {
+        Map<String, String> request = Map.of(
+                "userId", "10",
+                "fromDate", "2026/11/20",
+                "toDate", "2026-11-22"
+        );
+
+        ApiException ex = assertThrows(ApiException.class,
+                () -> adminController.addLeave(request, session));
+
+        assertEquals(HttpStatus.BAD_REQUEST, ex.getStatus());
+        verify(adminService, never()).addLeave(any(), any(), any(), any());
+    }
+
+    @Test
+    void testAddLeaveWhenToDateBeforeFromDateShouldReturnBadRequest() {
+        Map<String, String> request = Map.of(
+                "userId", "10",
+                "fromDate", "2026-11-25",
+                "toDate", "2026-11-22"
+        );
+
+        ApiException ex = assertThrows(ApiException.class,
+                () -> adminController.addLeave(request, session));
+
+        assertEquals(HttpStatus.BAD_REQUEST, ex.getStatus());
+        verify(adminService, never()).addLeave(any(), any(), any(), any());
+    }
+
+    @Test
     void testDeleteLeaveSuccess() {
         ResponseEntity<?> response = adminController.deleteLeave(5L, session);
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
         verify(adminService).deleteLeave(5L);
+    }
+
+    @Test
+    void testDeleteLeaveWithNonPositiveIdShouldReturnBadRequest() {
+        ApiException ex = assertThrows(ApiException.class,
+                () -> adminController.deleteLeave(0L, session));
+
+        assertEquals(HttpStatus.BAD_REQUEST, ex.getStatus());
+        verify(adminService, never()).deleteLeave(any());
     }
 }

@@ -19,6 +19,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDate;
+import java.time.format.DateTimeParseException;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -41,6 +42,37 @@ public class AdminController {
         this.adminService = adminService;
         this.roleService = roleService;
         this.userRepository = userRepository;
+    }
+
+    private LocalDate parseIsoDate(String rawDate, String fieldName) {
+        if (rawDate == null || rawDate.isBlank()) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, fieldName + " wajib diisi");
+        }
+        try {
+            return LocalDate.parse(rawDate.trim());
+        } catch (DateTimeParseException ex) {
+            log.warn("Format tanggal tidak valid untuk {}: '{}'", fieldName, rawDate);
+            throw new ApiException(
+                    HttpStatus.BAD_REQUEST,
+                    "Format " + fieldName + " tidak valid. Gunakan format YYYY-MM-DD"
+            );
+        }
+    }
+
+    private Long parsePositiveId(String rawId, String fieldName) {
+        if (rawId == null || rawId.isBlank()) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, fieldName + " wajib diisi");
+        }
+        try {
+            long parsed = Long.parseLong(rawId.trim());
+            if (parsed <= 0) {
+                throw new ApiException(HttpStatus.BAD_REQUEST, fieldName + " harus berupa angka positif");
+            }
+            return parsed;
+        } catch (NumberFormatException ex) {
+            log.warn("Format ID tidak valid untuk {}: '{}'", fieldName, rawId);
+            throw new ApiException(HttpStatus.BAD_REQUEST, fieldName + " tidak valid");
+        }
     }
 
     // ==================== 1. API IMPORT CSV ====================
@@ -87,16 +119,17 @@ public class AdminController {
     @PostMapping("/holidays")
     public ResponseEntity<?> addHoliday(@RequestBody Map<String, String> request, HttpSession session) {
         roleService.requireAdmin(session);
-        String date = request.get("date");
+        String dateStr = request.get("date");
         String name = request.get("name");
         log.info("Menerima request POST untuk tambah Libur Nasional: {}", name);
 
-        if (date == null || date.isBlank() || name == null || name.isBlank()) {
+        if (dateStr == null || dateStr.isBlank() || name == null || name.isBlank()) {
             log.warn("Validasi gagal: Tanggal atau Nama libur kosong");
             throw new ApiException(HttpStatus.BAD_REQUEST, "Tanggal dan Nama wajib diisi");
         }
 
-        adminService.addHoliday(LocalDate.parse(date), name);
+        LocalDate date = parseIsoDate(dateStr, "tanggal");
+        adminService.addHoliday(date, name.trim());
         log.info("Berhasil menambahkan Libur Nasional: {}", name);
         return ResponseEntity.ok(Map.of("message", "Libur nasional berhasil disimpan"));
     }
@@ -105,7 +138,8 @@ public class AdminController {
     public ResponseEntity<?> deleteHoliday(@PathVariable String date, HttpSession session) {
         roleService.requireAdmin(session);
         log.info("Menerima request DELETE untuk Libur Nasional tanggal: {}", date);
-        adminService.deleteHoliday(LocalDate.parse(date));
+        LocalDate parsedDate = parseIsoDate(date, "tanggal");
+        adminService.deleteHoliday(parsedDate);
         log.info("Berhasil menghapus Libur Nasional tanggal: {}", date);
         return ResponseEntity.ok(Map.of("message", "Libur nasional berhasil dihapus"));
     }
@@ -122,17 +156,25 @@ public class AdminController {
     public ResponseEntity<?> addLeave(@RequestBody Map<String, String> request, HttpSession session) {
         roleService.requireAdmin(session);
         String userIdStr = request.get("userId");
-        String fromDate = request.get("fromDate");
-        String toDate = request.get("toDate");
+        String fromDateStr = request.get("fromDate");
+        String toDateStr = request.get("toDate");
         log.info("Menerima request POST untuk tambah Cuti User ID: {}", userIdStr);
 
-        if (userIdStr == null || fromDate == null || toDate == null) {
+        if (userIdStr == null || fromDateStr == null || toDateStr == null) {
             log.warn("Validasi gagal: Data cuti tidak lengkap");
             throw new ApiException(HttpStatus.BAD_REQUEST, "Data cuti tidak lengkap");
         }
 
-        adminService.addLeave(Long.parseLong(userIdStr), LocalDate.parse(fromDate), LocalDate.parse(toDate), request.get("note"));
-        log.info("Berhasil menambahkan Cuti untuk User ID: {}", userIdStr);
+        Long userId = parsePositiveId(userIdStr, "userId");
+        LocalDate fromDate = parseIsoDate(fromDateStr, "fromDate");
+        LocalDate toDate = parseIsoDate(toDateStr, "toDate");
+
+        if (toDate.isBefore(fromDate)) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "toDate tidak boleh lebih awal dari fromDate");
+        }
+
+        adminService.addLeave(userId, fromDate, toDate, request.get("note"));
+        log.info("Berhasil menambahkan Cuti untuk User ID: {}", userId);
         return ResponseEntity.ok(Map.of("message", "Cuti berhasil disimpan"));
     }
 
@@ -140,6 +182,9 @@ public class AdminController {
     public ResponseEntity<?> deleteLeave(@PathVariable Long id, HttpSession session) {
         roleService.requireAdmin(session);
         log.info("Menerima request DELETE untuk Cuti ID: {}", id);
+        if (id == null || id <= 0) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "ID cuti harus berupa angka positif");
+        }
         adminService.deleteLeave(id);
         log.info("Berhasil menghapus Cuti ID: {}", id);
         return ResponseEntity.ok(Map.of("message", "Cuti berhasil dihapus"));
