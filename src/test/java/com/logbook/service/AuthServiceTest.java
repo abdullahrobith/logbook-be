@@ -40,6 +40,9 @@ class AuthServiceTest {
     @Mock
     private PasswordEncoder passwordEncoder;
 
+    @Mock
+    private LoginRateLimitService loginRateLimitService;
+
     private AuthService authService;
     private User user;
     private MockHttpSession session;
@@ -47,7 +50,7 @@ class AuthServiceTest {
 
     @BeforeEach
     void setUp() {
-        authService = new AuthService(userRepository, roleService, passwordEncoder);
+        authService = new AuthService(userRepository, roleService, passwordEncoder, loginRateLimitService);
         session = new MockHttpSession();
         httpRequest = new MockHttpServletRequest();
         httpRequest.setSession(session);
