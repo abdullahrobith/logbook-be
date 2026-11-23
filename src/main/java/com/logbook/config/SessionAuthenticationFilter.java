@@ -10,20 +10,18 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.authority.AuthorityUtils;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.web.context.SecurityContextRepository;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 
+/**
+ * Menjembatani sesi aplikasi (atribut {@code userId}) ke SecurityContext
+ * Spring Security. Filter ini bisa dipakai di test slice yang tidak memuat
+ * konfigurasi Security penuh, jadi tidak bergantung pada bean tambahan.
+ */
 @Component
 public class SessionAuthenticationFilter extends OncePerRequestFilter {
-
-    private final SecurityContextRepository securityContextRepository;
-
-    public SessionAuthenticationFilter(SecurityContextRepository securityContextRepository) {
-        this.securityContextRepository = securityContextRepository;
-    }
 
     @Override
     protected void doFilterInternal(
@@ -46,7 +44,6 @@ public class SessionAuthenticationFilter extends OncePerRequestFilter {
                 SecurityContext context = SecurityContextHolder.createEmptyContext();
                 context.setAuthentication(auth);
                 SecurityContextHolder.setContext(context);
-                securityContextRepository.saveContext(context, request, response);
             }
         }
 

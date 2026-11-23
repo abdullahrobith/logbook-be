@@ -314,7 +314,7 @@ class LogbookApiIntegrationTest {
 
     @Test
     void invalidRequestIdHeaderIsReplaced() throws Exception {
-        for (String invalidValue : List.of("x y", "x\ny", "short", "a".repeat(65), "bad@id")) {
+        for (String invalidValue : List.of("x y", "bad.id", "short", "a".repeat(65), "bad@id")) {
             MvcResult result = mockMvc.perform(
                     get("/api/auth/me")
                             .session(session)
@@ -767,7 +767,7 @@ class LogbookApiIntegrationTest {
     @Test
     void getMasterDataShouldReturnData() throws Exception {
         mockMvc.perform(
-                get("/api/tasks/master-data")
+                get("/api/tasks/master-data").session(session)
         )
         .andExpect(status().isOk());
     }
@@ -779,7 +779,7 @@ class LogbookApiIntegrationTest {
     @Test
     void getExamplesShouldReturnData() throws Exception {
         mockMvc.perform(
-                get("/api/examples")
+                get("/api/examples").session(session)
         )
         .andExpect(status().isOk());
     }

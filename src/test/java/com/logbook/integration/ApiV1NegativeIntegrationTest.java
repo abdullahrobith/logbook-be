@@ -41,6 +41,7 @@ class ApiV1NegativeIntegrationTest {
     @BeforeEach
     void setUp() {
         session = new MockHttpSession();
+        session.setAttribute(AuthService.SESSION_USER_ID, 1L);
         when(authService.requireUserId(any())).thenReturn(1L);
     }
 

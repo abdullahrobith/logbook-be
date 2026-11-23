@@ -2,11 +2,13 @@ package com.logbook;
 
 import com.logbook.filter.RequestIdFilter;
 import com.logbook.interceptor.CsrfInterceptor;
+import com.logbook.service.AuthService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
+import org.springframework.mock.web.MockHttpSession;
 import org.springframework.test.web.servlet.MockMvc;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -48,7 +50,11 @@ class CsrfIntegrationTest {
 
     @Test
     void putWithWrongHeaderValueIsRejected() throws Exception {
+        MockHttpSession session = new MockHttpSession();
+        session.setAttribute(AuthService.SESSION_USER_ID, 1L);
+
         mockMvc.perform(put("/api/settings")
+                        .session(session)
                         .header(CsrfInterceptor.HEADER_NAME, "fetch")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{}"))
