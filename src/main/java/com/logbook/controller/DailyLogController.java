@@ -11,6 +11,7 @@ import com.logbook.service.DailyLogService;
 import com.logbook.service.RoleService;
 import com.logbook.service.SubmitCheckService;
 import jakarta.servlet.http.HttpSession;
+import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
@@ -144,7 +145,7 @@ public class DailyLogController {
     @PostMapping("/{dailyLogId}/reject")
     public DailyLogResponse rejectDailyLog(
             @PathVariable Long dailyLogId,
-            @RequestBody(required = false) DecisionRequest request,
+            @Valid @RequestBody(required = false) DecisionRequest request,
             HttpSession session
     ) {
         User actor = roleService.requireCurrentUser(session);
@@ -163,7 +164,7 @@ public class DailyLogController {
     @PostMapping("/{dailyLogId}/revision-request")
     public DailyLogResponse requestRevision(
             @PathVariable Long dailyLogId,
-            @RequestBody(required = false) DecisionRequest request,
+            @Valid @RequestBody(required = false) DecisionRequest request,
             HttpSession session
     ) {
         User actor = roleService.requireCurrentUser(session);
