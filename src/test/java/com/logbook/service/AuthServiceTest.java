@@ -5,6 +5,8 @@ import com.logbook.exception.ApiException;
 import com.logbook.exception.PasswordChangeRequiredException;
 import com.logbook.repository.UserRepository;
 import com.logbook.security.Role;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpSession;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -21,6 +23,7 @@ import java.util.Set;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -200,5 +203,46 @@ class AuthServiceTest {
         var response = authService.me(session);
 
         assertEquals(true, response.mustChangePassword());
+    }
+
+    @Test
+    void loginRotatesSessionIdBeforeWritingAttributes() {
+        HttpServletRequest request = mock(HttpServletRequest.class);
+        when(request.getSession()).thenReturn(session);
+        when(userRepository.findByEmailIgnoreCaseAndActiveTrue("rina.talent@contoh.id"))
+                .thenReturn(Optional.of(user));
+        when(passwordEncoder.matches("secret", user.getPasswordHash())).thenReturn(true);
+        when(roleService.rolesOf(user)).thenReturn(Set.of(Role.TALENT));
+
+        authService.login("rina.talent@contoh.id", "secret", session, request);
+
+        verify(request).changeSessionId();
+        assertEquals(user.getId(), session.getAttribute(AuthService.SESSION_USER_ID));
+    }
+
+    @Test
+    void changePasswordRotatesSessionId() {
+        HttpServletRequest request = mock(HttpServletRequest.class);
+        when(request.getSession()).thenReturn(session);
+        session.setAttribute(AuthService.SESSION_USER_ID, user.getId());
+        when(userRepository.findByIdAndActiveTrue(user.getId())).thenReturn(Optional.of(user));
+        when(passwordEncoder.matches("oldPassword", user.getPasswordHash())).thenReturn(true);
+        when(passwordEncoder.encode("newPassword")).thenReturn("newHash");
+        when(roleService.rolesOf(user)).thenReturn(Set.of(Role.TALENT));
+
+        authService.changePassword(session, "oldPassword", "newPassword", request);
+
+        verify(request).changeSessionId();
+        assertEquals("newHash", user.getPasswordHash());
+    }
+
+    @Test
+    void logoutInvalidatesSession() {
+        HttpSession logoutSession = mock(HttpSession.class);
+        when(logoutSession.getAttribute(AuthService.SESSION_USER_ID)).thenReturn(user.getId());
+
+        authService.logout(logoutSession);
+
+        verify(logoutSession).invalidate();
     }
 }
