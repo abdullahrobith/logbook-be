@@ -25,15 +25,21 @@ public class AuthController {
     private final AuthService authService;
     private final RoleService roleService;
     private final String sessionCookieName;
+    private final boolean sessionCookieSecure;
+    private final String sessionCookieSameSite;
 
     public AuthController(
             AuthService authService,
             RoleService roleService,
-            @Value("${server.servlet.session.cookie.name:LOGBOOK_SESSION}") String sessionCookieName
+            @Value("${server.servlet.session.cookie.name:LOGBOOK_SESSION}") String sessionCookieName,
+            @Value("${server.servlet.session.cookie.secure:false}") boolean sessionCookieSecure,
+            @Value("${server.servlet.session.cookie.same-site:lax}") String sessionCookieSameSite
     ) {
         this.authService = authService;
         this.roleService = roleService;
         this.sessionCookieName = sessionCookieName;
+        this.sessionCookieSecure = sessionCookieSecure;
+        this.sessionCookieSameSite = sessionCookieSameSite;
     }
 
     @PostMapping("/login")
@@ -87,7 +93,8 @@ public class AuthController {
                 .path("/")
                 .maxAge(0)
                 .httpOnly(true)
-                .sameSite("Lax")
+                .secure(sessionCookieSecure)
+                .sameSite(sessionCookieSameSite)
                 .build();
         response.addHeader(HttpHeaders.SET_COOKIE, expiredCookie.toString());
     }
