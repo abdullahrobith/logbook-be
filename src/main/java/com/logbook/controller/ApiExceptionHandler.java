@@ -1,8 +1,11 @@
 package com.logbook.controller;
 
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus; // TAMBAHAN IMPORT
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException; // TAMBAHAN IMPORT
+import org.springframework.security.core.AuthenticationException; 
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
@@ -18,36 +21,36 @@ import java.util.Map;
 @RestControllerAdvice
 public class ApiExceptionHandler {
 
-//     @ExceptionHandler(MethodArgumentNotValidException.class)
-//     public ResponseEntity<ValidationErrorResponse> handleValidation(
-//             MethodArgumentNotValidException exception
-//     ) {
-//         Map<String, String> fieldErrors = new LinkedHashMap<>();
+//    @ExceptionHandler(MethodArgumentNotValidException.class)
+//    public ResponseEntity<ValidationErrorResponse> handleValidation(
+//            MethodArgumentNotValidException exception
+//    ) {
+//        Map<String, String> fieldErrors = new LinkedHashMap<>();
+//
+//        for (FieldError fieldError : exception.getBindingResult().getFieldErrors()) {
+//            fieldErrors.putIfAbsent(fieldError.getField(), fieldError.getDefaultMessage());
+//        }
+//
+//        String message = fieldErrors.values().stream()
+//                .findFirst()
+//                .orElse("Data yang dikirim tidak valid.");
+//
+//        return ResponseEntity.badRequest()
+//                .body(new ValidationErrorResponse(message, fieldErrors));
+//    }
 
-//         for (FieldError fieldError : exception.getBindingResult().getFieldErrors()) {
-//             fieldErrors.putIfAbsent(fieldError.getField(), fieldError.getDefaultMessage());
-//         }
-
-//         String message = fieldErrors.values().stream()
-//                 .findFirst()
-//                 .orElse("Data yang dikirim tidak valid.");
-
-//         return ResponseEntity.badRequest()
-//                 .body(new ValidationErrorResponse(message, fieldErrors));
-//     }
-
-//     @ExceptionHandler(ResponseStatusException.class)
-//     public ResponseEntity<ApiErrorResponse> handleResponseStatus(
-//             ResponseStatusException exception
-//     ) {
-//         HttpStatusCode status = exception.getStatusCode();
-//         String message = exception.getReason() == null
-//                 ? "Permintaan tidak dapat diproses."
-//                 : exception.getReason();
-
-//         return ResponseEntity.status(status)
-//                 .body(new ApiErrorResponse(message));
-//     }
+//    @ExceptionHandler(ResponseStatusException.class)
+//    public ResponseEntity<ApiErrorResponse> handleResponseStatus(
+//            ResponseStatusException exception
+//    ) {
+//        HttpStatusCode status = exception.getStatusCode();
+//        String message = exception.getReason() == null
+//                ? "Permintaan tidak dapat diproses."
+//                : exception.getReason();
+//
+//        return ResponseEntity.status(status)
+//                .body(new ApiErrorResponse(message));
+//    }
 
     @ExceptionHandler(MissingServletRequestParameterException.class)
     public ResponseEntity<ApiErrorResponse> handleMissingParameter(
@@ -70,6 +73,28 @@ public class ApiExceptionHandler {
                         "Nilai parameter " + exception.getName() + " tidak valid"
                 ));
     }
+
+    // =====================================================================
+    // TAMBAHAN UNTUK TASK 1: HANDLE ERROR DARI SPRING SECURITY
+    // =====================================================================
+
+    // Menangkap error jika user belum login (Unauthenticated)
+    @ExceptionHandler(AuthenticationException.class)
+    public ResponseEntity<ApiErrorResponse> handleAuthenticationException(AuthenticationException exception) {
+        log.warn("Akses ditolak: {}", exception.getMessage());
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body(new ApiErrorResponse("Silakan login terlebih dahulu"));
+    }
+
+    // Menangkap error jika user sudah login tapi tidak punya role yang sesuai (Forbidden)
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<ApiErrorResponse> handleAccessDeniedException(AccessDeniedException exception) {
+        log.warn("Akses ditolak (Forbidden): {}", exception.getMessage());
+        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(new ApiErrorResponse("Anda tidak memiliki akses ke resource ini"));
+    }
+
+    // =====================================================================
 
     public record ValidationErrorResponse(
             String message,
