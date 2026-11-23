@@ -1,10 +1,13 @@
 package com.logbook.controller;
 
 import com.logbook.dto.ChangePasswordRequest;
+import com.logbook.dto.ForgotPasswordRequest;
 import com.logbook.dto.LoginRequest;
+import com.logbook.dto.ResetPasswordRequest;
 import com.logbook.dto.RoleResponse;
 import com.logbook.dto.UserResponse;
 import com.logbook.service.AuthService;
+import com.logbook.service.PasswordResetService;
 import com.logbook.service.RoleService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -17,6 +20,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseCookie;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Map;
+
 @Slf4j
 @RestController
 @RequestMapping("/api/auth")
@@ -24,6 +29,7 @@ public class AuthController {
 
     private final AuthService authService;
     private final RoleService roleService;
+    private final PasswordResetService passwordResetService;
     private final String sessionCookieName;
     private final boolean sessionCookieSecure;
     private final String sessionCookieSameSite;
@@ -31,12 +37,14 @@ public class AuthController {
     public AuthController(
             AuthService authService,
             RoleService roleService,
+            PasswordResetService passwordResetService,
             @Value("${server.servlet.session.cookie.name:LOGBOOK_SESSION}") String sessionCookieName,
             @Value("${server.servlet.session.cookie.secure:false}") boolean sessionCookieSecure,
             @Value("${server.servlet.session.cookie.same-site:lax}") String sessionCookieSameSite
     ) {
         this.authService = authService;
         this.roleService = roleService;
+        this.passwordResetService = passwordResetService;
         this.sessionCookieName = sessionCookieName;
         this.sessionCookieSecure = sessionCookieSecure;
         this.sessionCookieSameSite = sessionCookieSameSite;
@@ -50,6 +58,20 @@ public class AuthController {
     ) {
         log.info("Menerima request POST /api/auth/login");
         return authService.login(request.email(), request.password(), session, httpRequest);
+    }
+
+    @PostMapping("/forgot-password")
+    public Map<String, String> forgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
+        log.info("Menerima request POST /api/auth/forgot-password");
+        String message = passwordResetService.requestPasswordReset(request.email());
+        return Map.of("message", message);
+    }
+
+    @PostMapping("/reset-password")
+    public Map<String, String> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
+        log.info("Menerima request POST /api/auth/reset-password");
+        String message = passwordResetService.confirmPasswordReset(request.token(), request.newPassword());
+        return Map.of("message", message);
     }
 
     @PostMapping("/change-password")

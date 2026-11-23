@@ -25,23 +25,41 @@ public class AuthService {
     private final UserRepository userRepository;
     private final RoleService roleService;
     private final PasswordEncoder passwordEncoder;
+    private final LoginRateLimitService loginRateLimitService;
 
-    public AuthService(UserRepository userRepository, RoleService roleService, PasswordEncoder passwordEncoder) {
+    public AuthService(
+            UserRepository userRepository,
+            RoleService roleService,
+            PasswordEncoder passwordEncoder,
+            LoginRateLimitService loginRateLimitService
+    ) {
         this.userRepository = userRepository;
         this.roleService = roleService;
         this.passwordEncoder = passwordEncoder;
+        this.loginRateLimitService = loginRateLimitService;
     }
 
     @Transactional(readOnly = true)
     public UserResponse login(String email, String password, HttpSession session, HttpServletRequest httpRequest) {
+        String normalizedEmail = email == null ? "" : email.trim();
+        loginRateLimitService.checkAllowed(normalizedEmail, httpRequest);
+
         User user = userRepository
-                .findByEmailIgnoreCaseAndActiveTrue(email.trim())
+                .findByEmailIgnoreCaseAndActiveTrue(normalizedEmail)
                 .orElseThrow(() -> {
-                    log.warn("Percobaan login gagal untuk email: {}", email.trim());
+                    loginRateLimitService.recordFailure(normalizedEmail, httpRequest);
+                    log.warn("Percobaan login gagal untuk email: {}", normalizedEmail);
                     return invalidCredentials();
                 });
 
-        verifyPassword(user, password);
+        try {
+            verifyPassword(user, password);
+        } catch (ApiException exception) {
+            loginRateLimitService.recordFailure(normalizedEmail, httpRequest);
+            throw exception;
+        }
+
+        loginRateLimitService.recordSuccess(normalizedEmail, httpRequest);
 
         httpRequest.changeSessionId();
         HttpSession currentSession = httpRequest.getSession();
