@@ -1624,6 +1624,7 @@ class LogbookApiIntegrationTest {
                         .session(supervisorSession)
         )
         .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.field").value("reason"))
         .andExpect(jsonPath("$.message").value("Alasan wajib diisi"));
 
         mockMvc.perform(
@@ -2127,6 +2128,23 @@ class LogbookApiIntegrationTest {
         .andExpect(jsonPath("$.workStart").value("09:00"))
         .andExpect(jsonPath("$.workEnd").value("17:00"))
         .andExpect(jsonPath("$.onboarded").value(false));
+    }
+
+    @Test
+    void putSettingsRejectsWorkStartAfterWorkEnd() throws Exception {
+        mockMvc.perform(
+                put("/api/settings")
+                        .session(session)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                    "workStart": "18:00",
+                                    "workEnd": "09:00"
+                                }
+                                """)
+        )
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.message").value("Jam mulai harus lebih awal dari jam selesai"));
     }
 
     private MockHttpSession loginAs(String email) throws Exception {
