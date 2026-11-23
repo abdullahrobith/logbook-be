@@ -67,6 +67,7 @@ class LogbookApiIntegrationTest {
 
     private MockHttpSession session;
 
+    private static final ZoneId JAKARTA = ZoneId.of("Asia/Jakarta");
     private static final String EMAIL = "rina.talent@contoh.id";
     private static final String PASSWORD = "Logbook@2026";
     private static final String PASSWORD_HASH = "$2a$10$2YCvQ1fDOiHQQa2ou4sVpO4LZW32jLX6Rt/UVljh6hLH/ayH.4H0q";
@@ -491,7 +492,7 @@ class LogbookApiIntegrationTest {
     @Test
     void submitCheckShouldReturnNoHintsForCompleteTasks() throws Exception {
         clearDailyLogsOfUser(1L);
-        OffsetDateTime now = OffsetDateTime.now();
+        OffsetDateTime now = OffsetDateTime.now(JAKARTA);
         DailyLog dailyLog = dailyLogRepository.save(new DailyLog(
                 1L, todayJakarta(), (short) 1, "DRAF", now, now
         ));
@@ -536,7 +537,7 @@ class LogbookApiIntegrationTest {
      */
     private Long createDayWithSuggestableTasks() {
         clearDailyLogsOfUser(1L);
-        OffsetDateTime now = OffsetDateTime.now();
+        OffsetDateTime now = OffsetDateTime.now(JAKARTA);
         DailyLog dailyLog = dailyLogRepository.save(new DailyLog(
                 1L, todayJakarta(), (short) 1, "DRAF", now, now
         ));
@@ -556,7 +557,7 @@ class LogbookApiIntegrationTest {
     }
 
     private LocalDate todayJakarta() {
-        return LocalDate.now(ZoneId.of("Asia/Jakarta"));
+        return LocalDate.now(JAKARTA);
     }
 
     @Test
@@ -663,7 +664,7 @@ class LogbookApiIntegrationTest {
     void getContinueShouldReturnInProgressTasksFromLatestFilledDay() throws Exception {
         LocalDate today = LocalDate.now(ZoneId.of("Asia/Jakarta"));
         LocalDate yesterday = today.minusDays(1);
-        OffsetDateTime now = OffsetDateTime.now();
+        OffsetDateTime now = OffsetDateTime.now(JAKARTA);
 
         // Basis data lokal dipakai bersama tes lain, jadi isi catatan pengguna
         // dibersihkan lebih dulu agar hasilnya pasti. Semua perubahan dibatalkan
@@ -744,7 +745,7 @@ class LogbookApiIntegrationTest {
             int durationMinutes,
             String summary
     ) {
-        OffsetDateTime now = OffsetDateTime.now();
+        OffsetDateTime now = OffsetDateTime.now(JAKARTA);
         return new LogTask(
                 dailyLog,
                 1L,
@@ -943,7 +944,7 @@ class LogbookApiIntegrationTest {
         logTaskRepository.flush();
         tasks.clear();
 
-        OffsetDateTime now = OffsetDateTime.now();
+        OffsetDateTime now = OffsetDateTime.now(JAKARTA);
         for (int index = 1; index <= 3; index++) {
             LogTask task = new LogTask(
                     dailyLog,
@@ -1984,7 +1985,7 @@ class LogbookApiIntegrationTest {
     }
 
     private void clearTodayDailyLog(Long userId) {
-        LocalDate today = LocalDate.now();
+        LocalDate today = todayJakarta();
         jdbcTemplate.update(
                 "DELETE FROM log_tasks WHERE daily_log_id IN "
                         + "(SELECT id FROM daily_logs WHERE user_id = ? AND log_date = ?)",
@@ -1999,7 +2000,7 @@ class LogbookApiIntegrationTest {
     }
 
     private long insertTodayDailyLog(Long userId, String status) {
-        LocalDate today = LocalDate.now();
+        LocalDate today = todayJakarta();
         clearTodayDailyLog(userId);
 
         jdbcTemplate.update(

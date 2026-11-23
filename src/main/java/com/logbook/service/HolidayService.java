@@ -7,6 +7,7 @@ import com.logbook.repository.HolidayRepository;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
+import java.time.Clock;
 import java.time.OffsetDateTime;
 import java.util.List;
 
@@ -14,9 +15,11 @@ import java.util.List;
 public class HolidayService {
 
     private final HolidayRepository holidayRepository;
+    private final Clock clock;
 
-    public HolidayService(HolidayRepository holidayRepository) {
+    public HolidayService(HolidayRepository holidayRepository, Clock clock) {
         this.holidayRepository = holidayRepository;
+        this.clock = clock;
     }
 
     public List<Holiday> getAllHolidays() {
@@ -32,7 +35,7 @@ public class HolidayService {
         Holiday holiday = new Holiday();
         holiday.setHolidayDate(request.getHolidayDate());
         holiday.setName(request.getName());      
-        holiday.setCreatedAt(OffsetDateTime.now());
+        holiday.setCreatedAt(OffsetDateTime.now(clock));
 
         return holidayRepository.save(holiday);
     }

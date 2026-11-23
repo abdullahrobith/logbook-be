@@ -16,6 +16,7 @@ import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.time.ZoneId;
 
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.nullValue;
@@ -42,6 +43,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @Transactional
 class DailyLogDeadlineIntegrationTest {
 
+    private static final ZoneId JAKARTA = ZoneId.of("Asia/Jakarta");
     private static final String PAST_DAILY_LOG_ID = "3";
     private static final String PAST_DAILY_LOG_DATE = "2026-10-29";
     private static final String PAST_TASK_ID = "12";
@@ -183,7 +185,7 @@ class DailyLogDeadlineIntegrationTest {
 
     @Test
     void currentDayShouldRemainEditableAndAllowNewTask() throws Exception {
-        LocalDate today = LocalDate.now();
+        LocalDate today = LocalDate.now(JAKARTA);
         Long dailyLogId = ensureDraftLog(today);
 
         mockMvc.perform(
@@ -206,7 +208,7 @@ class DailyLogDeadlineIntegrationTest {
 
     @Test
     void futureDayShouldBeLockedAndRejectNewTask() throws Exception {
-        LocalDate futureDate = LocalDate.now().plusDays(1);
+        LocalDate futureDate = LocalDate.now(JAKARTA).plusDays(1);
         Long dailyLogId = ensureDraftLog(futureDate);
 
         mockMvc.perform(
@@ -248,7 +250,7 @@ class DailyLogDeadlineIntegrationTest {
 
     @Test
     void rejectedTodayShouldBeEditableAndAllowResubmit() throws Exception {
-        LocalDate today = LocalDate.now();
+        LocalDate today = LocalDate.now(JAKARTA);
         Long dailyLogId = ensureLog(today, "DITOLAK");
 
         jdbcTemplate.update(
@@ -300,7 +302,7 @@ class DailyLogDeadlineIntegrationTest {
 
     @Test
     void rejectedPastDayShouldStayLocked() throws Exception {
-        LocalDate pastDate = LocalDate.now().minusDays(1);
+        LocalDate pastDate = LocalDate.now(JAKARTA).minusDays(1);
         Long dailyLogId = ensureLog(pastDate, "DITOLAK");
 
         jdbcTemplate.update(

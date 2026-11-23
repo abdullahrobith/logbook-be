@@ -6,6 +6,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
+import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Locale;
@@ -21,10 +22,15 @@ public class LoginRateLimitService {
     private static final Duration WINDOW_DURATION = Duration.ofMinutes(15);
 
     private final Map<String, AttemptState> attempts = new ConcurrentHashMap<>();
+    private final Clock clock;
+
+    public LoginRateLimitService(Clock clock) {
+        this.clock = clock;
+    }
 
     public void checkAllowed(String email, HttpServletRequest request) {
         String key = buildKey(email, request);
-        Instant now = Instant.now();
+        Instant now = clock.instant();
 
         AttemptState state = attempts.get(key);
         if (state == null) {
@@ -55,7 +61,7 @@ public class LoginRateLimitService {
 
     public void recordFailure(String email, HttpServletRequest request) {
         String key = buildKey(email, request);
-        Instant now = Instant.now();
+        Instant now = clock.instant();
 
         AttemptState state = attempts.compute(key, (k, existing) -> {
             if (existing == null) {

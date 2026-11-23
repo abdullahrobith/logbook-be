@@ -20,6 +20,7 @@ import org.springframework.web.method.annotation.MethodArgumentTypeMismatchExcep
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
+import java.time.Clock;
 import java.time.OffsetDateTime;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -28,6 +29,12 @@ import java.util.Map;
 @RestControllerAdvice
 @Order(Ordered.LOWEST_PRECEDENCE)
 public class GlobalExceptionHandler {
+
+    private final Clock clock;
+
+    public GlobalExceptionHandler(Clock clock) {
+        this.clock = clock;
+    }
 
     // Fungsi bantuan untuk narik email dari session
     private String getUserEmail(HttpSession session) {
@@ -54,7 +61,7 @@ public class GlobalExceptionHandler {
         body.put("code", code);
         body.put("status", status);
         body.put("message", message);
-        body.put("timestamp", OffsetDateTime.now().toString());
+        body.put("timestamp", OffsetDateTime.now(clock).toString());
         body.put("requestId", currentRequestId());
         return body;
     }

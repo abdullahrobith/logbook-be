@@ -10,7 +10,10 @@ import com.logbook.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.time.Clock;
+import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -21,15 +24,20 @@ import static org.mockito.Mockito.when;
 
 class TeamServiceTest {
 
+    private static final ZoneId JAKARTA = ZoneId.of("Asia/Jakarta");
+    private static final Instant NOW = Instant.parse("2026-11-11T03:00:00Z");
+
     private UserRepository userRepository;
     private DailyLogRepository dailyLogRepository;
+    private Clock clock;
     private TeamService service;
 
     @BeforeEach
     void setUp() {
         userRepository = mock(UserRepository.class);
         dailyLogRepository = mock(DailyLogRepository.class);
-        service = new TeamService(userRepository, dailyLogRepository);
+        clock = Clock.fixed(NOW, JAKARTA);
+        service = new TeamService(userRepository, dailyLogRepository, clock);
     }
 
     @Test
@@ -40,7 +48,7 @@ class TeamServiceTest {
         when(userRepository.findByEmailAtasanIgnoreCaseAndActiveTrueOrderByFullNameAsc(
                 "atasan@contoh.id"
         )).thenReturn(List.of(member));
-        when(dailyLogRepository.findByUserIdInAndLogDate(List.of(1L), LocalDate.now()))
+        when(dailyLogRepository.findByUserIdInAndLogDate(List.of(1L), LocalDate.now(clock)))
                 .thenReturn(List.of());
         when(dailyLogRepository.countByUserIdInAndStatus(List.of(1L), "MENUNGGU"))
                 .thenReturn(List.of());
@@ -65,7 +73,7 @@ class TeamServiceTest {
                 .thenReturn(List.of(first, second));
         when(dailyLogRepository.findByUserIdInAndLogDate(
                 List.of(1L, 2L),
-                LocalDate.now()
+                LocalDate.now(clock)
         )).thenReturn(List.of());
         when(dailyLogRepository.countByUserIdInAndStatus(
                 List.of(1L, 2L),
@@ -91,7 +99,7 @@ class TeamServiceTest {
         when(userRepository.findByEmailAtasanIgnoreCaseAndActiveTrueOrderByFullNameAsc(
                 "atasan@contoh.id"
         )).thenReturn(List.of(member));
-        when(dailyLogRepository.findByUserIdInAndLogDate(List.of(1L), LocalDate.now()))
+        when(dailyLogRepository.findByUserIdInAndLogDate(List.of(1L), LocalDate.now(clock)))
                 .thenReturn(List.of(todayLog));
         when(dailyLogRepository.countByUserIdInAndStatus(List.of(1L), "MENUNGGU"))
                 .thenReturn(List.of(pending));

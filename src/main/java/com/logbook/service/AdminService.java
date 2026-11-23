@@ -23,6 +23,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.security.SecureRandom;
+import java.time.Clock;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
@@ -40,17 +41,20 @@ public class AdminService {
     private final LeaveRepository leaveRepository;
     private final PasswordEncoder passwordEncoder;
     private final SecureRandom secureRandom = new SecureRandom();
+    private final Clock clock;
 
     public AdminService(
             UserRepository userRepository,
             HolidayRepository holidayRepository,
             LeaveRepository leaveRepository,
-            PasswordEncoder passwordEncoder
+            PasswordEncoder passwordEncoder,
+            Clock clock
     ) {
         this.userRepository = userRepository;
         this.holidayRepository = holidayRepository;
         this.leaveRepository = leaveRepository;
         this.passwordEncoder = passwordEncoder;
+        this.clock = clock;
     }
 
     @Transactional
@@ -134,7 +138,7 @@ public class AdminService {
                 newUser.setPasswordHash(passwordEncoder.encode(tempPassword));
                 newUser.setMustChangePassword(true);
                 newUser.setActive(true);
-                newUser.setCreatedAt(OffsetDateTime.now());
+                newUser.setCreatedAt(OffsetDateTime.now(clock));
                 userRepository.save(newUser);
 
                 importedEmails.add(email);
@@ -172,7 +176,7 @@ public class AdminService {
         holiday.setHolidayDate(date);
         holiday.setName(name.trim());
         if (holiday.getCreatedAt() == null) {
-            holiday.setCreatedAt(OffsetDateTime.now());
+            holiday.setCreatedAt(OffsetDateTime.now(clock));
         }
         holidayRepository.save(holiday);
     }
@@ -207,7 +211,7 @@ public class AdminService {
         leave.setStartDate(start);
         leave.setEndDate(end);
         leave.setReason(note);
-        leave.setCreatedAt(OffsetDateTime.now());
+        leave.setCreatedAt(OffsetDateTime.now(clock));
         leaveRepository.save(leave);
     }
 

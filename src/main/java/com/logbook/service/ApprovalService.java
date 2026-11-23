@@ -11,6 +11,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Clock;
 import java.time.OffsetDateTime;
 
 /**
@@ -44,19 +45,22 @@ public class ApprovalService {
     private final RoleService roleService;
     private final DeadlineService deadlineService;
     private final CalendarService calendarService;
+    private final Clock clock;
 
     public ApprovalService(
             DailyLogRepository dailyLogRepository,
             UserRepository userRepository,
             RoleService roleService,
             DeadlineService deadlineService,
-            CalendarService calendarService
+            CalendarService calendarService,
+            Clock clock
     ) {
         this.dailyLogRepository = dailyLogRepository;
         this.userRepository = userRepository;
         this.roleService = roleService;
         this.deadlineService = deadlineService;
         this.calendarService = calendarService;
+        this.clock = clock;
     }
 
     /**
@@ -67,7 +71,7 @@ public class ApprovalService {
         DailyLog dailyLog = requireDecidableLog(actor, dailyLogId);
         requireStatus(dailyLog, STATUS_WAITING, "disetujui");
 
-        dailyLog.approve(actor.getId(), OffsetDateTime.now());
+        dailyLog.approve(actor.getId(), OffsetDateTime.now(clock));
         DailyLog saved = dailyLogRepository.save(dailyLog);
 
         log.info(
@@ -93,7 +97,7 @@ public class ApprovalService {
 
         String normalizedReason = requireReason(reason);
 
-        dailyLog.reject(actor.getId(), normalizedReason, OffsetDateTime.now());
+        dailyLog.reject(actor.getId(), normalizedReason, OffsetDateTime.now(clock));
         DailyLog saved = dailyLogRepository.save(dailyLog);
 
         log.info(
@@ -120,7 +124,7 @@ public class ApprovalService {
 
         String normalizedReason = requireReason(reason);
 
-        dailyLog.requestRevision(normalizedReason, OffsetDateTime.now());
+        dailyLog.requestRevision(normalizedReason, OffsetDateTime.now(clock));
         DailyLog saved = dailyLogRepository.save(dailyLog);
 
         log.info(
@@ -145,7 +149,7 @@ public class ApprovalService {
         DailyLog dailyLog = requireDecidableLog(actor, dailyLogId);
         requireStatus(dailyLog, STATUS_REVISION_REQUESTED, "disetujui perbaikannya");
 
-        dailyLog.approveRevision(actor.getId(), OffsetDateTime.now());
+        dailyLog.approveRevision(actor.getId(), OffsetDateTime.now(clock));
         DailyLog saved = dailyLogRepository.save(dailyLog);
 
         log.info(

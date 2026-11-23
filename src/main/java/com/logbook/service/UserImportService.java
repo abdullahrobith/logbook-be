@@ -7,6 +7,7 @@ import org.springframework.stereotype.Service;
 
 import java.io.BufferedReader;
 import java.security.SecureRandom;
+import java.time.Clock;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.Base64;
@@ -16,10 +17,12 @@ import java.util.List;
 public class UserImportService {
 
     private final PasswordEncoder passwordEncoder;
+    private final Clock clock;
     // private final UserRepository userRepository; // Buka komentar ini jika repository sudah siap
 
-    public UserImportService(PasswordEncoder passwordEncoder) {
+    public UserImportService(PasswordEncoder passwordEncoder, Clock clock) {
         this.passwordEncoder = passwordEncoder;
+        this.clock = clock;
     }
 
     public List<ImportResultResponse> processCsvFile(BufferedReader reader) {
@@ -62,7 +65,7 @@ public class UserImportService {
                 user.setMustChangePassword(true);     // Paksa ganti password
                 user.setActive(true);
                 user.setAdmin(false);
-                user.setCreatedAt(OffsetDateTime.now());
+                user.setCreatedAt(OffsetDateTime.now(clock));
 
                 // 4. Simpan ke Database (Buka komentar jika repo sudah siap)
                 // userRepository.save(user);

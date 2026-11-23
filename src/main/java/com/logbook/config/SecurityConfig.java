@@ -13,6 +13,7 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 import java.io.IOException;
+import java.time.Clock;
 import java.time.OffsetDateTime;
 
 @Configuration
@@ -22,7 +23,8 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(
             HttpSecurity http,
-            SessionAuthenticationFilter sessionAuthenticationFilter
+            SessionAuthenticationFilter sessionAuthenticationFilter,
+            Clock clock
     ) throws Exception {
         http
             .csrf(csrf -> csrf.disable())
@@ -40,9 +42,9 @@ public class SecurityConfig {
             .addFilterBefore(sessionAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
             .exceptionHandling(ex -> ex
                 .authenticationEntryPoint((request, response, authException) ->
-                    writeError(response, HttpStatus.UNAUTHORIZED, "Silakan login terlebih dahulu"))
+                    writeError(response, clock, HttpStatus.UNAUTHORIZED, "Silakan login terlebih dahulu"))
                 .accessDeniedHandler((request, response, accessDeniedException) ->
-                    writeError(response, HttpStatus.FORBIDDEN, "Anda tidak memiliki akses ke resource ini"))
+                    writeError(response, clock, HttpStatus.FORBIDDEN, "Anda tidak memiliki akses ke resource ini"))
             )
             .formLogin(form -> form.disable())
             .httpBasic(basic -> basic.disable());
@@ -56,6 +58,7 @@ public class SecurityConfig {
      */
     private void writeError(
             HttpServletResponse response,
+            Clock clock,
             HttpStatus status,
             String message
     ) throws IOException {
@@ -69,7 +72,7 @@ public class SecurityConfig {
                 status.value(),
                 status.name(),
                 message,
-                OffsetDateTime.now(),
+                OffsetDateTime.now(clock),
                 requestId
         );
 

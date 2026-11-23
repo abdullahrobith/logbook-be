@@ -11,11 +11,15 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.time.Clock;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.OffsetDateTime;
+import java.time.ZoneId;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -30,6 +34,12 @@ class SettingsServiceTest {
 
     @Mock
     private DeadlineService deadlineService;
+
+    @Spy
+    private Clock clock = Clock.fixed(
+            Instant.parse("2026-11-11T03:00:00Z"),
+            ZoneId.of("Asia/Jakarta")
+    );
 
     @InjectMocks
     private SettingsService settingsService;
@@ -48,7 +58,7 @@ class SettingsServiceTest {
     @Test
     void getSettingsReturnsExistingSettings() {
         UserSettings existing = new UserSettings(user, LocalTime.of(9, 0), LocalTime.of(18, 0));
-        existing.setOnboardedAt(OffsetDateTime.now());
+        existing.setOnboardedAt(OffsetDateTime.now(clock));
         when(userSettingsRepository.findById(1L)).thenReturn(Optional.of(existing));
 
         SettingsResponse response = settingsService.getSettings(user);
@@ -109,7 +119,7 @@ class SettingsServiceTest {
     @Test
     void updateSettingsKeepsExistingOnboardedTimestamp() {
         UserSettings existing = new UserSettings(user, LocalTime.of(8, 0), LocalTime.of(17, 0));
-        OffsetDateTime original = OffsetDateTime.now().minusDays(1);
+        OffsetDateTime original = OffsetDateTime.now(clock).minusDays(1);
         existing.setOnboardedAt(original);
         when(userSettingsRepository.findById(1L)).thenReturn(Optional.of(existing));
         when(userSettingsRepository.save(any(UserSettings.class))).thenAnswer(inv -> inv.getArgument(0));
@@ -124,7 +134,7 @@ class SettingsServiceTest {
     @Test
     void updateSettingsClearsOnboardedWhenFalse() {
         UserSettings existing = new UserSettings(user, LocalTime.of(8, 0), LocalTime.of(17, 0));
-        existing.setOnboardedAt(OffsetDateTime.now());
+        existing.setOnboardedAt(OffsetDateTime.now(clock));
         when(userSettingsRepository.findById(1L)).thenReturn(Optional.of(existing));
         when(userSettingsRepository.save(any(UserSettings.class))).thenAnswer(inv -> inv.getArgument(0));
 

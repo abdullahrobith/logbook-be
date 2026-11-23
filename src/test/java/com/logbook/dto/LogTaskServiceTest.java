@@ -53,12 +53,9 @@ class LogTaskServiceTest {
                 dailyLogRepository,
                 logTaskRepository,
                 projectRepository,
-                new DeadlineService(
-                        true,
-                        JAKARTA,
-                        Clock.fixed(NOW, JAKARTA)
-                ),
-                jdbcTemplate
+                new DeadlineService(true, JAKARTA, Clock.fixed(NOW, JAKARTA)),
+                jdbcTemplate,
+                Clock.fixed(NOW, JAKARTA)
         );
 
         dailyLog = mock(DailyLog.class);

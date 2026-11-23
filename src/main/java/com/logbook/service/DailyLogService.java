@@ -11,6 +11,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Clock;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 
@@ -28,26 +29,30 @@ public class DailyLogService {
     private final DeadlineService deadlineService;
     private final CalendarService calendarService;
     private final DayDtoMapper dayDtoMapper;
+    private final Clock clock;
 
     @Autowired
     public DailyLogService(
             DailyLogRepository dailyLogRepository,
             DeadlineService deadlineService,
             CalendarService calendarService,
-            DayDtoMapper dayDtoMapper
+            DayDtoMapper dayDtoMapper,
+            Clock clock
     ) {
         this.dailyLogRepository = dailyLogRepository;
         this.deadlineService = deadlineService;
         this.calendarService = calendarService;
         this.dayDtoMapper = dayDtoMapper;
+        this.clock = clock;
     }
 
     public DailyLogService(
             DailyLogRepository dailyLogRepository,
             DeadlineService deadlineService,
-            CalendarService calendarService
+            CalendarService calendarService,
+            Clock clock
     ) {
-        this(dailyLogRepository, deadlineService, calendarService, null);
+        this(dailyLogRepository, deadlineService, calendarService, null, clock);
     }
 
     @Transactional(readOnly = true)
@@ -93,7 +98,7 @@ public class DailyLogService {
                     log.info("Membuat Daily Log baru berstatus DRAF untuk User ID {} tanggal {}",
                             userId, date);
 
-                    OffsetDateTime now = OffsetDateTime.now();
+                    OffsetDateTime now = OffsetDateTime.now(clock);
                     dailyLogRepository.insertDraftIfAbsent(
                             userId,
                             date,
@@ -180,7 +185,7 @@ public class DailyLogService {
             );
         }
 
-        dailyLog.submit(OffsetDateTime.now());
+        dailyLog.submit(OffsetDateTime.now(clock));
         DailyLog saved = dailyLogRepository.save(dailyLog);
 
         log.info("Berhasil submit Daily Log ID {} tanggal {} milik User ID {}",
@@ -216,7 +221,7 @@ public class DailyLogService {
             );
         }
 
-        dailyLog.withdraw(OffsetDateTime.now());
+        dailyLog.withdraw(OffsetDateTime.now(clock));
         DailyLog saved = dailyLogRepository.save(dailyLog);
 
         log.info("Berhasil withdraw Daily Log ID {} tanggal {} milik User ID {}",
@@ -255,7 +260,7 @@ public class DailyLogService {
     private DailyLog reopenMissedDayEntityIfAllowed(DailyLog dailyLog) {
         if (!deadlineService.isActive()
                 && STATUS_MISSED.equalsIgnoreCase(dailyLog.getStatus())) {
-            dailyLog.reopenAsDraft(OffsetDateTime.now());
+            dailyLog.reopenAsDraft(OffsetDateTime.now(clock));
             DailyLog saved = dailyLogRepository.save(dailyLog);
 
             log.info("Daily Log ID {} tanggal {} dibuka kembali dari TERLEWAT menjadi DRAF "

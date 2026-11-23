@@ -16,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
+import java.time.ZoneId;
 
 import static org.hamcrest.Matchers.hasKey;
 import static org.hamcrest.Matchers.not;
@@ -157,7 +158,7 @@ class SummaryIntegrationTest {
     }
 
     private void insertDay(LocalDate date) {
-        OffsetDateTime now = OffsetDateTime.now();
+        OffsetDateTime now = OffsetDateTime.now(ZoneId.of("Asia/Jakarta"));
         jdbcTemplate.update("""
                         INSERT INTO daily_logs (
                             user_id, log_date, work_schedule_id, status, created_at, updated_at
@@ -184,7 +185,7 @@ class SummaryIntegrationTest {
                 USER_ID,
                 java.sql.Date.valueOf(date)
         );
-        OffsetDateTime now = OffsetDateTime.now();
+        OffsetDateTime now = OffsetDateTime.now(ZoneId.of("Asia/Jakarta"));
         jdbcTemplate.update("""
                         INSERT INTO log_tasks (
                             daily_log_id, project_id, task_type_id, work_status_id,

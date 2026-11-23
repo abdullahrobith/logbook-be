@@ -52,19 +52,17 @@ class ApprovalServiceTest {
         dailyLogRepository = mock(DailyLogRepository.class);
         userRepository = mock(UserRepository.class);
         roleService = mock(RoleService.class);
+        Clock clock = Clock.fixed(
+                Instant.parse("2026-11-11T03:00:00Z"),
+                ZoneId.of("Asia/Jakarta")
+        );
         service = new ApprovalService(
                 dailyLogRepository,
                 userRepository,
                 roleService,
-                new DeadlineService(
-                        true,
-                        ZoneId.of("Asia/Jakarta"),
-                        Clock.fixed(
-                                Instant.parse("2026-11-11T03:00:00Z"),
-                                ZoneId.of("Asia/Jakarta")
-                        )
-                ),
-                mock(CalendarService.class)
+                new DeadlineService(true, ZoneId.of("Asia/Jakarta"), clock),
+                mock(CalendarService.class),
+                clock
         );
 
         actor = user(ACTOR_ID, ACTOR_EMAIL);
@@ -350,7 +348,7 @@ class ApprovalServiceTest {
     }
 
     private DailyLog log(Long id, String status) {
-        OffsetDateTime now = OffsetDateTime.now();
+        OffsetDateTime now = OffsetDateTime.now(ZoneId.of("Asia/Jakarta"));
         DailyLog dailyLog = new DailyLog(OWNER_ID, LOG_DATE, (short) 1, status, now, now);
         ReflectionTestUtils.setField(dailyLog, "id", id);
         return dailyLog;

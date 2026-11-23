@@ -1,5 +1,6 @@
 package com.logbook.controller;
 
+import com.logbook.config.TimeConfig;
 import com.logbook.dto.DayDto;
 import com.logbook.dto.TaskDto;
 import com.logbook.entity.User;
@@ -8,6 +9,7 @@ import com.logbook.service.RoleService;
 import com.logbook.service.TeamService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Import;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.http.HttpStatus;
@@ -27,6 +29,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(TeamController.class)
+@Import(TimeConfig.class)
 @AutoConfigureMockMvc(addFilters = false)
 class TeamControllerTest {
 

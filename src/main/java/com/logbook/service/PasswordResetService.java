@@ -9,6 +9,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Locale;
@@ -25,10 +26,16 @@ public class PasswordResetService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final Map<String, ResetTokenEntry> tokens = new ConcurrentHashMap<>();
+    private final Clock clock;
 
-    public PasswordResetService(UserRepository userRepository, PasswordEncoder passwordEncoder) {
+    public PasswordResetService(
+            UserRepository userRepository,
+            PasswordEncoder passwordEncoder,
+            Clock clock
+    ) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
+        this.clock = clock;
     }
 
     @Transactional(readOnly = true)
@@ -38,7 +45,7 @@ public class PasswordResetService {
 
         userRepository.findByEmailIgnoreCaseAndActiveTrue(normalizedEmail).ifPresent(user -> {
             String token = UUID.randomUUID().toString();
-            Instant expiresAt = Instant.now().plus(TOKEN_TTL);
+            Instant expiresAt = clock.instant().plus(TOKEN_TTL);
             tokens.put(token, new ResetTokenEntry(user.getId(), expiresAt, false));
             log.info("Token reset kata sandi dibuat untuk User ID {} ({}): {} (berlaku {} menit)",
                     user.getId(), user.getEmail(), token, TOKEN_TTL.toMinutes());
@@ -57,7 +64,7 @@ public class PasswordResetService {
         }
 
         synchronized (entry) {
-            if (entry.used || Instant.now().isAfter(entry.expiresAt)) {
+            if (entry.used || clock.instant().isAfter(entry.expiresAt)) {
                 tokens.remove(token);
                 throw new ApiException(HttpStatus.BAD_REQUEST, "Token reset kata sandi tidak valid atau sudah kedaluwarsa.");
             }
@@ -78,7 +85,7 @@ public class PasswordResetService {
     }
 
     private void purgeExpiredTokens() {
-        Instant now = Instant.now();
+        Instant now = clock.instant();
         tokens.entrySet().removeIf(e -> e.getValue().used || now.isAfter(e.getValue().expiresAt));
     }
 

@@ -7,6 +7,7 @@ import com.logbook.repository.LeaveRepository;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
+import java.time.Clock;
 import java.time.OffsetDateTime;
 import java.util.List;
 
@@ -14,9 +15,11 @@ import java.util.List;
 public class LeaveService {
 
     private final LeaveRepository leaveRepository;
+    private final Clock clock;
 
-    public LeaveService(LeaveRepository leaveRepository) {
+    public LeaveService(LeaveRepository leaveRepository, Clock clock) {
         this.leaveRepository = leaveRepository;
+        this.clock = clock;
     }
 
     public void submitLeave(Long userId, LeaveRequest request) {
@@ -39,7 +42,7 @@ public class LeaveService {
         leave.setStartDate(request.getFromDate());  
         leave.setEndDate(request.getToDate());      
         
-        leave.setCreatedAt(OffsetDateTime.now());
+        leave.setCreatedAt(OffsetDateTime.now(clock));
 
         leaveRepository.save(leave);
     }
