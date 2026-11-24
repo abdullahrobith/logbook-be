@@ -253,9 +253,6 @@ public class DailyLogService {
      * Saat aturan batas hari dimatikan, hari TERLEWAT boleh diisi kembali dan
      * berubah menjadi DRAF (OCD 5.3.6).
      */
-    private DailyLogResponse reopenMissedDayIfAllowed(DailyLog dailyLog) {
-        return toResponse(reopenMissedDayEntityIfAllowed(dailyLog));
-    }
 
     private DailyLog reopenMissedDayEntityIfAllowed(DailyLog dailyLog) {
         if (!deadlineService.isActive()
