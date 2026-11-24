@@ -9,6 +9,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Clock;
 import java.time.LocalTime;
 import java.time.OffsetDateTime;
 
@@ -21,13 +22,16 @@ public class SettingsService {
 
     private final UserSettingsRepository userSettingsRepository;
     private final DeadlineService deadlineService;
+    private final Clock clock;
 
     public SettingsService(
             UserSettingsRepository userSettingsRepository,
-            DeadlineService deadlineService
+            DeadlineService deadlineService,
+            Clock clock
     ) {
         this.userSettingsRepository = userSettingsRepository;
         this.deadlineService = deadlineService;
+        this.clock = clock;
     }
 
     @Transactional
@@ -50,7 +54,7 @@ public class SettingsService {
             if (request.onboarded() != null) {
                 if (request.onboarded()) {
                     if (settings.getOnboardedAt() == null) {
-                        settings.setOnboardedAt(OffsetDateTime.now());
+                        settings.setOnboardedAt(OffsetDateTime.now(clock));
                     }
                 } else {
                     settings.setOnboardedAt(null);

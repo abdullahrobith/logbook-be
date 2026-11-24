@@ -155,8 +155,11 @@ Pengujian dilakukan untuk memastikan logika pembuatan dan pengiriman Daily Log.
 | 14 | Pembuatan Daily Log ditolak pada tanggal yang belum tiba | Lulus |
 | 15 | Pengiriman Daily Log ditolak pada tanggal yang belum tiba | Lulus |
 | 16 | Penarikan Daily Log ditolak pada tanggal yang belum tiba | Lulus |
+| 17 | Daily Log hari TERLEWAT tetap terkunci (`editable=false`) saat aturan batas hari aktif | Lulus |
+| 18 | Daily Log hari TERLEWAT dilaporkan dapat disunting saat aturan batas hari dimatikan | Lulus |
+| 19 | Daily Log hari TERLEWAT dibuka kembali sebagai DRAF saat aturan batas hari dimatikan | Lulus |
 
-Total: **16 test, seluruhnya lulus.**
+Total: **19 test, seluruhnya lulus.**
 
 ### 4.5 RoleServiceTest
 
@@ -305,8 +308,14 @@ Pengujian dilakukan menggunakan JUnit 5, Mockito, dan `ListAppender` Logback unt
 | 4 | Menangani `HandlerMethodValidationException` dengan status 400 dan log `WARN` | Lulus |
 | 5 | Menangani `MethodArgumentNotValidException` dengan detail `FieldError` serta mencatat log `WARN` | Lulus |
 | 6 | Menangani `MethodArgumentNotValidException` tanpa `FieldError` (`null` fallback ke `unknown`) serta mencatat log `WARN` | Lulus |
+| 7 | Menangani `ResponseStatusException` dengan status dan pesan dari exception | Lulus |
+| 8 | Menangani `ConstraintViolationException` beserta pemetaan field error | Lulus |
+| 9 | Menangani `CsrfHeaderRequiredException` dengan kode galat yang stabil | Lulus |
+| 10 | Menangani resource tidak ditemukan (`NoResourceFoundException`) dengan status 404 | Lulus |
+| 11 | Menangani parameter wajib yang tidak disertakan (`MissingServletRequestParameterException`) | Lulus |
+| 12 | Menangani ketidakcocokan tipe parameter (`MethodArgumentTypeMismatchException`) | Lulus |
 
-Total: **6 test, seluruhnya lulus.**
+Total: **12 test, seluruhnya lulus.**
 
 ### 4.13 ApiExceptionHandlerTest
 
@@ -314,14 +323,10 @@ Pengujian dilakukan untuk memastikan seluruh cabang penanganan galat pada `ApiEx
 
 | No. | Skenario Pengujian | Hasil |
 |---|---|---|
-| 1 | Menangani validasi field dan mengembalikan pesan field pertama beserta peta `fieldErrors` | Lulus |
-| 2 | Menangani validasi tanpa daftar `FieldError` dengan pesan default | Lulus |
-| 3 | Menangani `ResponseStatusException` yang memiliki `reason` | Lulus |
-| 4 | Menangani `ResponseStatusException` tanpa `reason` (`null`) dengan pesan default | Lulus |
-| 5 | Menangani parameter request yang wajib diisi (`MissingServletRequestParameterException`) | Lulus |
-| 6 | Menangani ketidakcocokan tipe parameter (`MethodArgumentTypeMismatchException`) | Lulus |
+| 1 | Menangani parameter request yang wajib diisi (`MissingServletRequestParameterException`) | Lulus |
+| 2 | Menangani ketidakcocokan tipe parameter (`MethodArgumentTypeMismatchException`) | Lulus |
 
-Total: **6 test, seluruhnya lulus.**
+Total: **2 test, seluruhnya lulus.** Cabang penanganan galat lainnya (validasi, `ApiException`, `ResponseStatusException`, CSRF, dan 404) diuji melalui `GlobalExceptionHandlerTest`.
 
 ### 4.14 LoggingTest
 
@@ -333,8 +338,10 @@ Pengujian dilakukan untuk memverifikasi konfigurasi `logback-spring.xml`, injeks
 | 2 | Memastikan `RequestIdFilter` mengisi MDC `requestId` (8 karakter), meneruskannya ke event log, dan membersihkannya setelah request selesai | Lulus |
 | 3 | Memastikan `RequestIdFilter` tetap membersihkan MDC `requestId` pada blok `finally` ketika `FilterChain` melempar exception | Lulus |
 | 4 | Memastikan `AdminController` menghasilkan keluaran log `INFO` dan `WARN` sesuai alur eksekusi | Lulus |
+| 5 | Memastikan `RequestIdFilter` memakai ulang `requestId` header klien yang valid dan mengembalikannya pada respons | Lulus |
+| 6 | Memastikan `RequestIdFilter` mengganti `requestId` header klien yang tidak valid dengan ID baru | Lulus |
 
-Total: **4 test, seluruhnya lulus.**
+Total: **6 test, seluruhnya lulus.**
 
 ### 4.15 AdminControllerTest
 
@@ -358,8 +365,11 @@ Pengujian dilakukan untuk memastikan fitur khusus Admin (otorisasi akses admin, 
 | 14 | Penambahan cuti ditolak (400 Bad Request) jika tanggal mulai (`fromDate`) melebihi tanggal selesai (`toDate`) | Lulus |
 | 15 | Admin berhasil menghapus data cuti yang terdaftar (`DELETE /api/admin/leaves/{id}`) | Lulus |
 | 16 | Penghapusan cuti mengembalikan 404 Not Found jika ID cuti tidak ditemukan | Lulus |
+| 17 | `GET /api/admin/users` mengembalikan daftar pengguna tanpa `passwordHash` | Lulus |
+| 18 | Penambahan hari libur dengan format tanggal tidak valid ditolak (400 Bad Request) | Lulus |
+| 19 | Penambahan cuti dengan format tanggal tidak valid ditolak (400 Bad Request) | Lulus |
 
-Total: **16 test, seluruhnya lulus.**
+Total: **19 test, seluruhnya lulus.**
 
 ### 4.16 TaskDurationUtilTest
 
@@ -397,6 +407,132 @@ Pengujian dilakukan untuk memastikan endpoint rekap memakai identitas pengguna d
 | 2 | `GET /api/summary` menolak pengguna tidak terautentikasi (401) | Lulus |
 
 Total: **2 test, seluruhnya lulus.**
+
+### 4.19 RequestDtoValidationTest
+
+Pengujian validasi bean pada `DecisionRequest` dan `SettingsRequest`, termasuk aturan alasan wajib, batas 1000 karakter, dan dukungan pembaruan parsial jam kerja.
+
+| No. | Skenario Pengujian | Hasil |
+|---|---|---|
+| 1 | `DecisionRequest` menerima alasan tidak kosong dalam batas panjang | Lulus |
+| 2 | `DecisionRequest` menolak alasan lebih dari 1000 karakter | Lulus |
+| 3 | `DecisionRequest` menolak alasan kosong | Lulus |
+| 4 | `SettingsRequest` menerima jam kerja yang valid | Lulus |
+| 5 | `SettingsRequest` menerima pembaruan parsial dengan field null | Lulus |
+| 6 | `SettingsRequest` menolak `workStart` yang tidak lebih awal dari `workEnd` | Lulus |
+
+Total: **6 test, seluruhnya lulus.**
+
+### 4.20 AuthServiceTest
+
+Pengujian alur autentikasi, rotasi session ID, logout, dan kewajiban mengganti kata sandi sementara.
+
+| No. | Skenario Pengujian | Hasil |
+|---|---|---|
+| 1 | Login dengan kata sandi benar membuat session | Lulus |
+| 2 | Login merotasi session ID sebelum menulis atribut session | Lulus |
+| 3 | Login dengan kata sandi salah menghasilkan galat 401 generik | Lulus |
+| 4 | Login dengan email tidak ditemukan menghasilkan galat 401 | Lulus |
+| 5 | Login tanpa password hash menghasilkan galat 401 | Lulus |
+| 6 | Login mengembalikan flag `mustChangePassword` | Lulus |
+| 7 | `me` tetap tersedia saat pengguna wajib mengganti kata sandi | Lulus |
+| 8 | `requireUserId` menolak pengguna yang belum mengganti kata sandi | Lulus |
+| 9 | Logout menginvalidasi session | Lulus |
+| 10 | Ganti kata sandi menyimpan hash baru dan menghapus flag | Lulus |
+| 11 | Ganti kata sandi menolak kata sandi saat ini yang salah | Lulus |
+| 12 | Ganti kata sandi menolak kata sandi baru yang sama | Lulus |
+| 13 | Ganti kata sandi merotasi session ID | Lulus |
+
+Total: **13 test, seluruhnya lulus.**
+
+### 4.21 AdminServiceTest
+
+| No. | Skenario Pengujian | Hasil |
+|---|---|---|
+| 1 | Daftar cuti menyertakan nama lengkap talent | Lulus |
+| 2 | Daftar cuti tetap ditampilkan ketika data pengguna tidak ditemukan | Lulus |
+
+Total: **2 test, seluruhnya lulus.**
+
+### 4.22 CalendarServiceTest
+
+Pengujian penentuan hari kerja dengan mempertimbangkan akhir pekan, libur nasional, dan cuti per pengguna.
+
+| No. | Skenario Pengujian | Hasil |
+|---|---|---|
+| 1 | Hari kerja biasa dianggap hari kerja | Lulus |
+| 2 | Akhir pekan bukan hari kerja | Lulus |
+| 3 | Libur nasional bukan hari kerja | Lulus |
+| 4 | Cuti bukan hari kerja hanya untuk pengguna bersangkutan | Lulus |
+| 5 | Pemeriksaan libur hanya memakai tanggal yang tepat | Lulus |
+| 6 | `isWorkingDay` mengikuti aturan libur nasional | Lulus |
+| 7 | Deskripsi rentang menggabungkan libur, cuti, dan akhir pekan | Lulus |
+| 8 | Deskripsi rentang kosong untuk rentang tidak valid | Lulus |
+| 9 | Deskripsi rentang dibatasi pada rentang maksimum | Lulus |
+
+Total: **9 test, seluruhnya lulus.**
+
+### 4.23 ContinueServiceTest
+
+| No. | Skenario Pengujian | Hasil |
+|---|---|---|
+| 1 | Mengembalikan daftar kosong bila tidak ada hari sebelumnya berisi | Lulus |
+| 2 | Mengambil task in-progress dari hari terakhir sebelum hari ini | Lulus |
+| 3 | Task tanpa informasi proyek tetap disertakan | Lulus |
+| 4 | Mengembalikan daftar kosong bila status yang dilanjutkan tidak tersedia | Lulus |
+
+Total: **4 test, seluruhnya lulus.**
+
+### 4.24 DailyLogAutomationServiceTest
+
+Pengujian otomatisasi Daily Log saat jadwal dan aturan deadline diaktifkan.
+
+| No. | Skenario Pengujian | Hasil |
+|---|---|---|
+| 1 | Jadwal nonaktif tidak melakukan apa pun | Lulus |
+| 2 | Aturan deadline nonaktif tidak melakukan apa pun | Lulus |
+| 3 | Cap waktu memakai waktu server (Asia/Jakarta) | Lulus |
+| 4 | Draf kosong pada hari kerja lalu ditandai TERLEWAT | Lulus |
+| 5 | Draf kosong pada akhir pekan dihapus | Lulus |
+| 6 | Draf lampau yang memiliki task dikirim otomatis | Lulus |
+| 7 | Draf lampau yang belum melewati deadline diabaikan | Lulus |
+| 8 | Hanya hari kerja tanpa Daily Log yang dibuatkan log TERLEWAT | Lulus |
+| 9 | Akhir pekan, libur, cuti, log yang sudah ada, dan admin dilewati | Lulus |
+| 10 | Pengguna yang bergabung hari ini tidak mendapat hari lampau | Lulus |
+
+Total: **10 test, seluruhnya lulus.**
+
+### 4.25 SubmitCheckServiceTest
+
+Pengujian saran sebelum pengiriman Daily Log tanpa mengubah status log.
+
+| No. | Skenario Pengujian | Hasil |
+|---|---|---|
+| 1 | Ringkasan singkat memicu hint | Lulus |
+| 2 | Task lama memicu hint | Lulus |
+| 3 | Satu task dapat memicu dua hint sekaligus | Lulus |
+| 4 | Ambang batas nol menonaktifkan hint terkait | Lulus |
+| 5 | Ambang batas dibaca dari konfigurasi | Lulus |
+| 6 | Task lengkap tidak menghasilkan hint | Lulus |
+| 7 | Pemeriksaan tidak menyimpan perubahan Daily Log | Lulus |
+| 8 | Pemeriksaan berdasarkan tanggal menghasilkan hint untuk hari tersebut | Lulus |
+| 9 | Daily Log tidak ditemukan menghasilkan galat 404 | Lulus |
+
+Total: **9 test, seluruhnya lulus.**
+
+### 4.26 TeamControllerTest
+
+| No. | Skenario Pengujian | Hasil |
+|---|---|---|
+| 1 | Talent ditolak (403) saat mengakses daftar tim | Lulus |
+| 2 | Atasan mendapatkan respons 200 untuk daftar tim | Lulus |
+| 3 | Seluruh path baca anggota mengembalikan struktur `DayDto` | Lulus |
+
+Total: **3 test, seluruhnya lulus.**
+
+### 4.27 LogbookBeApplicationTests
+
+Memastikan konteks aplikasi Spring Boot dapat dimuat. Total: **1 test, lulus.**
 
 ## 5. Integration Testing
 
@@ -484,8 +620,26 @@ Pengujian menggunakan database `logbook_test` yang terpisah dari database aplika
 | 74 | `PUT /api/settings` memperbarui jam kerja dan status onboarding | Lulus |
 | 75 | `PUT /api/settings` mendukung pembaruan parsial dan pengosongan onboarding | Lulus |
 | 76 | Endpoint baca anggota (`/api/days`, `/api/daily-logs/users`, `/api/team/.../days`, `/api/team/.../daily-logs`) mengembalikan `DayDto` yang identik | Lulus |
+| 77 | Login dengan kata sandi salah mengembalikan pesan 401 generik | Lulus |
+| 78 | Login tanpa kata sandi menghasilkan 400 | Lulus |
+| 79 | Pengguna dengan `must_change_password` diblokir hingga kata sandi diganti | Lulus |
+| 80 | Ganti kata sandi menolak kata sandi saat ini yang salah dan kata sandi baru yang terlalu pendek | Lulus |
+| 81 | Admin demo dapat login dengan kata sandi bawaan | Lulus |
+| 82 | Header `X-Request-Id` yang valid dicerminkan kembali pada respons | Lulus |
+| 83 | Header `X-Request-Id` yang tidak valid diganti dengan ID baru | Lulus |
+| 84 | Tanpa header `X-Request-Id`, server menghasilkan ID baru | Lulus |
+| 85 | Respons galat menyertakan request ID yang sama dengan header | Lulus |
+| 86 | `GET /api/continue` mengembalikan task in-progress dari hari terakhir yang terisi | Lulus |
+| 87 | `GET /api/continue` mengembalikan daftar kosong bila tidak ada hari sebelumnya berisi | Lulus |
+| 88 | `GET /api/continue` tanpa login menghasilkan 401 | Lulus |
+| 89 | Submit check memberikan hint tanpa mengubah status Daily Log | Lulus |
+| 90 | Submit check tidak memberikan hint untuk task yang lengkap | Lulus |
+| 91 | Submit check untuk tanggal yang tidak ditemukan menghasilkan 404 | Lulus |
+| 92 | Submit check tidak menghalangi pengiriman Daily Log | Lulus |
+| 93 | Submit check tanpa login menghasilkan 401 | Lulus |
+| 94 | `PUT /api/settings` menolak `workStart` yang tidak lebih awal dari `workEnd` | Lulus |
 
-Total: seluruh skenario pada `LogbookApiIntegrationTest` (**84 test**) lulus, termasuk 4 skenario integration test pengaturan pengguna dan kesetaraan kontrak `DayDto`.
+Total: seluruh skenario pada `LogbookApiIntegrationTest` (**94 test**) lulus, termasuk pengaturan pengguna, kesetaraan kontrak `DayDto`, rotasi session, validasi DTO, request ID, `continue`, dan submit check.
 
 ### 5.2 DailyLogDeadlineIntegrationTest
 
@@ -521,6 +675,49 @@ Pengujian ini memverifikasi `GET /api/summary` terhadap database lokal PostgreSQ
 | 4 | Rekap tanpa login menghasilkan 401 | Lulus |
 
 Total: **4 test, seluruhnya lulus.**
+
+### 5.4 CsrfIntegrationTest
+
+| No. | Skenario Pengujian | Hasil |
+|---|---|---|
+| 1 | Request `GET` tanpa header CSRF diizinkan | Lulus |
+| 2 | Request `POST` tanpa header CSRF ditolak dengan kode galat stabil | Lulus |
+| 3 | Request `POST` dengan header `X-Requested-With: XMLHttpRequest` diterima | Lulus |
+| 4 | Request `PUT` dengan nilai header CSRF salah ditolak | Lulus |
+| 5 | Preflight `OPTIONS` tanpa header CSRF diizinkan | Lulus |
+| 6 | Nilai header CSRF tidak peka huruf besar/kecil | Lulus |
+
+Total: **6 test, seluruhnya lulus.**
+
+### 5.5 SessionSecurityIntegrationTest
+
+| No. | Skenario Pengujian | Hasil |
+|---|---|---|
+| 1 | Login merotasi session ID dan ID lama tidak lagi berlaku | Lulus |
+| 2 | Permintaan paralel setelah login tidak menginvalidasi cookie session | Lulus |
+| 3 | Ganti kata sandi merotasi session ID | Lulus |
+| 4 | Logout mengakhiri cookie dan menginvalidasi session | Lulus |
+| 5 | Cookie session memakai atribut keamanan yang diperkuat | Lulus |
+
+Total: **5 test, seluruhnya lulus.**
+
+### 5.6 ProductionSessionCookieTest
+
+| No. | Skenario Pengujian | Hasil |
+|---|---|---|
+| 1 | Cookie session memiliki atribut `Secure` ketika profil `prod` aktif | Lulus |
+
+Total: **1 test, lulus.**
+
+### 5.7 ApiV1NegativeIntegrationTest
+
+| No. | Skenario Pengujian | Hasil |
+|---|---|---|
+| 1 | Endpoint admin tanpa session ditolak dengan 401 | Lulus |
+| 2 | Pengajuan cuti dengan rentang tanggal tidak valid ditolak dengan 400 | Lulus |
+| 3 | JSON yang rusak ditolak dengan 400 | Lulus |
+
+Total: **3 test, seluruhnya lulus.**
 
 ## 6. Rancangan Test Case Role Atasan & Admin
 
@@ -585,38 +782,53 @@ Berdasarkan hasil eksekusi pengujian otomatis backend Logbook, diperoleh hasil r
 
 | Komponen Pengujian | Jumlah Test | Failures | Errors | Status |
 |---|---:|---:|---:|---|
+| AdminControllerTest | 19 | 0 | 0 | Lulus |
+| ApiExceptionHandlerTest | 2 | 0 | 0 | Lulus |
+| SettingsControllerTest | 4 | 0 | 0 | Lulus |
+| SummaryControllerTest | 2 | 0 | 0 | Lulus |
+| TeamControllerTest | 3 | 0 | 0 | Lulus |
+| CsrfIntegrationTest | 6 | 0 | 0 | Lulus |
+| DailyLogDeadlineIntegrationTest | 13 | 0 | 0 | Lulus |
 | DailyLogResponseTest | 8 | 0 | 0 | Lulus |
 | LogTaskRequestTest | 10 | 0 | 0 | Lulus |
-| LogTaskServiceTest | 22 | 0 | 0 | Lulus |
-| DailyLogServiceTest | 16 | 0 | 0 | Lulus |
-| DeadlineServiceTest | 18 | 0 | 0 | Lulus |
-| RoleServiceTest | 17 | 0 | 0 | Lulus |
-| TeamServiceTest | 4 | 0 | 0 | Lulus |
-| AdminDailyLogServiceTest | 6 | 0 | 0 | Lulus |
-| ApprovalServiceTest | 15 | 0 | 0 | Lulus |
-| GlobalExceptionHandlerTest | 8 | 0 | 0 | Lulus |
-| ApiExceptionHandlerTest | 2 | 0 | 0 | Lulus |
-| LoggingTest | 4 | 0 | 0 | Lulus |
-| AdminControllerTest | 16 | 0 | 0 | Lulus |
-| TeamControllerTest | 3 | 0 | 0 | Lulus |
-| TaskDurationUtilTest | 3 | 0 | 0 | Lulus |
-| SummaryServiceTest | 5 | 0 | 0 | Lulus |
-| SummaryControllerTest | 2 | 0 | 0 | Lulus |
-| DailyLogDeadlineIntegrationTest | 13 | 0 | 0 | Lulus |
-| SummaryIntegrationTest | 4 | 0 | 0 | Lulus |
-| LogbookApiIntegrationTest | 84 | 0 | 0 | Lulus |
+| RequestDtoValidationTest | 6 | 0 | 0 | Lulus |
+| GlobalExceptionHandlerTest | 12 | 0 | 0 | Lulus |
+| ApiV1NegativeIntegrationTest | 3 | 0 | 0 | Lulus |
+| LogbookApiIntegrationTest | 94 | 0 | 0 | Lulus |
 | LogbookBeApplicationTests | 1 | 0 | 0 | Lulus |
-| **Total** | **303** | **0** | **0** | **Lulus** |
+| LoggingTest | 6 | 0 | 0 | Lulus |
+| ProductionSessionCookieTest | 1 | 0 | 0 | Lulus |
+| AdminDailyLogServiceTest | 6 | 0 | 0 | Lulus |
+| AdminServiceTest | 2 | 0 | 0 | Lulus |
+| ApprovalServiceTest | 15 | 0 | 0 | Lulus |
+| AuthServiceTest | 13 | 0 | 0 | Lulus |
+| CalendarServiceTest | 9 | 0 | 0 | Lulus |
+| ContinueServiceTest | 4 | 0 | 0 | Lulus |
+| DailyLogAutomationServiceTest | 10 | 0 | 0 | Lulus |
+| DailyLogServiceTest | 19 | 0 | 0 | Lulus |
+| DeadlineServiceTest | 18 | 0 | 0 | Lulus |
+| LogTaskServiceTest | 22 | 0 | 0 | Lulus |
+| RoleServiceTest | 17 | 0 | 0 | Lulus |
+| SettingsServiceTest | 7 | 0 | 0 | Lulus |
+| SubmitCheckServiceTest | 9 | 0 | 0 | Lulus |
+| SummaryServiceTest | 5 | 0 | 0 | Lulus |
+| TaskDurationUtilTest | 3 | 0 | 0 | Lulus |
+| TeamServiceTest | 4 | 0 | 0 | Lulus |
+| SessionSecurityIntegrationTest | 5 | 0 | 0 | Lulus |
+| SummaryIntegrationTest | 4 | 0 | 0 | Lulus |
+| **Total** | **362** | **0** | **0** | **Lulus** |
 
 Catatan: test memakai database `logbook_test` yang diisi dari fixture `logbook.sql` beserta migrasi Flyway. Isolasi ini mencegah perubahan pada database aplikasi (`logbook`), misalnya oleh tugas berkala yang mengubah DRAF menjadi `MENUNGGU`, sehingga hasil pengujian tidak lagi bergantung pada kondisi DB aplikasi.
 
 ### 7.1 Kesimpulan Hasil Pengujian
 
 Berdasarkan pengujian yang telah dilakukan, diperoleh hasil:
+- Eksekusi terbaru menjalankan **362 test** dengan **0 failure**, **0 error**, dan **0 skipped**; rincian per kelas tercantum pada tabel di atas.
 - Sebanyak 29 endpoint API tersedia; 10 endpoint diuji secara manual menggunakan Postman, 13 endpoint diverifikasi melalui integration test, endpoint pengaturan pengguna (`GET/PUT /api/settings`) telah dilengkapi unit test, dan `GET /api/summary` telah dilengkapi `SummaryServiceTest`, `SummaryControllerTest`, serta `SummaryIntegrationTest` (seluruhnya lulus).
-- Seluruh unit test (termasuk handler galat, konfigurasi & keluaran logging, otorisasi peran Atasan/Admin, keputusan Daily Log, batas hari & deadline, impor CSV, serta pengelolaan libur & cuti) dan integration test berhasil dilewati.
+- Seluruh unit test (termasuk validasi DTO, handler galat, konfigurasi & keluaran logging, autentikasi dan rotasi session, zona waktu Asia/Jakarta, otorisasi peran Atasan/Admin, keputusan Daily Log, batas hari & deadline, kalender, `continue`, submit check, otomatisasi Daily Log, impor CSV, serta pengelolaan libur & cuti) dan integration test berhasil dilewati.
 - Tidak ditemukan failures maupun errors pada eksekusi pengujian otomatis.
 - Otorisasi berbasis peran (talent, atasan, admin) telah diuji pada level unit maupun integrasi.
+- Keamanan request dan session telah diuji: CSRF `X-Requested-With`, request ID, rotasi session ID saat login/ganti kata sandi, session paralel, logout, serta atribut cookie `Secure`/`HttpOnly`/`SameSite`.
 - Alur persetujuan Daily Log (setujui, tolak, ajukan perbaikan, setujui perbaikan), aturan alasan wajib, larangan memutuskan Daily Log sendiri, dan pencatatan log INFO setiap keputusan telah diuji.
 - Aturan batas hari telah diuji: hanya Daily Log pada hari aktif pengguna yang dapat ditambah, diubah, atau dikirim; hari yang sudah lewat maupun yang belum tiba ditolak dengan status 409. Deadline tanggal D adalah pukul 23:59 D, atau `work_end` pada D+1 untuk pengguna shift malam yang jam kerjanya melewati tengah malam.
 - Alur Daily Log DITOLAK telah diuji: pada hari yang sama task masih dapat diperbaiki lalu Daily Log dikirim ulang, sedangkan pada hari berikutnya hari tersebut tetap terkunci.
@@ -625,19 +837,32 @@ Dengan demikian, backend Logbook berhasil melewati seluruh skenario pengujian ya
 
 ### 7.2 Cakupan Kode (Code Coverage - JaCoCo)
 
-Berdasarkan laporan JaCoCo (`target/site/jacoco/index.html`) yang dihasilkan setelah eksekusi seluruh test:
-- **Komponen Handler Galat, Filter Logging, & Fitur Atasan/Admin:**
-  - `GlobalExceptionHandler`: **100%** instruction, branch, line, dan method coverage.
-  - `ApiException`: **100%** instruction, line, dan method coverage.
-  - `ApiExceptionHandler`: **100%** instruction, branch, line, dan method coverage.
-  - `RequestIdFilter`: **100%** instruction, line, dan method coverage.
-  - `AdminController`: seluruh endpoint impor CSV, libur nasional, dan cuti telah tercakup unit test.
-  - `RoleService`: seluruh aturan hak akses dan keputusan (`canDecideTalent` / `requireCanDecideTalent`) untuk Atasan & Admin telah tercakup unit test.
+Berdasarkan laporan JaCoCo (`target/site/jacoco/index.html` dan `target/site/jacoco/jacoco.xml`) yang dihasilkan setelah menjalankan `.\mvnw.cmd clean test`:
 
-Dengan demikian, backend Logbook berhasil melewati seluruh skenario pengujian yang telah disiapkan.
+| Metrik | Ter-cakup | Total | Cakupan |
+|---|---:|---:|---:|
+| Instruction | 9.565 | 11.576 | 82,6% |
+| Branch | 517 | 769 | 67,2% |
+| Line | 2.142 | 2.581 | 83,0% |
+| Complexity | 692 | 1.008 | 68,7% |
+| Method | 500 | 621 | 80,5% |
+| Class | 106 | 114 | 93,0% |
+
+- **Komponen Handler Galat, Filter Logging, & Fitur Atasan/Admin:**
+  - `GlobalExceptionHandler`: **99,4%** instruction, **88,5%** branch, **100%** line, dan **100%** method coverage.
+  - `ApiException`: **100%** instruction, line, dan method coverage.
+  - `ApiExceptionHandler`: **75,4%** instruction, **62,5%** branch, **78,6%** line, dan **75%** method coverage; cabang handler galat lainnya diuji melalui `GlobalExceptionHandlerTest`.
+  - `RequestIdFilter`: **100%** instruction, branch, line, dan method coverage.
+  - `SecurityConfig`: **96,1%** instruction, **50%** branch, **97%** line, dan **91,7%** method coverage.
+  - `AdminController`: **97,5%** line coverage; seluruh endpoint impor CSV, daftar pengguna, libur nasional, dan cuti telah tercakup unit test.
+  - `RoleService`: **94,4%** line dan **92,9%** branch coverage untuk aturan hak akses serta `canDecideTalent` / `requireCanDecideTalent`.
+- **Komponen dengan cakupan penuh:** `TimeConfig`, `SettingsService`, `TeamService`, dan `AdminDailyLogService` mencapai **100%** untuk instruction, branch, line, dan method. `SubmitCheckService` dan `ContinueService` mencapai **100%** line dan method coverage.
+- **Komponen lain yang relevan:** `AuthService` **92,4%** line / **77,8%** branch, `DeadlineService` **94,6%** line / **88,6%** branch, `DailyLogService` **88,6%** line / **80,8%** branch, dan `SummaryService` **95,5%** line / **70,7%** branch.
+
+Cakupan branch masih menjadi area yang dapat ditingkatkan (67,2%), meskipun seluruh skenario yang dirancang telah lulus.
 
 ## 8. Kesimpulan
 
-Pengujian backend Logbook telah dilakukan melalui tiga pendekatan, yaitu manual testing, unit testing, dan integration testing, serta dilengkapi pengukuran cakupan kode menggunakan JaCoCo. Pengujian manual terhadap 10 endpoint API berhasil dilakukan menggunakan Postman, 13 endpoint tambahan diverifikasi melalui integration test, endpoint pengaturan pengguna (`GET/PUT /api/settings`) telah dilengkapi unit test, dan `GET /api/summary` telah dilengkapi unit test serta integration test khusus (`SummaryServiceTest`, `SummaryControllerTest`, `SummaryIntegrationTest`) yang seluruhnya lulus. Seluruh 303 test lulus tanpa kegagalan setelah test diisolasi ke database `logbook_test`, termasuk kesetaraan kontrak `DayDto` antara pemilik dan atasan.
+Pengujian backend Logbook telah dilakukan melalui tiga pendekatan, yaitu manual testing, unit testing, dan integration testing, serta dilengkapi pengukuran cakupan kode menggunakan JaCoCo. Pengujian manual terhadap 10 endpoint API berhasil dilakukan menggunakan Postman, 13 endpoint tambahan diverifikasi melalui integration test, endpoint pengaturan pengguna (`GET/PUT /api/settings`) telah dilengkapi unit test, dan `GET /api/summary` telah dilengkapi unit test serta integration test khusus (`SummaryServiceTest`, `SummaryControllerTest`, `SummaryIntegrationTest`) yang seluruhnya lulus. Seluruh **362 test** lulus tanpa failure maupun error setelah test diisolasi ke database `logbook_test`, termasuk kesetaraan kontrak `DayDto` antara pemilik dan atasan. Laporan JaCoCo terbaru menunjukkan cakupan **83,0% line**, **82,6% instruction**, dan **67,2% branch**.
 
 Hasil tersebut menunjukkan bahwa komponen backend yang telah diuji berjalan sesuai dengan skenario pengujian yang tersedia. Meskipun demikian, hasil ini belum menjamin seluruh kemungkinan kondisi sistem telah diuji sehingga pengembangan cakupan pengujian tetap diperlukan.

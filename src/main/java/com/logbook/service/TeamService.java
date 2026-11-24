@@ -11,6 +11,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Clock;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
@@ -34,13 +35,16 @@ public class TeamService {
 
     private final UserRepository userRepository;
     private final DailyLogRepository dailyLogRepository;
+    private final Clock clock;
 
     public TeamService(
             UserRepository userRepository,
-            DailyLogRepository dailyLogRepository
+            DailyLogRepository dailyLogRepository,
+            Clock clock
     ) {
         this.userRepository = userRepository;
         this.dailyLogRepository = dailyLogRepository;
+        this.clock = clock;
     }
 
     @Transactional(readOnly = true)
@@ -56,7 +60,7 @@ public class TeamService {
             return List.of();
         }
 
-        LocalDate today = LocalDate.now();
+        LocalDate today = LocalDate.now(clock);
         List<Long> memberIds = members.stream()
                 .map(User::getId)
                 .toList();

@@ -14,6 +14,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Clock;
 import java.time.OffsetDateTime;
 import java.util.Set;
 
@@ -34,20 +35,23 @@ public class LogTaskService {
     private final LogTaskRepository logTaskRepository;
     private final ProjectRepository projectRepository;
     private final DeadlineService deadlineService;
-    private final JdbcTemplate jdbcTemplate; 
+    private final JdbcTemplate jdbcTemplate;
+    private final Clock clock;
 
     public LogTaskService(
             DailyLogRepository dailyLogRepository,
             LogTaskRepository logTaskRepository,
             ProjectRepository projectRepository,
             DeadlineService deadlineService,
-            JdbcTemplate jdbcTemplate 
+            JdbcTemplate jdbcTemplate,
+            Clock clock
     ) {
         this.dailyLogRepository = dailyLogRepository;
         this.logTaskRepository = logTaskRepository;
         this.projectRepository = projectRepository;
         this.deadlineService = deadlineService;
         this.jdbcTemplate = jdbcTemplate;
+        this.clock = clock;
     }
 
     @Transactional
@@ -73,7 +77,7 @@ public class LogTaskService {
         requireEditableStatus(dailyLog);
         validateRequest(userId, request);
 
-        OffsetDateTime now = OffsetDateTime.now();
+        OffsetDateTime now = OffsetDateTime.now(clock);
         LogTask logTask = new LogTask(
                 dailyLog,
                 request.projectId(),
@@ -123,7 +127,7 @@ public class LogTaskService {
                 request.durationMinutes(),
                 request.summary().trim(),
                 normalizeObstacle(request.obstacle()),
-                OffsetDateTime.now()
+                OffsetDateTime.now(clock)
         );
 
         LogTask updatedTask = logTaskRepository.save(logTask);
@@ -176,7 +180,7 @@ public class LogTaskService {
         }
 
         if (reopenMissedDay) {
-            dailyLog.reopenAsDraft(OffsetDateTime.now());
+            dailyLog.reopenAsDraft(OffsetDateTime.now(clock));
             log.info("Daily Log ID {} tanggal {} dibuka kembali dari TERLEWAT menjadi DRAF ",
                     dailyLog.getId(), dailyLog.getLogDate());
         }

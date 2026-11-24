@@ -5,12 +5,16 @@ import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.read.ListAppender;
 import jakarta.servlet.http.HttpSession;
+import jakarta.validation.ConstraintViolation;
+import jakarta.validation.ConstraintViolationException;
+import jakarta.validation.Path;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.MethodParameter;
@@ -20,12 +24,18 @@ import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.BindingResult;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.method.annotation.HandlerMethodValidationException;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
+import java.time.Clock;
+import java.time.Instant;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -35,6 +45,12 @@ class GlobalExceptionHandlerTest {
 
     @InjectMocks
     private GlobalExceptionHandler exceptionHandler;
+
+    @Spy
+    private Clock clock = Clock.fixed(
+            Instant.parse("2026-11-11T03:00:00Z"),
+            ZoneId.of("Asia/Jakarta")
+    );
 
     @Mock
     private HttpSession session;
@@ -54,6 +70,70 @@ class GlobalExceptionHandlerTest {
     void tearDown() {
         logger.detachAppender(listAppender);
         listAppender.stop();
+    }
+
+    @Test
+    void testHandleConstraintViolation() {
+        when(session.getAttribute("email")).thenReturn("user@example.com");
+
+        @SuppressWarnings("unchecked")
+        ConstraintViolation<Object> violation = mock(ConstraintViolation.class);
+        Path path = mock(Path.class);
+        when(path.toString()).thenReturn("getItemById.id");
+        when(violation.getPropertyPath()).thenReturn(path);
+        when(violation.getMessage()).thenReturn("harus bernilai minimal 1");
+
+        ConstraintViolationException ex = new ConstraintViolationException(Set.of(violation));
+
+        ResponseEntity<?> response = exceptionHandler.handleConstraintViolation(ex, session);
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+        assertTrue(response.getBody() instanceof Map);
+        @SuppressWarnings("unchecked")
+        Map<String, Object> body = (Map<String, Object>) response.getBody();
+        assertEquals(400, body.get("code"));
+        assertEquals("BAD_REQUEST", body.get("status"));
+        assertEquals("harus bernilai minimal 1", body.get("message"));
+
+        @SuppressWarnings("unchecked")
+        Map<String, String> fieldErrors = (Map<String, String>) body.get("fieldErrors");
+        assertNotNull(fieldErrors);
+        assertEquals("harus bernilai minimal 1", fieldErrors.get("id"));
+
+        assertTrue(listAppender.list.stream()
+                .anyMatch(event -> event.getLevel() == Level.WARN && event.getFormattedMessage().contains("user@example.com")));
+    }
+
+    @Test
+    void testHandleMissingParameter() {
+        when(session.getAttribute("email")).thenReturn("user@example.com");
+        MissingServletRequestParameterException ex =
+                new MissingServletRequestParameterException("page", "int");
+
+        ResponseEntity<?> response = exceptionHandler.handleMissingParameter(ex, session);
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+        @SuppressWarnings("unchecked")
+        Map<String, Object> body = (Map<String, Object>) response.getBody();
+        assertEquals(400, body.get("code"));
+        assertEquals("BAD_REQUEST", body.get("status"));
+        assertEquals("Parameter page wajib diisi", body.get("message"));
+    }
+
+    @Test
+    void testHandleTypeMismatch() {
+        when(session.getAttribute("email")).thenReturn("user@example.com");
+        MethodArgumentTypeMismatchException ex =
+                new MethodArgumentTypeMismatchException("abc", Long.class, "id", null, new IllegalArgumentException("bad number"));
+
+        ResponseEntity<?> response = exceptionHandler.handleTypeMismatch(ex, session);
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+        @SuppressWarnings("unchecked")
+        Map<String, Object> body = (Map<String, Object>) response.getBody();
+        assertEquals(400, body.get("code"));
+        assertEquals("BAD_REQUEST", body.get("status"));
+        assertEquals("Nilai parameter id tidak valid", body.get("message"));
     }
 
     @Test
@@ -190,5 +270,20 @@ class GlobalExceptionHandlerTest {
         Map<String, Object> body = (Map<String, Object>) response.getBody();
         assertEquals(403, body.get("code"));
         assertEquals("Akses dilarang", body.get("message"));
+    }
+
+    @Test
+    void testHandleCsrfHeaderRequiredExceptionUsesStableCode() {
+        ResponseEntity<?> response = exceptionHandler.handleApiException(
+                new CsrfHeaderRequiredException(), session);
+
+        assertEquals(HttpStatus.FORBIDDEN, response.getStatusCode());
+        @SuppressWarnings("unchecked")
+        Map<String, Object> body = (Map<String, Object>) response.getBody();
+        assertEquals(CsrfHeaderRequiredException.CODE, body.get("code"));
+        assertEquals("FORBIDDEN", body.get("status"));
+        assertEquals(
+                "Header X-Requested-With wajib disertakan pada permintaan ini",
+                body.get("message"));
     }
 }

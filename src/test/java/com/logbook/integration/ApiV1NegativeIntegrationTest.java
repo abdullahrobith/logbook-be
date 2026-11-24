@@ -3,11 +3,13 @@ package com.logbook.integration;
 import com.logbook.exception.ApiException;
 import com.logbook.service.AuthService;
 import com.logbook.service.RoleService;
+import com.logbook.support.CsrfTestConfig;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockHttpSession;
@@ -22,6 +24,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @SpringBootTest
 @AutoConfigureMockMvc
+@Import(CsrfTestConfig.class)
 class ApiV1NegativeIntegrationTest {
 
     @Autowired
@@ -38,6 +41,7 @@ class ApiV1NegativeIntegrationTest {
     @BeforeEach
     void setUp() {
         session = new MockHttpSession();
+        session.setAttribute(AuthService.SESSION_USER_ID, 1L);
         when(authService.requireUserId(any())).thenReturn(1L);
     }
 

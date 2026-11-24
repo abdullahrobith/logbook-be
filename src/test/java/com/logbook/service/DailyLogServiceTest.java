@@ -46,7 +46,8 @@ class DailyLogServiceTest {
         service = new DailyLogService(
                 dailyLogRepository,
                 deadlineService,
-                mock(CalendarService.class)
+                mock(CalendarService.class),
+                Clock.fixed(NOW, JAKARTA)
         );
     }
 
@@ -350,7 +351,8 @@ class DailyLogServiceTest {
         DailyLogService relaxed = new DailyLogService(
                 dailyLogRepository,
                 new DeadlineService(false, JAKARTA, Clock.fixed(NOW, JAKARTA)),
-                mock(CalendarService.class)
+                mock(CalendarService.class),
+                Clock.fixed(NOW, JAKARTA)
         );
 
         var response = relaxed.getDailyLog(1L, yesterday);
@@ -371,7 +373,8 @@ class DailyLogServiceTest {
         DailyLogService relaxed = new DailyLogService(
                 dailyLogRepository,
                 new DeadlineService(false, JAKARTA, Clock.fixed(NOW, JAKARTA)),
-                mock(CalendarService.class)
+                mock(CalendarService.class),
+                Clock.fixed(NOW, JAKARTA)
         );
 
         var response = relaxed.createDailyLog(1L, yesterday);

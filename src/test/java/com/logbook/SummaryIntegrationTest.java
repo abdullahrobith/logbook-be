@@ -1,10 +1,12 @@
 package com.logbook;
 
+import com.logbook.support.CsrfTestConfig;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.mock.web.MockHttpSession;
@@ -14,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
+import java.time.ZoneId;
 
 import static org.hamcrest.Matchers.hasKey;
 import static org.hamcrest.Matchers.not;
@@ -31,6 +34,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         "logbook.jadwal.aktif=false"
 })
 @AutoConfigureMockMvc
+@Import(CsrfTestConfig.class)
 @Transactional
 class SummaryIntegrationTest {
 
@@ -154,7 +158,7 @@ class SummaryIntegrationTest {
     }
 
     private void insertDay(LocalDate date) {
-        OffsetDateTime now = OffsetDateTime.now();
+        OffsetDateTime now = OffsetDateTime.now(ZoneId.of("Asia/Jakarta"));
         jdbcTemplate.update("""
                         INSERT INTO daily_logs (
                             user_id, log_date, work_schedule_id, status, created_at, updated_at
@@ -181,7 +185,7 @@ class SummaryIntegrationTest {
                 USER_ID,
                 java.sql.Date.valueOf(date)
         );
-        OffsetDateTime now = OffsetDateTime.now();
+        OffsetDateTime now = OffsetDateTime.now(ZoneId.of("Asia/Jakarta"));
         jdbcTemplate.update("""
                         INSERT INTO log_tasks (
                             daily_log_id, project_id, task_type_id, work_status_id,

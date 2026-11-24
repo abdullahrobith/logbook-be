@@ -1,82 +1,104 @@
 package com.logbook.controller;
 
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.HttpStatusCode;
+import org.slf4j.MDC;
+import org.springframework.core.Ordered;
+import org.springframework.core.annotation.Order;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.validation.FieldError;
-import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
-import org.springframework.web.server.ResponseStatusException;
 
+import java.time.OffsetDateTime;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
 @Slf4j
 @RestControllerAdvice
+@Order(Ordered.HIGHEST_PRECEDENCE)
 public class ApiExceptionHandler {
 
-//     @ExceptionHandler(MethodArgumentNotValidException.class)
-//     public ResponseEntity<ValidationErrorResponse> handleValidation(
-//             MethodArgumentNotValidException exception
-//     ) {
-//         Map<String, String> fieldErrors = new LinkedHashMap<>();
+    // Validasi dan ResponseStatusException (termasuk ApiException) sengaja
+    // ditangani GlobalExceptionHandler agar semua error memakai envelope
+    // standar: code, status, message, timestamp, dan requestId.
 
-//         for (FieldError fieldError : exception.getBindingResult().getFieldErrors()) {
-//             fieldErrors.putIfAbsent(fieldError.getField(), fieldError.getDefaultMessage());
-//         }
+    private String currentRequestId(HttpServletRequest request) {
+        String mdcRequestId = MDC.get("requestId");
+        if (mdcRequestId != null && !mdcRequestId.isBlank()) {
+            return mdcRequestId;
+        }
+        String headerRequestId = request != null ? request.getHeader("X-Request-Id") : null;
+        return headerRequestId != null ? headerRequestId : "";
+    }
 
-//         String message = fieldErrors.values().stream()
-//                 .findFirst()
-//                 .orElse("Data yang dikirim tidak valid.");
-
-//         return ResponseEntity.badRequest()
-//                 .body(new ValidationErrorResponse(message, fieldErrors));
-//     }
-
-//     @ExceptionHandler(ResponseStatusException.class)
-//     public ResponseEntity<ApiErrorResponse> handleResponseStatus(
-//             ResponseStatusException exception
-//     ) {
-//         HttpStatusCode status = exception.getStatusCode();
-//         String message = exception.getReason() == null
-//                 ? "Permintaan tidak dapat diproses."
-//                 : exception.getReason();
-
-//         return ResponseEntity.status(status)
-//                 .body(new ApiErrorResponse(message));
-//     }
+    private Map<String, Object> errorBody(HttpStatus status, String message, HttpServletRequest request) {
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("code", status.value());
+        body.put("status", status.name());
+        body.put("message", message);
+        body.put("timestamp", OffsetDateTime.now().toString());
+        body.put("requestId", currentRequestId(request));
+        return body;
+    }
 
     @ExceptionHandler(MissingServletRequestParameterException.class)
-    public ResponseEntity<ApiErrorResponse> handleMissingParameter(
-            MissingServletRequestParameterException exception
+    public ResponseEntity<?> handleMissingParameter(
+            MissingServletRequestParameterException exception,
+            HttpServletRequest request
     ) {
         log.warn("Parameter request hilang: {}", exception.getParameterName());
         return ResponseEntity.badRequest()
-                .body(new ApiErrorResponse(
-                        "Parameter " + exception.getParameterName() + " wajib diisi"
+                .body(errorBody(
+                        HttpStatus.BAD_REQUEST,
+                        "Parameter " + exception.getParameterName() + " wajib diisi",
+                        request
                 ));
     }
 
     @ExceptionHandler(MethodArgumentTypeMismatchException.class)
-    public ResponseEntity<ApiErrorResponse> handleTypeMismatch(
-            MethodArgumentTypeMismatchException exception
+    public ResponseEntity<?> handleTypeMismatch(
+            MethodArgumentTypeMismatchException exception,
+            HttpServletRequest request
     ) {
         log.warn("Nilai parameter '{}' tidak valid", exception.getName());
         return ResponseEntity.badRequest()
-                .body(new ApiErrorResponse(
-                        "Nilai parameter " + exception.getName() + " tidak valid"
+                .body(errorBody(
+                        HttpStatus.BAD_REQUEST,
+                        "Nilai parameter " + exception.getName() + " tidak valid",
+                        request
                 ));
     }
 
-    public record ValidationErrorResponse(
-            String message,
-            Map<String, String> fieldErrors
+    @ExceptionHandler(AuthenticationException.class)
+    public ResponseEntity<?> handleAuthenticationException(
+            AuthenticationException exception,
+            HttpServletRequest request
     ) {
+        log.warn("Akses ditolak: {}", exception.getMessage());
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body(errorBody(
+                        HttpStatus.UNAUTHORIZED,
+                        "Silakan login terlebih dahulu",
+                        request
+                ));
     }
 
-    public record ApiErrorResponse(String message) {
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<?> handleAccessDeniedException(
+            AccessDeniedException exception,
+            HttpServletRequest request
+    ) {
+        log.warn("Akses ditolak (Forbidden): {}", exception.getMessage());
+        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(errorBody(
+                        HttpStatus.FORBIDDEN,
+                        "Anda tidak memiliki akses ke resource ini",
+                        request
+                ));
     }
 }

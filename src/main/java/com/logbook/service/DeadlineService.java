@@ -58,10 +58,11 @@ public class DeadlineService {
     @Autowired
     public DeadlineService(
             @Value("${logbook.batas-hari.aktif:true}") boolean active,
-            @Value("${logbook.zona-waktu:Asia/Jakarta}") String zoneId,
+            Clock clock,
+            ZoneId applicationZoneId,
             UserSettingsRepository userSettingsRepository
     ) {
-        this(active, ZoneId.of(zoneId), Clock.system(ZoneId.of(zoneId)), userSettingsRepository);
+        this(active, applicationZoneId, clock, userSettingsRepository);
     }
 
     /**

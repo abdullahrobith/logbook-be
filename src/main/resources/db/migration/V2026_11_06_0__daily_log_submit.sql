@@ -1,3 +1,6 @@
+-- Menjamin satu Daily Log per (user_id, log_date) dan batas durasi task.
+-- Struktur canonical logbook.sql sudah memuat keduanya; blok di bawah aman
+-- untuk database lama maupun canonical.
 DO $$
 BEGIN
     IF EXISTS (

@@ -1,5 +1,6 @@
 package com.logbook.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.*;
 import java.time.OffsetDateTime;
@@ -15,7 +16,6 @@ public class User {
     @Column(nullable = false, unique = true)
     private String email;
 
-
     @JsonProperty("full_name")
     @Column(name = "full_name", nullable = false)
     private String fullName;
@@ -23,17 +23,16 @@ public class User {
     @Column(name = "jenis")
     private String jenis;
 
-  
     @JsonProperty("email_atasan")
     @Column(name = "email_atasan")
     private String emailAtasan;
-
 
     @JsonProperty("is_admin")
     @Column(name = "is_admin", nullable = false)
     private boolean admin;
 
-    @JsonProperty("password_hash")
+    // PERBAIKAN: Gunakan @JsonIgnore agar hash tidak pernah bocor ke API Response
+    @JsonIgnore
     @Column(name = "password_hash")
     private String passwordHash;
 
@@ -49,6 +48,7 @@ public class User {
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;
 
+    // Getters
     public Long getId() { return id; }
     public String getEmail() { return email; }
     public String getFullName() { return fullName; }
@@ -60,6 +60,7 @@ public class User {
     public boolean isActive() { return active; }
     public OffsetDateTime getCreatedAt() { return createdAt; }
 
+    // Setters
     public void setId(Long id) { this.id = id; }
     public void setEmail(String email) { this.email = email; }
     public void setFullName(String fullName) { this.fullName = fullName; }

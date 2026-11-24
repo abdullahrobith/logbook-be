@@ -6,6 +6,7 @@ import com.logbook.entity.User;
 import com.logbook.service.RoleService;
 import com.logbook.service.SettingsService;
 import jakarta.servlet.http.HttpSession;
+import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -35,7 +36,7 @@ public class SettingsController {
 
     @PutMapping
     public SettingsResponse updateSettings(
-            @RequestBody(required = false) SettingsRequest request,
+            @Valid @RequestBody(required = false) SettingsRequest request,
             HttpSession session
     ) {
         User user = roleService.requireCurrentUser(session);

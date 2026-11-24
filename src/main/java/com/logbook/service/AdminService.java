@@ -22,13 +22,14 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
+import java.security.SecureRandom;
+import java.time.Clock;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.Base64;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -39,17 +40,21 @@ public class AdminService {
     private final HolidayRepository holidayRepository;
     private final LeaveRepository leaveRepository;
     private final PasswordEncoder passwordEncoder;
+    private final SecureRandom secureRandom = new SecureRandom();
+    private final Clock clock;
 
     public AdminService(
             UserRepository userRepository,
             HolidayRepository holidayRepository,
             LeaveRepository leaveRepository,
-            PasswordEncoder passwordEncoder
+            PasswordEncoder passwordEncoder,
+            Clock clock
     ) {
         this.userRepository = userRepository;
         this.holidayRepository = holidayRepository;
         this.leaveRepository = leaveRepository;
         this.passwordEncoder = passwordEncoder;
+        this.clock = clock;
     }
 
     @Transactional
@@ -65,7 +70,7 @@ public class AdminService {
                      .setSkipHeaderRecord(true)
                      .setTrim(true)
                      .build())) {
-             
+
             records = parser.getRecords();
         } catch (Exception e) {
             log.warn("Gagal membaca file CSV: {}", e.getMessage());
@@ -87,7 +92,6 @@ public class AdminService {
                 throw new ApiException(HttpStatus.BAD_REQUEST, "Baris ke-" + lineNumber + " salah: Format email tidak valid.");
             }
 
-            // Pakai method dari UserRepository-mu
             if (emailAtasan != null && !emailAtasan.isBlank() && !userRepository.existsByEmailIgnoreCase(emailAtasan)) {
                 throw new ApiException(HttpStatus.BAD_REQUEST, "Baris ke-" + lineNumber + " salah: Email atasan '" + emailAtasan + "' tidak ditemukan.");
             }
@@ -101,48 +105,43 @@ public class AdminService {
         // 2. SIMPAN DATA
         int created = 0;
         int updated = 0;
-        List<Map<String, String>> tempPasswords = new ArrayList<>();
+        List<String> importedEmails = new ArrayList<>();
 
         for (CSVRecord record : records) {
-            String email = record.get("email");
-            String nama = record.get("nama");
-            String jenis = record.get("jenis");
+            String email = record.get("email").trim().toLowerCase();
+            String nama = record.get("nama").trim();
+            String jenis = record.get("jenis").trim();
             String emailAtasan = record.get("email_atasan");
             boolean isAdmin = Boolean.parseBoolean(record.get("admin"));
 
-            if (email.equalsIgnoreCase(currentUserEmail) && !isAdmin) {
+            if (currentUserEmail != null && email.equalsIgnoreCase(currentUserEmail) && !isAdmin) {
                 throw new ApiException(HttpStatus.BAD_REQUEST, "Anda tidak dapat mencabut hak admin milik sendiri melalui CSV.");
             }
 
             User user = userRepository.findByEmailIgnoreCase(email).orElse(null);
 
             if (user != null) {
-                // User sudah ada -> Update
                 user.setFullName(nama);
                 user.setJenis(jenis);
-                user.setEmailAtasan((emailAtasan == null || emailAtasan.isBlank()) ? null : emailAtasan);
-                user.setAdmin(isAdmin); 
+                user.setEmailAtasan((emailAtasan == null || emailAtasan.isBlank()) ? null : emailAtasan.trim().toLowerCase());
+                user.setAdmin(isAdmin);
                 userRepository.save(user);
                 updated++;
             } else {
-                // User baru -> Insert
-                String tempPassword = UUID.randomUUID().toString().substring(0, 8);
+                String tempPassword = generateTemporaryPassword();
                 User newUser = new User();
                 newUser.setEmail(email);
                 newUser.setFullName(nama);
                 newUser.setJenis(jenis);
-                newUser.setEmailAtasan((emailAtasan == null || emailAtasan.isBlank()) ? null : emailAtasan);
+                newUser.setEmailAtasan((emailAtasan == null || emailAtasan.isBlank()) ? null : emailAtasan.trim().toLowerCase());
                 newUser.setAdmin(isAdmin);
                 newUser.setPasswordHash(passwordEncoder.encode(tempPassword));
                 newUser.setMustChangePassword(true);
                 newUser.setActive(true);
-                newUser.setCreatedAt(OffsetDateTime.now());
+                newUser.setCreatedAt(OffsetDateTime.now(clock));
                 userRepository.save(newUser);
 
-                Map<String, String> passMap = new HashMap<>();
-                passMap.put("email", email);
-                passMap.put("password", tempPassword);
-                tempPasswords.add(passMap);
+                importedEmails.add(email);
                 created++;
             }
         }
@@ -152,7 +151,13 @@ public class AdminService {
             throw new ApiException(HttpStatus.BAD_REQUEST, "Impor dibatalkan: Sistem harus memiliki minimal 1 Admin.");
         }
 
-        return new AdminImportResponse(created, updated, tempPasswords);
+        return new AdminImportResponse(created, updated, importedEmails);
+    }
+
+    private String generateTemporaryPassword() {
+        byte[] bytes = new byte[12];
+        secureRandom.nextBytes(bytes);
+        return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
     }
 
     public List<AdminTalentOption> getTalentOptions() {
@@ -171,7 +176,7 @@ public class AdminService {
         holiday.setHolidayDate(date);
         holiday.setName(name.trim());
         if (holiday.getCreatedAt() == null) {
-            holiday.setCreatedAt(OffsetDateTime.now());
+            holiday.setCreatedAt(OffsetDateTime.now(clock));
         }
         holidayRepository.save(holiday);
     }
@@ -197,7 +202,7 @@ public class AdminService {
         if (start.isAfter(end)) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "Tanggal mulai tidak boleh melebihi tanggal selesai");
         }
-        
+
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "User tidak ditemukan"));
 
@@ -206,7 +211,7 @@ public class AdminService {
         leave.setStartDate(start);
         leave.setEndDate(end);
         leave.setReason(note);
-        leave.setCreatedAt(OffsetDateTime.now());
+        leave.setCreatedAt(OffsetDateTime.now(clock));
         leaveRepository.save(leave);
     }
 

@@ -6,6 +6,7 @@ import com.logbook.entity.LogTask;
 import com.logbook.filter.RequestIdFilter;
 import com.logbook.repository.DailyLogRepository;
 import com.logbook.repository.LogTaskRepository;
+import com.logbook.support.CsrfTestConfig;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -13,6 +14,7 @@ import jakarta.persistence.EntityManager;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.mock.web.MockHttpSession;
@@ -44,6 +46,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @SpringBootTest(properties = "logbook.batas-hari.aktif=false")
 @AutoConfigureMockMvc
+@Import(CsrfTestConfig.class)
 @Transactional
 class LogbookApiIntegrationTest {
 
@@ -64,6 +67,7 @@ class LogbookApiIntegrationTest {
 
     private MockHttpSession session;
 
+    private static final ZoneId JAKARTA = ZoneId.of("Asia/Jakarta");
     private static final String EMAIL = "rina.talent@contoh.id";
     private static final String PASSWORD = "Logbook@2026";
     private static final String PASSWORD_HASH = "$2a$10$2YCvQ1fDOiHQQa2ou4sVpO4LZW32jLX6Rt/UVljh6hLH/ayH.4H0q";
@@ -311,7 +315,7 @@ class LogbookApiIntegrationTest {
 
     @Test
     void invalidRequestIdHeaderIsReplaced() throws Exception {
-        for (String invalidValue : List.of("x y", "x\ny", "short", "a".repeat(65), "bad@id")) {
+        for (String invalidValue : List.of("x y", "bad.id", "short", "a".repeat(65), "bad@id")) {
             MvcResult result = mockMvc.perform(
                     get("/api/auth/me")
                             .session(session)
@@ -488,7 +492,7 @@ class LogbookApiIntegrationTest {
     @Test
     void submitCheckShouldReturnNoHintsForCompleteTasks() throws Exception {
         clearDailyLogsOfUser(1L);
-        OffsetDateTime now = OffsetDateTime.now();
+        OffsetDateTime now = OffsetDateTime.now(JAKARTA);
         DailyLog dailyLog = dailyLogRepository.save(new DailyLog(
                 1L, todayJakarta(), (short) 1, "DRAF", now, now
         ));
@@ -533,7 +537,7 @@ class LogbookApiIntegrationTest {
      */
     private Long createDayWithSuggestableTasks() {
         clearDailyLogsOfUser(1L);
-        OffsetDateTime now = OffsetDateTime.now();
+        OffsetDateTime now = OffsetDateTime.now(JAKARTA);
         DailyLog dailyLog = dailyLogRepository.save(new DailyLog(
                 1L, todayJakarta(), (short) 1, "DRAF", now, now
         ));
@@ -553,7 +557,7 @@ class LogbookApiIntegrationTest {
     }
 
     private LocalDate todayJakarta() {
-        return LocalDate.now(ZoneId.of("Asia/Jakarta"));
+        return LocalDate.now(JAKARTA);
     }
 
     @Test
@@ -660,7 +664,7 @@ class LogbookApiIntegrationTest {
     void getContinueShouldReturnInProgressTasksFromLatestFilledDay() throws Exception {
         LocalDate today = LocalDate.now(ZoneId.of("Asia/Jakarta"));
         LocalDate yesterday = today.minusDays(1);
-        OffsetDateTime now = OffsetDateTime.now();
+        OffsetDateTime now = OffsetDateTime.now(JAKARTA);
 
         // Basis data lokal dipakai bersama tes lain, jadi isi catatan pengguna
         // dibersihkan lebih dulu agar hasilnya pasti. Semua perubahan dibatalkan
@@ -741,7 +745,7 @@ class LogbookApiIntegrationTest {
             int durationMinutes,
             String summary
     ) {
-        OffsetDateTime now = OffsetDateTime.now();
+        OffsetDateTime now = OffsetDateTime.now(JAKARTA);
         return new LogTask(
                 dailyLog,
                 1L,
@@ -764,7 +768,7 @@ class LogbookApiIntegrationTest {
     @Test
     void getMasterDataShouldReturnData() throws Exception {
         mockMvc.perform(
-                get("/api/tasks/master-data")
+                get("/api/tasks/master-data").session(session)
         )
         .andExpect(status().isOk());
     }
@@ -776,7 +780,7 @@ class LogbookApiIntegrationTest {
     @Test
     void getExamplesShouldReturnData() throws Exception {
         mockMvc.perform(
-                get("/api/examples")
+                get("/api/examples").session(session)
         )
         .andExpect(status().isOk());
     }
@@ -940,7 +944,7 @@ class LogbookApiIntegrationTest {
         logTaskRepository.flush();
         tasks.clear();
 
-        OffsetDateTime now = OffsetDateTime.now();
+        OffsetDateTime now = OffsetDateTime.now(JAKARTA);
         for (int index = 1; index <= 3; index++) {
             LogTask task = new LogTask(
                     dailyLog,
@@ -1621,6 +1625,7 @@ class LogbookApiIntegrationTest {
                         .session(supervisorSession)
         )
         .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.field").value("reason"))
         .andExpect(jsonPath("$.message").value("Alasan wajib diisi"));
 
         mockMvc.perform(
@@ -1980,7 +1985,7 @@ class LogbookApiIntegrationTest {
     }
 
     private void clearTodayDailyLog(Long userId) {
-        LocalDate today = LocalDate.now();
+        LocalDate today = todayJakarta();
         jdbcTemplate.update(
                 "DELETE FROM log_tasks WHERE daily_log_id IN "
                         + "(SELECT id FROM daily_logs WHERE user_id = ? AND log_date = ?)",
@@ -1995,7 +2000,7 @@ class LogbookApiIntegrationTest {
     }
 
     private long insertTodayDailyLog(Long userId, String status) {
-        LocalDate today = LocalDate.now();
+        LocalDate today = todayJakarta();
         clearTodayDailyLog(userId);
 
         jdbcTemplate.update(
@@ -2124,6 +2129,23 @@ class LogbookApiIntegrationTest {
         .andExpect(jsonPath("$.workStart").value("09:00"))
         .andExpect(jsonPath("$.workEnd").value("17:00"))
         .andExpect(jsonPath("$.onboarded").value(false));
+    }
+
+    @Test
+    void putSettingsRejectsWorkStartAfterWorkEnd() throws Exception {
+        mockMvc.perform(
+                put("/api/settings")
+                        .session(session)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                    "workStart": "18:00",
+                                    "workEnd": "09:00"
+                                }
+                                """)
+        )
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.message").value("Jam mulai harus lebih awal dari jam selesai"));
     }
 
     private MockHttpSession loginAs(String email) throws Exception {
