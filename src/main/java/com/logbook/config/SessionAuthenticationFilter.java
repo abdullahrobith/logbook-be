@@ -12,6 +12,7 @@ import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
+import lombok.extern.slf4j.Slf4j;
 
 import java.io.IOException;
 
@@ -20,6 +21,7 @@ import java.io.IOException;
  * Spring Security. Filter ini bisa dipakai di test slice yang tidak memuat
  * konfigurasi Security penuh, jadi tidak bergantung pada bean tambahan.
  */
+@Slf4j
 @Component
 public class SessionAuthenticationFilter extends OncePerRequestFilter {
 
@@ -30,21 +32,21 @@ public class SessionAuthenticationFilter extends OncePerRequestFilter {
             FilterChain filterChain
     ) throws ServletException, IOException {
         HttpSession session = request.getSession(false);
+        Object userId = session == null ? null : session.getAttribute(AuthService.SESSION_USER_ID);
+        log.debug("SessionAuthenticationFilter uri={} session={} userId={} existingAuth={}",
+                request.getRequestURI(), session != null, userId,
+                SecurityContextHolder.getContext().getAuthentication() != null);
 
-        if (session != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-            Object userId = session.getAttribute(AuthService.SESSION_USER_ID);
+        if (session != null && SecurityContextHolder.getContext().getAuthentication() == null && userId != null) {
+            UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(
+                    userId,
+                    null,
+                    AuthorityUtils.NO_AUTHORITIES
+            );
 
-            if (userId != null) {
-                UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(
-                        userId,
-                        null,
-                        AuthorityUtils.NO_AUTHORITIES
-                );
-
-                SecurityContext context = SecurityContextHolder.createEmptyContext();
-                context.setAuthentication(auth);
-                SecurityContextHolder.setContext(context);
-            }
+            SecurityContext context = SecurityContextHolder.createEmptyContext();
+            context.setAuthentication(auth);
+            SecurityContextHolder.setContext(context);
         }
 
         filterChain.doFilter(request, response);

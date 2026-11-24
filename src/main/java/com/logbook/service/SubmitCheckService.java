@@ -104,12 +104,12 @@ public class SubmitCheckService {
             }
 
             int duration = task.getDurationMinutes() == null ? 0 : task.getDurationMinutes();
-            if (taskMaksMenit > 0 && duration > taskMaksMenit) {
+            if (taskMaksMenit > 0 && duration >= taskMaksMenit) {
                 hints.add(new Hint(
                         task.getId(),
                         SubmitCheckResponse.KIND_TASK_PANJANG,
-                        "Durasi task " + duration + " menit melebihi " + taskMaksMenit
-                                + " menit. Pertimbangkan memecahnya menjadi beberapa task."
+                        "Durasi task " + duration + " menit mencapai atau melebihi batas saran "
+                                + taskMaksMenit + " menit. Pertimbangkan memecahnya menjadi beberapa task."
                 ));
             }
         }

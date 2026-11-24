@@ -31,7 +31,7 @@
 		<!-- Database khusus test agar fixture tidak berubah saat aplikasi berjalan. -->
 		<test.datasource.url>jdbc:postgresql://localhost:5432/logbook_test</test.datasource.url>
 		<test.datasource.username>postgres</test.datasource.username>
-		<test.datasource.password>postgres</test.datasource.password>
+		<test.datasource.password>@Ilhamfh015</test.datasource.password>
 	</properties>
 	<dependencies>
 		<dependency>

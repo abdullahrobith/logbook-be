@@ -68,10 +68,20 @@ class SubmitCheckServiceTest {
     void completeTasksProduceNoHints() {
         DailyLog dailyLog = dailyLog(
                 task(13L, 60, ringkasanCukup()),
-                task(14L, TASK_MAKS_MENIT, ringkasanCukup())
+                task(14L, TASK_MAKS_MENIT - 1, ringkasanCukup())
         );
 
         assertTrue(service.evaluate(dailyLog).hints().isEmpty());
+    }
+
+    @Test
+    void durationAtThresholdProducesHint() {
+        DailyLog dailyLog = dailyLog(task(20L, TASK_MAKS_MENIT, ringkasanCukup()));
+
+        List<Hint> hints = service.evaluate(dailyLog).hints();
+
+        assertEquals(1, hints.size());
+        assertEquals(SubmitCheckResponse.KIND_TASK_PANJANG, hints.get(0).kind());
     }
 
     @Test
