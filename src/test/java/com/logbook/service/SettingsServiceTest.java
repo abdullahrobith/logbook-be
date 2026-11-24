@@ -83,7 +83,11 @@ class SettingsServiceTest {
 
         ArgumentCaptor<UserSettings> captor = ArgumentCaptor.forClass(UserSettings.class);
         verify(userSettingsRepository).save(captor.capture());
-        assertEquals(1L, captor.getValue().getUserId());
+        // @MapsId mengisi userId saat persist, jadi sebelum disimpan yang ada
+        // hanyalah relasi user. Mengisi userId manual membuat save() memakai
+        // merge dan memicu AssertionFailure saat pengguna belum punya settings.
+        assertNull(captor.getValue().getUserId());
+        assertSame(user, captor.getValue().getUser());
         assertEquals(LocalTime.of(8, 0), captor.getValue().getWorkStart());
         assertEquals(LocalTime.of(17, 0), captor.getValue().getWorkEnd());
     }

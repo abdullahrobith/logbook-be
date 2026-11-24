@@ -39,7 +39,9 @@ public class UserSettings {
 
     public UserSettings(User user, LocalTime workStart, LocalTime workEnd) {
         this.user = user;
-        this.userId = user.getId();
+        // Biarkan @MapsId yang mengisi userId saat persist. Mengisinya di sini
+        // membuat Spring Data menganggap entitas sudah ada dan memakai merge,
+        // yang memicu AssertionFailure "null identifier" saat create.
         this.workStart = workStart;
         this.workEnd = workEnd;
     }
