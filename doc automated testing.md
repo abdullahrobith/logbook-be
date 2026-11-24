@@ -9,6 +9,8 @@ Pengujian dilakukan melalui tiga pendekatan:
 2. **Unit Testing:** Pengujian unit kode secara terpisah, terutama DTO, service, perhitungan data, dan aturan peran/otorisasi.
 3. **Integration Testing:** Pengujian interaksi antar-komponen aplikasi, endpoint API, session, otorisasi, dan database PostgreSQL.
 
+Pengamanan alur reset kata sandi dan pembatasan laju permintaan juga menjadi bagian dari pengujian, meliputi penyimpanan hash token (bukan plaintext), invalidasi token lama, penolakan token yang sudah dipakai, serta pembatasan percobaan login/lupa kata sandi/reset kata sandi.
+
 ## 2. Lingkungan Pengujian
 
 | Komponen | Keterangan |
@@ -534,6 +536,40 @@ Total: **3 test, seluruhnya lulus.**
 
 Memastikan konteks aplikasi Spring Boot dapat dimuat. Total: **1 test, lulus.**
 
+### 4.28 PasswordResetServiceTest
+
+Pengujian alur lupa dan reset kata sandi dengan fokus pada keamanan token. Token plaintext hanya dikembalikan ke pemanggil untuk kebutuhan demo lokal; yang disimpan di database adalah hash SHA-256 dan token tidak pernah ditulis ke log.
+
+| No. | Skenario Pengujian | Hasil |
+|---|---|---|
+| 1 | Permintaan reset membuat token ber-hash SHA-256, masa berlaku 15 menit, dan menghapus token aktif sebelumnya | Lulus |
+| 2 | Email tidak ditemukan mengembalikan pesan generik tanpa token dan tetap mencatat kegagalan rate limit | Lulus |
+| 3 | Token valid mengganti hash kata sandi, menghapus flag `mustChangePassword`, menandai token sebagai terpakai, dan membersihkan bucket rate limit | Lulus |
+| 4 | Token yang sudah terpakai ditolak 400 tanpa mengubah kata sandi | Lulus |
+| 5 | Token kedaluwarsa ditolak 400 dan dihapus dari database | Lulus |
+| 6 | Token tidak dikenal ditolak 400 dengan pesan generik | Lulus |
+| 7 | Token milik pengguna nonaktif ditolak 400 tanpa mengubah kata sandi | Lulus |
+
+Total: **7 test, seluruhnya lulus.** Pengujian juga memastikan tidak ada token plaintext pada keluaran log.
+
+### 4.29 RateLimitServiceTest
+
+Pengujian pembatasan laju permintaan berbasis database untuk tiga aksi: `login`, `forgot-password`, dan `reset-password`. State disimpan per kombinasi aksi, identitas, dan alamat IP; kuota lima percobaan dalam jendela 15 menit menghasilkan status 429 selama 15 menit.
+
+| No. | Skenario Pengujian | Hasil |
+|---|---|---|
+| 1 | Tidak ada state rate limit sehingga permintaan pertama diizinkan | Lulus |
+| 2 | Lima kegagalan mengunci bucket dan permintaan berikutnya menghasilkan 429 | Lulus |
+| 3 | Kunci yang sudah kedaluwarsa dihapus sehingga bucket dapat digunakan kembali | Lulus |
+| 4 | Jendela 15 menit yang berakhir mengulang hitungan kegagalan | Lulus |
+| 5 | Permintaan berhasil membersihkan state rate limit pengguna | Lulus |
+| 6 | Header `X-Forwarded-For` diabaikan ketika proxy tidak dipercaya | Lulus |
+| 7 | Header `X-Forwarded-For` dipakai ketika proxy dipercaya | Lulus |
+| 8 | Bucket `login` dan `forgot-password` terpisah sehingga kegagalan satu aksi tidak mengunci aksi lain | Lulus |
+| 9 | Kegagalan `forgot-password` tidak mengunci bucket `login` | Lulus |
+
+Total: **9 test, seluruhnya lulus.**
+
 ## 5. Integration Testing
 
 Integration testing dilakukan menggunakan Spring Boot Test dan MockMvc untuk menguji interaksi antara endpoint API, komponen aplikasi, session autentikasi, otorisasi berbasis peran, dan database PostgreSQL.
@@ -719,6 +755,20 @@ Total: **1 test, lulus.**
 
 Total: **3 test, seluruhnya lulus.**
 
+### 5.8 PasswordResetIntegrationTest
+
+Pengujian endpoint `POST /api/auth/forgot-password` dan `POST /api/auth/reset-password` menggunakan fixture pengguna `rina.talent@contoh.id` pada database `logbook_test`. Setiap test berada dalam transaksi yang digulung kembali. Response `devToken` tersedia hanya karena profil `prod` tidak aktif; pada produksi token tidak dikirim ke klien.
+
+| No. | Skenario Pengujian | Hasil |
+|---|---|---|
+| 1 | `forgot-password` menyimpan hash 64 karakter di database dan mengembalikan `devToken` untuk demo lokal | Lulus |
+| 2 | `forgot-password` untuk email tidak terdaftar mengembalikan pesan generik tanpa `devToken` | Lulus |
+| 3 | `reset-password` mengganti kata sandi, login memakai kata sandi baru berhasil, kata sandi lama ditolak, dan token tidak dapat dipakai ulang | Lulus |
+| 4 | `forgot-password` menghasilkan 429 setelah lima permintaan | Lulus |
+| 5 | `reset-password` menghasilkan 429 setelah lima percobaan dengan token salah | Lulus |
+
+Total: **5 test, seluruhnya lulus.**
+
 ## 6. Rancangan Test Case Role Atasan & Admin
 
 Bagian ini menyusun daftar skenario pengujian (test case) khusus untuk peran **Atasan** dan **Admin**, meliputi empat area utama: **Hak Akses (Otorisasi)**, **Persetujuan/Penolakan Daily Log (Setujui/Tolak)**, **Impor Pengguna via CSV**, serta **Pengelolaan Libur Nasional & Cuti Talent**.
@@ -794,6 +844,7 @@ Berdasarkan hasil eksekusi pengujian otomatis backend Logbook, diperoleh hasil r
 | RequestDtoValidationTest | 6 | 0 | 0 | Lulus |
 | GlobalExceptionHandlerTest | 12 | 0 | 0 | Lulus |
 | ApiV1NegativeIntegrationTest | 3 | 0 | 0 | Lulus |
+| PasswordResetIntegrationTest | 5 | 0 | 0 | Lulus |
 | LogbookApiIntegrationTest | 94 | 0 | 0 | Lulus |
 | LogbookBeApplicationTests | 1 | 0 | 0 | Lulus |
 | LoggingTest | 6 | 0 | 0 | Lulus |
@@ -802,6 +853,8 @@ Berdasarkan hasil eksekusi pengujian otomatis backend Logbook, diperoleh hasil r
 | AdminServiceTest | 2 | 0 | 0 | Lulus |
 | ApprovalServiceTest | 15 | 0 | 0 | Lulus |
 | AuthServiceTest | 13 | 0 | 0 | Lulus |
+| PasswordResetServiceTest | 7 | 0 | 0 | Lulus |
+| RateLimitServiceTest | 9 | 0 | 0 | Lulus |
 | CalendarServiceTest | 9 | 0 | 0 | Lulus |
 | ContinueServiceTest | 4 | 0 | 0 | Lulus |
 | DailyLogAutomationServiceTest | 10 | 0 | 0 | Lulus |
@@ -816,19 +869,20 @@ Berdasarkan hasil eksekusi pengujian otomatis backend Logbook, diperoleh hasil r
 | TeamServiceTest | 4 | 0 | 0 | Lulus |
 | SessionSecurityIntegrationTest | 5 | 0 | 0 | Lulus |
 | SummaryIntegrationTest | 4 | 0 | 0 | Lulus |
-| **Total** | **362** | **0** | **0** | **Lulus** |
+| **Total** | **383** | **0** | **0** | **Lulus** |
 
 Catatan: test memakai database `logbook_test` yang diisi dari fixture `logbook.sql` beserta migrasi Flyway. Isolasi ini mencegah perubahan pada database aplikasi (`logbook`), misalnya oleh tugas berkala yang mengubah DRAF menjadi `MENUNGGU`, sehingga hasil pengujian tidak lagi bergantung pada kondisi DB aplikasi.
 
 ### 7.1 Kesimpulan Hasil Pengujian
 
 Berdasarkan pengujian yang telah dilakukan, diperoleh hasil:
-- Eksekusi terbaru menjalankan **362 test** dengan **0 failure**, **0 error**, dan **0 skipped**; rincian per kelas tercantum pada tabel di atas.
+- Eksekusi terbaru menjalankan **383 test** dengan **0 failure**, **0 error**, dan **0 skipped**; rincian per kelas tercantum pada tabel di atas.
 - Sebanyak 29 endpoint API tersedia; 10 endpoint diuji secara manual menggunakan Postman, 13 endpoint diverifikasi melalui integration test, endpoint pengaturan pengguna (`GET/PUT /api/settings`) telah dilengkapi unit test, dan `GET /api/summary` telah dilengkapi `SummaryServiceTest`, `SummaryControllerTest`, serta `SummaryIntegrationTest` (seluruhnya lulus).
 - Seluruh unit test (termasuk validasi DTO, handler galat, konfigurasi & keluaran logging, autentikasi dan rotasi session, zona waktu Asia/Jakarta, otorisasi peran Atasan/Admin, keputusan Daily Log, batas hari & deadline, kalender, `continue`, submit check, otomatisasi Daily Log, impor CSV, serta pengelolaan libur & cuti) dan integration test berhasil dilewati.
 - Tidak ditemukan failures maupun errors pada eksekusi pengujian otomatis.
 - Otorisasi berbasis peran (talent, atasan, admin) telah diuji pada level unit maupun integrasi.
 - Keamanan request dan session telah diuji: CSRF `X-Requested-With`, request ID, rotasi session ID saat login/ganti kata sandi, session paralel, logout, serta atribut cookie `Secure`/`HttpOnly`/`SameSite`.
+- Pengamanan reset password dan rate limit telah diuji: token disimpan sebagai hash SHA-256 dan tidak dicatat ke log, token lama/terpakai/kedaluwarsa ditolak, kata sandi tidak berubah saat token gagal, serta lima percobaan memicu 429 untuk aksi `login`, `forgot-password`, dan `reset-password` dengan bucket terpisah. Header proxy hanya dipercaya saat dikonfigurasi.
 - Alur persetujuan Daily Log (setujui, tolak, ajukan perbaikan, setujui perbaikan), aturan alasan wajib, larangan memutuskan Daily Log sendiri, dan pencatatan log INFO setiap keputusan telah diuji.
 - Aturan batas hari telah diuji: hanya Daily Log pada hari aktif pengguna yang dapat ditambah, diubah, atau dikirim; hari yang sudah lewat maupun yang belum tiba ditolak dengan status 409. Deadline tanggal D adalah pukul 23:59 D, atau `work_end` pada D+1 untuk pengguna shift malam yang jam kerjanya melewati tengah malam.
 - Alur Daily Log DITOLAK telah diuji: pada hari yang sama task masih dapat diperbaiki lalu Daily Log dikirim ulang, sedangkan pada hari berikutnya hari tersebut tetap terkunci.
@@ -841,12 +895,12 @@ Berdasarkan laporan JaCoCo (`target/site/jacoco/index.html` dan `target/site/jac
 
 | Metrik | Ter-cakup | Total | Cakupan |
 |---|---:|---:|---:|
-| Instruction | 9.565 | 11.576 | 82,6% |
-| Branch | 517 | 769 | 67,2% |
-| Line | 2.142 | 2.581 | 83,0% |
-| Complexity | 692 | 1.008 | 68,7% |
-| Method | 500 | 621 | 80,5% |
-| Class | 106 | 114 | 93,0% |
+| Instruction | 10.103 | 11.807 | 85,6% |
+| Branch | 543 | 773 | 70,2% |
+| Line | 2.268 | 2.652 | 85,5% |
+| Complexity | 738 | 1.039 | 71,0% |
+| Method | 535 | 650 | 82,3% |
+| Class | 111 | 116 | 95,7% |
 
 - **Komponen Handler Galat, Filter Logging, & Fitur Atasan/Admin:**
   - `GlobalExceptionHandler`: **99,4%** instruction, **88,5%** branch, **100%** line, dan **100%** method coverage.
@@ -857,12 +911,13 @@ Berdasarkan laporan JaCoCo (`target/site/jacoco/index.html` dan `target/site/jac
   - `AdminController`: **97,5%** line coverage; seluruh endpoint impor CSV, daftar pengguna, libur nasional, dan cuti telah tercakup unit test.
   - `RoleService`: **94,4%** line dan **92,9%** branch coverage untuk aturan hak akses serta `canDecideTalent` / `requireCanDecideTalent`.
 - **Komponen dengan cakupan penuh:** `TimeConfig`, `SettingsService`, `TeamService`, dan `AdminDailyLogService` mencapai **100%** untuk instruction, branch, line, dan method. `SubmitCheckService` dan `ContinueService` mencapai **100%** line dan method coverage.
-- **Komponen lain yang relevan:** `AuthService` **92,4%** line / **77,8%** branch, `DeadlineService` **94,6%** line / **88,6%** branch, `DailyLogService` **88,6%** line / **80,8%** branch, dan `SummaryService` **95,5%** line / **70,7%** branch.
+- **Komponen lain yang relevan:** `AuthService` **92,4%** line / **77,8%** branch, `DeadlineService` **94,6%** line / **88,6%** branch, `DailyLogService` **89,4%** line / **80,8%** branch, dan `SummaryService` **95,5%** line / **70,7%** branch.
+- **Komponen keamanan reset password & rate limit:** `PasswordResetService` **96,2%** instruction, **80%** branch, **96,6%** line, dan **100%** method; `RateLimitService` **88,3%** instruction, **65%** branch, **91%** line, dan **91,7%** method; `AuthController` **100%** instruction/line/method dan **75%** branch. Entity `PasswordResetToken` mencapai **77,8%** instruction / **78,9%** line, sedangkan `RateLimitAttempt` **81,6%** instruction / **81,2%** line.
 
-Cakupan branch masih menjadi area yang dapat ditingkatkan (67,2%), meskipun seluruh skenario yang dirancang telah lulus.
+Cakupan branch masih menjadi area yang dapat ditingkatkan (70,2%), meskipun seluruh skenario yang dirancang telah lulus.
 
 ## 8. Kesimpulan
 
-Pengujian backend Logbook telah dilakukan melalui tiga pendekatan, yaitu manual testing, unit testing, dan integration testing, serta dilengkapi pengukuran cakupan kode menggunakan JaCoCo. Pengujian manual terhadap 10 endpoint API berhasil dilakukan menggunakan Postman, 13 endpoint tambahan diverifikasi melalui integration test, endpoint pengaturan pengguna (`GET/PUT /api/settings`) telah dilengkapi unit test, dan `GET /api/summary` telah dilengkapi unit test serta integration test khusus (`SummaryServiceTest`, `SummaryControllerTest`, `SummaryIntegrationTest`) yang seluruhnya lulus. Seluruh **362 test** lulus tanpa failure maupun error setelah test diisolasi ke database `logbook_test`, termasuk kesetaraan kontrak `DayDto` antara pemilik dan atasan. Laporan JaCoCo terbaru menunjukkan cakupan **83,0% line**, **82,6% instruction**, dan **67,2% branch**.
+Pengujian backend Logbook telah dilakukan melalui tiga pendekatan, yaitu manual testing, unit testing, dan integration testing, serta dilengkapi pengukuran cakupan kode menggunakan JaCoCo. Pengujian manual terhadap 10 endpoint API berhasil dilakukan menggunakan Postman, 13 endpoint tambahan diverifikasi melalui integration test, endpoint pengaturan pengguna (`GET/PUT /api/settings`) telah dilengkapi unit test, dan `GET /api/summary` telah dilengkapi unit test serta integration test khusus (`SummaryServiceTest`, `SummaryControllerTest`, `SummaryIntegrationTest`) yang seluruhnya lulus. Seluruh **383 test** lulus tanpa failure maupun error setelah test diisolasi ke database `logbook_test`, termasuk kesetaraan kontrak `DayDto` antara pemilik dan atasan serta pengamanan reset password dan rate limit. Laporan JaCoCo terbaru menunjukkan cakupan **85,5% line**, **85,6% instruction**, dan **70,2% branch**.
 
 Hasil tersebut menunjukkan bahwa komponen backend yang telah diuji berjalan sesuai dengan skenario pengujian yang tersedia. Meskipun demikian, hasil ini belum menjamin seluruh kemungkinan kondisi sistem telah diuji sehingga pengembangan cakupan pengujian tetap diperlukan.

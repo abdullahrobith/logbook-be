@@ -15,11 +15,14 @@ import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.env.Environment;
+import org.springframework.core.env.Profiles;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseCookie;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 @Slf4j
@@ -30,6 +33,7 @@ public class AuthController {
     private final AuthService authService;
     private final RoleService roleService;
     private final PasswordResetService passwordResetService;
+    private final Environment environment;
     private final String sessionCookieName;
     private final boolean sessionCookieSecure;
     private final String sessionCookieSameSite;
@@ -38,6 +42,7 @@ public class AuthController {
             AuthService authService,
             RoleService roleService,
             PasswordResetService passwordResetService,
+            Environment environment,
             @Value("${server.servlet.session.cookie.name:LOGBOOK_SESSION}") String sessionCookieName,
             @Value("${server.servlet.session.cookie.secure:false}") boolean sessionCookieSecure,
             @Value("${server.servlet.session.cookie.same-site:lax}") String sessionCookieSameSite
@@ -45,6 +50,7 @@ public class AuthController {
         this.authService = authService;
         this.roleService = roleService;
         this.passwordResetService = passwordResetService;
+        this.environment = environment;
         this.sessionCookieName = sessionCookieName;
         this.sessionCookieSecure = sessionCookieSecure;
         this.sessionCookieSameSite = sessionCookieSameSite;
@@ -61,16 +67,33 @@ public class AuthController {
     }
 
     @PostMapping("/forgot-password")
-    public Map<String, String> forgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
+    public Map<String, String> forgotPassword(
+            @Valid @RequestBody ForgotPasswordRequest request,
+            HttpServletRequest httpRequest
+    ) {
         log.info("Menerima request POST /api/auth/forgot-password");
-        String message = passwordResetService.requestPasswordReset(request.email());
-        return Map.of("message", message);
+        var result = passwordResetService.requestPasswordReset(request.email(), httpRequest);
+
+        Map<String, String> body = new LinkedHashMap<>();
+        body.put("message", result.message());
+        if (!environment.acceptsProfiles(Profiles.of("prod")) && result.token() != null) {
+            body.put("devToken", result.token());
+            log.warn("Token reset kata sandi dikirim di respons karena profil prod tidak aktif");
+        }
+        return body;
     }
 
     @PostMapping("/reset-password")
-    public Map<String, String> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
+    public Map<String, String> resetPassword(
+            @Valid @RequestBody ResetPasswordRequest request,
+            HttpServletRequest httpRequest
+    ) {
         log.info("Menerima request POST /api/auth/reset-password");
-        String message = passwordResetService.confirmPasswordReset(request.token(), request.newPassword());
+        String message = passwordResetService.confirmPasswordReset(
+                request.token(),
+                request.newPassword(),
+                httpRequest
+        );
         return Map.of("message", message);
     }
 
