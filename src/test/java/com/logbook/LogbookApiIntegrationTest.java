@@ -23,6 +23,7 @@ import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.mock.web.MockHttpSession;
 import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.transaction.annotation.Transactional;
@@ -72,6 +73,9 @@ class LogbookApiIntegrationTest {
 
     @Autowired
     private UserSettingsRepository userSettingsRepository;
+
+    @Autowired
+    private PasswordEncoder passwordEncoder;
 
     @Autowired
     private EntityManager entityManager;
@@ -1174,7 +1178,7 @@ class LogbookApiIntegrationTest {
                 "file",
                 "users.csv",
                 "text/csv",
-                "email,nama,jenis,email_atasan,admin\nbaru.import@contoh.id,Baru Import,TALENT,,false\n"
+                "email,nama,jenis,email_atasan,admin,password\nbaru.import@contoh.id,Baru Import,TALENT,,false,Pass@123\n"
                         .getBytes(StandardCharsets.UTF_8)
         );
 
@@ -1196,7 +1200,7 @@ class LogbookApiIntegrationTest {
                 "file",
                 "users.csv",
                 "text/csv",
-                "email,nama,jenis,email_atasan,admin\nbaru.import@contoh.id,Baru Import,TALENT,,false\n"
+                "email,nama,jenis,email_atasan,admin,password\nbaru.import@contoh.id,Baru Import,TALENT,,false,Pass@123\n"
                         .getBytes(StandardCharsets.UTF_8)
         );
 
@@ -1207,6 +1211,95 @@ class LogbookApiIntegrationTest {
         )
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.created").value(1));
+    }
+
+    @Test
+    void importUsesCsvPasswordAndReimportUpdatesOnlyUnchangedPasswords() throws Exception {
+        insertUser("admin.csv@contoh.id", "Admin CSV", true);
+        MockHttpSession adminSession = loginAs("admin.csv@contoh.id");
+
+        mockMvc.perform(
+                multipart("/api/admin/users/import")
+                        .file(importCsvWithPassword("Pass@123"))
+                        .session(adminSession)
+        )
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.created").value(1))
+        .andExpect(jsonPath("$.updated").value(0))
+        .andExpect(jsonPath("$.importedEmails[0]").value("kata.sandi@contoh.id"));
+
+        assertPassword("Pass@123");
+        assertMustChangePassword(true);
+
+        // Masih memakai password sementara -> password dari CSV boleh diperbarui.
+        mockMvc.perform(
+                multipart("/api/admin/users/import")
+                        .file(importCsvWithPassword("Pass@456"))
+                        .session(adminSession)
+        )
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.created").value(0))
+        .andExpect(jsonPath("$.updated").value(1))
+        .andExpect(jsonPath("$.importedEmails").isEmpty());
+
+        assertPassword("Pass@456");
+        assertMustChangePassword(true);
+
+        // Sudah mengganti password -> impor ulang tidak boleh menimpanya.
+        String changedHash = passwordEncoder.encode("SudahDiubah@123");
+        jdbcTemplate.update(
+                "UPDATE users SET password_hash = ?, must_change_password = false WHERE lower(email) = lower(?)",
+                changedHash,
+                "kata.sandi@contoh.id"
+        );
+        entityManager.clear();
+
+        mockMvc.perform(
+                multipart("/api/admin/users/import")
+                        .file(importCsvWithPassword("Pass@123"))
+                        .session(adminSession)
+        )
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.created").value(0))
+        .andExpect(jsonPath("$.updated").value(1))
+        .andExpect(jsonPath("$.importedEmails").isEmpty());
+
+        assertEquals(changedHash, jdbcTemplate.queryForObject(
+                "SELECT password_hash FROM users WHERE lower(email) = lower(?)",
+                String.class,
+                "kata.sandi@contoh.id"
+        ));
+        assertMustChangePassword(false);
+    }
+
+    private MockMultipartFile importCsvWithPassword(String password) {
+        String csv = """
+                email,nama,jenis,email_atasan,admin,password
+                kata.sandi@contoh.id,Kata Sandi,TALENT,,false,%s
+                """.formatted(password);
+        return new MockMultipartFile(
+                "file",
+                "users.csv",
+                "text/csv",
+                csv.getBytes(StandardCharsets.UTF_8)
+        );
+    }
+
+    private void assertPassword(String expectedPassword) {
+        String hash = jdbcTemplate.queryForObject(
+                "SELECT password_hash FROM users WHERE lower(email) = lower(?)",
+                String.class,
+                "kata.sandi@contoh.id"
+        );
+        assertTrue(passwordEncoder.matches(expectedPassword, hash));
+    }
+
+    private void assertMustChangePassword(boolean expected) {
+        assertEquals(expected, jdbcTemplate.queryForObject(
+                "SELECT must_change_password FROM users WHERE lower(email) = lower(?)",
+                Boolean.class,
+                "kata.sandi@contoh.id"
+        ));
     }
 
     // ==========================================

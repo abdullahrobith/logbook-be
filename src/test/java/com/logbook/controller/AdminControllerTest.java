@@ -54,7 +54,7 @@ class AdminControllerTest {
         doThrow(new ResponseStatusException(HttpStatus.FORBIDDEN, "Hanya admin yang dapat mengakses fitur ini"))
                 .when(roleService).requireAdmin(session);
 
-        MockMultipartFile file = new MockMultipartFile("file", "test.csv", "text/csv", "email,nama\na@b.com,Nama".getBytes());
+        MockMultipartFile file = new MockMultipartFile("file", "test.csv", "text/csv", "email,nama,jenis,email_atasan,admin,password\na@b.com,Nama,TALENT,,false,Pass@123".getBytes());
 
         ResponseStatusException ex = assertThrows(ResponseStatusException.class,
                 () -> adminController.importUsers(file, session));
@@ -66,7 +66,7 @@ class AdminControllerTest {
 
     @Test
     void testImportUsersSuccess() {
-        MockMultipartFile file = new MockMultipartFile("file", "users.csv", "text/csv", "email,nama\nnew@example.com,New User".getBytes());
+        MockMultipartFile file = new MockMultipartFile("file", "users.csv", "text/csv", "email,nama,jenis,email_atasan,admin,password\nnew@example.com,New User,TALENT,,false,Pass@123".getBytes());
         AdminImportResponse mockResponse = new AdminImportResponse(1, 0, List.of("new@example.com"));
 
         when(session.getAttribute("email")).thenReturn("admin@contoh.id");

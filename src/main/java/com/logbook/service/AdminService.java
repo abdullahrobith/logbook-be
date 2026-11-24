@@ -22,12 +22,10 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
-import java.security.SecureRandom;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
-import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -40,7 +38,6 @@ public class AdminService {
     private final HolidayRepository holidayRepository;
     private final LeaveRepository leaveRepository;
     private final PasswordEncoder passwordEncoder;
-    private final SecureRandom secureRandom = new SecureRandom();
     private final Clock clock;
 
     public AdminService(
@@ -66,7 +63,7 @@ public class AdminService {
         List<CSVRecord> records;
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(file.getInputStream()));
              CSVParser parser = new CSVParser(reader, CSVFormat.DEFAULT.builder()
-                     .setHeader("email", "nama", "jenis", "email_atasan", "admin")
+                     .setHeader("email", "nama", "jenis", "email_atasan", "admin", "password")
                      .setSkipHeaderRecord(true)
                      .setTrim(true)
                      .build())) {
@@ -74,18 +71,33 @@ public class AdminService {
             records = parser.getRecords();
         } catch (Exception e) {
             log.warn("Gagal membaca file CSV: {}", e.getMessage());
-            throw new ApiException(HttpStatus.BAD_REQUEST, "Format CSV tidak valid. Pastikan header: email,nama,jenis,email_atasan,admin");
+            throw new ApiException(HttpStatus.BAD_REQUEST, "Format CSV tidak valid. Pastikan header: email,nama,jenis,email_atasan,admin,password");
         }
 
         // 1. VALIDASI
         int lineNumber = 2;
         for (CSVRecord record : records) {
+            if (record.size() < 6) {
+                throw new ApiException(HttpStatus.BAD_REQUEST,
+                        "Baris ke-" + lineNumber + " salah: Kolom CSV harus lengkap: email,nama,jenis,email_atasan,admin,password.");
+            }
+
             String email = record.get("email");
             String emailAtasan = record.get("email_atasan");
             String adminStr = record.get("admin");
+            String password = record.get("password");
 
             if (email == null || email.isBlank() || record.get("nama").isBlank() || record.get("jenis").isBlank()) {
                 throw new ApiException(HttpStatus.BAD_REQUEST, "Baris ke-" + lineNumber + " salah: Email, Nama, dan Jenis wajib diisi.");
+            }
+
+            if (password == null || password.isBlank()) {
+                throw new ApiException(HttpStatus.BAD_REQUEST,
+                        "Baris ke-" + lineNumber + " salah: Password sementara wajib diisi.");
+            }
+            if (password.trim().length() < 6) {
+                throw new ApiException(HttpStatus.BAD_REQUEST,
+                        "Baris ke-" + lineNumber + " salah: Password sementara minimal 6 karakter.");
             }
 
             if (!email.matches("^[A-Za-z0-9+_.-]+@(.+)$")) {
@@ -125,10 +137,16 @@ public class AdminService {
                 user.setJenis(jenis);
                 user.setEmailAtasan((emailAtasan == null || emailAtasan.isBlank()) ? null : emailAtasan.trim().toLowerCase());
                 user.setAdmin(isAdmin);
+                // Perbaiki pengguna yang masih memakai password sementara dari
+                // impor sebelumnya. Jika pengguna sudah mengganti passwordnya,
+                // jangan timpa kata sandi yang sudah dipilih sendiri.
+                if (user.isMustChangePassword()) {
+                    user.setPasswordHash(passwordEncoder.encode(record.get("password").trim()));
+                }
                 userRepository.save(user);
                 updated++;
             } else {
-                String tempPassword = generateTemporaryPassword();
+                String tempPassword = record.get("password").trim();
                 User newUser = new User();
                 newUser.setEmail(email);
                 newUser.setFullName(nama);
@@ -152,12 +170,6 @@ public class AdminService {
         }
 
         return new AdminImportResponse(created, updated, importedEmails);
-    }
-
-    private String generateTemporaryPassword() {
-        byte[] bytes = new byte[12];
-        secureRandom.nextBytes(bytes);
-        return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
     }
 
     public List<AdminTalentOption> getTalentOptions() {
