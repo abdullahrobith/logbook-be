@@ -804,7 +804,7 @@ Bagian ini menyusun daftar skenario pengujian (test case) khusus untuk peran **A
 | ID Test Case | Peran | Endpoint | Skenario Pengujian | Ekspektasi Hasil | Metode Verifikasi |
 |---|---|---|---|---|---|
 | TC-CSV-01 | Non-Admin | `POST /api/admin/users/import` | Talent/Atasan non-admin mengunggah file CSV pengguna | Ditolak dengan `403 Forbidden` (`Hanya admin yang dapat mengakses fitur ini`) | `AdminControllerTest`, `LogbookApiIntegrationTest` |
-| TC-CSV-02 | Admin | `POST /api/admin/users/import` | Admin mengunggah CSV berisi email pengguna baru | `200 OK`, `created` bertambah, user disimpan dengan `must_change_password = true` dan `tempPasswords` dikembalikan | `AdminControllerTest`, `LogbookApiIntegrationTest` |
+| TC-CSV-02 | Admin | `POST /api/admin/users/import` | Admin mengunggah CSV berisi email pengguna baru | `200 OK`, `created` bertambah, user disimpan dengan `must_change_password = true` dan `importedEmails` dikembalikan | `AdminControllerTest`, `LogbookApiIntegrationTest` |
 | TC-CSV-03 | Admin | `POST /api/admin/users/import` | Admin mengunggah CSV berisi email yang sudah terdaftar | `200 OK`, `updated` bertambah, `full_name` pengguna diperbarui tanpa duplikasi baris | `AdminControllerTest` |
 | TC-CSV-04 | Admin | `POST /api/admin/users/import` | Admin mengunggah file CSV kosong (0 byte) | Ditolak dengan `400 Bad Request` (`File CSV tidak boleh kosong`) | `AdminControllerTest` |
 | TC-CSV-05 | Admin | `POST /api/admin/users/import` | Admin mengunggah CSV yang memiliki baris dengan `email` atau `nama` kosong | Ditolak dengan `400 Bad Request` (`Baris ke-N salah: Email dan Nama wajib diisi.`) | `AdminControllerTest` |
@@ -845,7 +845,7 @@ Berdasarkan hasil eksekusi pengujian otomatis backend Logbook, diperoleh hasil r
 | GlobalExceptionHandlerTest | 12 | 0 | 0 | Lulus |
 | ApiV1NegativeIntegrationTest | 3 | 0 | 0 | Lulus |
 | PasswordResetIntegrationTest | 5 | 0 | 0 | Lulus |
-| LogbookApiIntegrationTest | 94 | 0 | 0 | Lulus |
+| LogbookApiIntegrationTest | 95 | 0 | 0 | Lulus |
 | LogbookBeApplicationTests | 1 | 0 | 0 | Lulus |
 | LoggingTest | 6 | 0 | 0 | Lulus |
 | ProductionSessionCookieTest | 1 | 0 | 0 | Lulus |
@@ -869,15 +869,15 @@ Berdasarkan hasil eksekusi pengujian otomatis backend Logbook, diperoleh hasil r
 | TeamServiceTest | 4 | 0 | 0 | Lulus |
 | SessionSecurityIntegrationTest | 5 | 0 | 0 | Lulus |
 | SummaryIntegrationTest | 4 | 0 | 0 | Lulus |
-| **Total** | **383** | **0** | **0** | **Lulus** |
+| **Total** | **384** | **0** | **0** | **Lulus** |
 
 Catatan: test memakai database `logbook_test` yang diisi dari fixture `logbook.sql` beserta migrasi Flyway. Isolasi ini mencegah perubahan pada database aplikasi (`logbook`), misalnya oleh tugas berkala yang mengubah DRAF menjadi `MENUNGGU`, sehingga hasil pengujian tidak lagi bergantung pada kondisi DB aplikasi.
 
 ### 7.1 Kesimpulan Hasil Pengujian
 
 Berdasarkan pengujian yang telah dilakukan, diperoleh hasil:
-- Eksekusi terbaru menjalankan **383 test** dengan **0 failure**, **0 error**, dan **0 skipped**; rincian per kelas tercantum pada tabel di atas.
-- Sebanyak 29 endpoint API tersedia; 10 endpoint diuji secara manual menggunakan Postman, 13 endpoint diverifikasi melalui integration test, endpoint pengaturan pengguna (`GET/PUT /api/settings`) telah dilengkapi unit test, dan `GET /api/summary` telah dilengkapi `SummaryServiceTest`, `SummaryControllerTest`, serta `SummaryIntegrationTest` (seluruhnya lulus).
+- Eksekusi terbaru menjalankan **384 test** dengan **0 failure**, **0 error**, dan **0 skipped**; rincian per kelas tercantum pada tabel di atas.
+- Sebanyak 29 endpoint API tersedia; 10 endpoint diuji secara manual menggunakan Postman, 13 endpoint diverifikasi melalui integration test, endpoint pengaturan pengguna (`GET/PUT /api/settings`) telah dilengkapi unit test dan integration test untuk pembuatan baris `user_settings` pada pengguna baru, dan `GET /api/summary` telah dilengkapi `SummaryServiceTest`, `SummaryControllerTest`, serta `SummaryIntegrationTest` (seluruhnya lulus).
 - Seluruh unit test (termasuk validasi DTO, handler galat, konfigurasi & keluaran logging, autentikasi dan rotasi session, zona waktu Asia/Jakarta, otorisasi peran Atasan/Admin, keputusan Daily Log, batas hari & deadline, kalender, `continue`, submit check, otomatisasi Daily Log, impor CSV, serta pengelolaan libur & cuti) dan integration test berhasil dilewati.
 - Tidak ditemukan failures maupun errors pada eksekusi pengujian otomatis.
 - Otorisasi berbasis peran (talent, atasan, admin) telah diuji pada level unit maupun integrasi.
@@ -895,11 +895,11 @@ Berdasarkan laporan JaCoCo (`target/site/jacoco/index.html` dan `target/site/jac
 
 | Metrik | Ter-cakup | Total | Cakupan |
 |---|---:|---:|---:|
-| Instruction | 10.103 | 11.807 | 85,6% |
+| Instruction | 10.102 | 11.803 | 85,6% |
 | Branch | 543 | 773 | 70,2% |
-| Line | 2.268 | 2.652 | 85,5% |
-| Complexity | 738 | 1.039 | 71,0% |
-| Method | 535 | 650 | 82,3% |
+| Line | 2.268 | 2.651 | 85,6% |
+| Complexity | 739 | 1.039 | 71,1% |
+| Method | 536 | 650 | 82,5% |
 | Class | 111 | 116 | 95,7% |
 
 - **Komponen Handler Galat, Filter Logging, & Fitur Atasan/Admin:**
@@ -918,6 +918,6 @@ Cakupan branch masih menjadi area yang dapat ditingkatkan (70,2%), meskipun selu
 
 ## 8. Kesimpulan
 
-Pengujian backend Logbook telah dilakukan melalui tiga pendekatan, yaitu manual testing, unit testing, dan integration testing, serta dilengkapi pengukuran cakupan kode menggunakan JaCoCo. Pengujian manual terhadap 10 endpoint API berhasil dilakukan menggunakan Postman, 13 endpoint tambahan diverifikasi melalui integration test, endpoint pengaturan pengguna (`GET/PUT /api/settings`) telah dilengkapi unit test, dan `GET /api/summary` telah dilengkapi unit test serta integration test khusus (`SummaryServiceTest`, `SummaryControllerTest`, `SummaryIntegrationTest`) yang seluruhnya lulus. Seluruh **383 test** lulus tanpa failure maupun error setelah test diisolasi ke database `logbook_test`, termasuk kesetaraan kontrak `DayDto` antara pemilik dan atasan serta pengamanan reset password dan rate limit. Laporan JaCoCo terbaru menunjukkan cakupan **85,5% line**, **85,6% instruction**, dan **70,2% branch**.
+Pengujian backend Logbook telah dilakukan melalui tiga pendekatan, yaitu manual testing, unit testing, dan integration testing, serta dilengkapi pengukuran cakupan kode menggunakan JaCoCo. Pengujian manual terhadap 10 endpoint API berhasil dilakukan menggunakan Postman, 13 endpoint tambahan diverifikasi melalui integration test, endpoint pengaturan pengguna (`GET/PUT /api/settings`) telah dilengkapi unit test, dan `GET /api/summary` telah dilengkapi unit test serta integration test khusus (`SummaryServiceTest`, `SummaryControllerTest`, `SummaryIntegrationTest`) yang seluruhnya lulus. Seluruh **384 test** lulus tanpa failure maupun error setelah test diisolasi ke database `logbook_test`, termasuk kesetaraan kontrak `DayDto` antara pemilik dan atasan serta pengamanan reset password dan rate limit. Laporan JaCoCo terbaru menunjukkan cakupan **85,6% line**, **85,6% instruction**, dan **70,2% branch**.
 
 Hasil tersebut menunjukkan bahwa komponen backend yang telah diuji berjalan sesuai dengan skenario pengujian yang tersedia. Meskipun demikian, hasil ini belum menjamin seluruh kemungkinan kondisi sistem telah diuji sehingga pengembangan cakupan pengujian tetap diperlukan.

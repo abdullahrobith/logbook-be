@@ -3,9 +3,13 @@ package com.logbook;
 
 import com.logbook.entity.DailyLog;
 import com.logbook.entity.LogTask;
+import com.logbook.entity.User;
 import com.logbook.filter.RequestIdFilter;
 import com.logbook.repository.DailyLogRepository;
 import com.logbook.repository.LogTaskRepository;
+import com.logbook.repository.UserRepository;
+import com.logbook.repository.UserSettingsRepository;
+import com.logbook.service.AuthService;
 import com.logbook.support.CsrfTestConfig;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -28,6 +32,7 @@ import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.util.List;
+import java.util.UUID;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -61,6 +66,12 @@ class LogbookApiIntegrationTest {
 
     @Autowired
     private LogTaskRepository logTaskRepository;
+
+    @Autowired
+    private UserRepository userRepository;
+
+    @Autowired
+    private UserSettingsRepository userSettingsRepository;
 
     @Autowired
     private EntityManager entityManager;
@@ -416,6 +427,33 @@ class LogbookApiIntegrationTest {
                                 """)
         )
         .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void getSettingsCreatesRowForUserWithoutSettings() throws Exception {
+        User newUser = new User();
+        newUser.setEmail("settings-" + UUID.randomUUID() + "@contoh.id");
+        newUser.setFullName("Pengguna Tanpa Pengaturan");
+        newUser.setJenis("TALENT");
+        newUser.setAdmin(false);
+        newUser.setPasswordHash(PASSWORD_HASH);
+        newUser.setMustChangePassword(false);
+        newUser.setActive(true);
+        newUser.setCreatedAt(OffsetDateTime.now(JAKARTA));
+        User savedUser = userRepository.saveAndFlush(newUser);
+
+        assertTrue(userSettingsRepository.findById(savedUser.getId()).isEmpty());
+
+        MockHttpSession newSession = new MockHttpSession();
+        newSession.setAttribute(AuthService.SESSION_USER_ID, savedUser.getId());
+
+        mockMvc.perform(get("/api/settings").session(newSession))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.workStart").value("08:00"))
+                .andExpect(jsonPath("$.workEnd").value("17:00"))
+                .andExpect(jsonPath("$.onboarded").value(false));
+
+        assertTrue(userSettingsRepository.findById(savedUser.getId()).isPresent());
     }
 
     // ==========================================
