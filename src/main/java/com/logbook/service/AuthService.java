@@ -25,29 +25,29 @@ public class AuthService {
     private final UserRepository userRepository;
     private final RoleService roleService;
     private final PasswordEncoder passwordEncoder;
-    private final LoginRateLimitService loginRateLimitService;
+    private final RateLimitService rateLimitService;
 
     public AuthService(
             UserRepository userRepository,
             RoleService roleService,
             PasswordEncoder passwordEncoder,
-            LoginRateLimitService loginRateLimitService
+            RateLimitService rateLimitService
     ) {
         this.userRepository = userRepository;
         this.roleService = roleService;
         this.passwordEncoder = passwordEncoder;
-        this.loginRateLimitService = loginRateLimitService;
+        this.rateLimitService = rateLimitService;
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public UserResponse login(String email, String password, HttpSession session, HttpServletRequest httpRequest) {
         String normalizedEmail = email == null ? "" : email.trim();
-        loginRateLimitService.checkAllowed(normalizedEmail, httpRequest);
+        rateLimitService.checkAllowed(normalizedEmail, httpRequest);
 
         User user = userRepository
                 .findByEmailIgnoreCaseAndActiveTrue(normalizedEmail)
                 .orElseThrow(() -> {
-                    loginRateLimitService.recordFailure(normalizedEmail, httpRequest);
+                    rateLimitService.recordFailure(normalizedEmail, httpRequest);
                     log.warn("Percobaan login gagal untuk email: {}", normalizedEmail);
                     return invalidCredentials();
                 });
@@ -55,11 +55,11 @@ public class AuthService {
         try {
             verifyPassword(user, password);
         } catch (ApiException exception) {
-            loginRateLimitService.recordFailure(normalizedEmail, httpRequest);
+            rateLimitService.recordFailure(normalizedEmail, httpRequest);
             throw exception;
         }
 
-        loginRateLimitService.recordSuccess(normalizedEmail, httpRequest);
+        rateLimitService.recordSuccess(normalizedEmail, httpRequest);
 
         httpRequest.changeSessionId();
         HttpSession currentSession = httpRequest.getSession();
