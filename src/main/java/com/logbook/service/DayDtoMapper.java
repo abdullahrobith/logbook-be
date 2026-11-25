@@ -6,11 +6,13 @@ import com.logbook.dto.TaskDto;
 import com.logbook.entity.DailyLog;
 import com.logbook.entity.LogTask;
 import com.logbook.entity.TaskType;
+import com.logbook.entity.User;
 import com.logbook.entity.UserSettings;
 import com.logbook.entity.WorkStatus;
 import com.logbook.project.ProjectDto;
 import com.logbook.project.ProjectRepository;
 import com.logbook.repository.TaskTypeRepository;
+import com.logbook.repository.UserRepository;
 import com.logbook.repository.UserSettingsRepository;
 import com.logbook.repository.WorkStatusRepository;
 import org.springframework.stereotype.Service;
@@ -28,6 +30,7 @@ public class DayDtoMapper {
     private final ProjectRepository projectRepository;
     private final TaskTypeRepository taskTypeRepository;
     private final WorkStatusRepository workStatusRepository;
+    private final UserRepository userRepository;
 
     public DayDtoMapper(
             CalendarService calendarService,
@@ -35,7 +38,8 @@ public class DayDtoMapper {
             UserSettingsRepository userSettingsRepository,
             ProjectRepository projectRepository,
             TaskTypeRepository taskTypeRepository,
-            WorkStatusRepository workStatusRepository
+            WorkStatusRepository workStatusRepository,
+            UserRepository userRepository
     ) {
         this.calendarService = calendarService;
         this.deadlineService = deadlineService;
@@ -43,6 +47,7 @@ public class DayDtoMapper {
         this.projectRepository = projectRepository;
         this.taskTypeRepository = taskTypeRepository;
         this.workStatusRepository = workStatusRepository;
+        this.userRepository = userRepository;
     }
 
     public DayDto toDayDto(DailyLog dailyLog) {
@@ -80,6 +85,15 @@ public class DayDtoMapper {
                 dailyLog.getStatus(),
                 dailyLog.getLogDate()
         );
+
+        User owner = userRepository.findById(dailyLog.getUserId()).orElse(null);
+        String decidedByName = null;
+        if (dailyLog.getDecidedByUserId() != null) {
+            decidedByName = userRepository.findById(dailyLog.getDecidedByUserId())
+                    .map(User::getFullName)
+                    .orElse(null);
+        }
+
         return new DayDto(
                 dailyLog.getLogDate(),
                 dailyLog.getStatus(),
@@ -91,7 +105,17 @@ public class DayDtoMapper {
                 totalMinutes,
                 perProject,
                 taskDtos,
-                dailyLog.getRejectionReason()
+                dailyLog.getRejectionReason(),
+                dailyLog.getId(),
+                dailyLog.getUserId(),
+                owner == null ? null : owner.getFullName(),
+                owner == null ? null : owner.getJenis(),
+                dailyLog.getSubmittedAt(),
+                dailyLog.isAutoSubmitted(),
+                dailyLog.getRevisionReason(),
+                dailyLog.getDecidedAt(),
+                dailyLog.getDecidedByUserId(),
+                decidedByName
         );
     }
 

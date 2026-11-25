@@ -28,7 +28,7 @@ Database `logbook_test` dibuat sekali dengan skema dan fixture yang sama seperti
 
 ## 3. Manual Testing API
 
-Saat ini backend Logbook memiliki **29 endpoint API** (termasuk penyesuaian/penambahan endpoint SRS Day/Task dan `GET /api/summary`). Sepuluh endpoint diuji secara manual menggunakan Postman, tiga belas endpoint yang ditambahkan setelah pengujian manual awal diverifikasi melalui integration test, dan endpoint lainnya (termasuk SRS Day/Task dan pengaturan pengguna) ditambahkan/diubah kemudian; verifikasinya belum seluruhnya tercakup dalam dokumen ini.
+Saat ini backend Logbook memiliki **30 endpoint API** (termasuk penyesuaian/penambahan endpoint SRS Day/Task, `GET /api/summary`, dan `GET /api/team/pending-days`). Sepuluh endpoint diuji secara manual menggunakan Postman, tiga belas endpoint yang ditambahkan setelah pengujian manual awal diverifikasi melalui integration test, dan endpoint lainnya (termasuk SRS Day/Task dan pengaturan pengguna) ditambahkan/diubah kemudian; verifikasinya belum seluruhnya tercakup dalam dokumen ini.
 
 | No. | Method | Endpoint | Fungsi | Akses | Verifikasi |
 |---|---|---|---|---|---|
@@ -61,8 +61,9 @@ Saat ini backend Logbook memiliki **29 endpoint API** (termasuk penyesuaian/pena
 | 27 | GET | `/api/days/{date}` | Mendapatkan `DayDto` milik pengguna pada tanggal tertentu (SRS) | Pemilik data | Perlu verifikasi |
 | 28 | POST | `/api/days/{date}/tasks` | Menambahkan task pada tanggal tertentu dan mengembalikan `DayDto` terbaru (SRS) | Pemilik data | Perlu verifikasi |
 | 29 | GET | `/api/summary?period=WEEK\|MONTH&date=YYYY-MM-DD` | Rekap mingguan/bulanan Ringkasanku (total waktu, hari kerja, jenis task, proyek, status kerja, kendala, dan hari ringkasan singkat) | Pemilik data | Unit test & Integration test (`SummaryServiceTest`, `SummaryControllerTest`, `SummaryIntegrationTest`) |
+| 30 | GET | `/api/team/pending-days?userId=` | Mendapatkan daftar hari berstatus MENUNGGU untuk halaman Tim; `userId` opsional | Atasan (timnya), admin (semua) | Unit test & Integration test (`TeamServiceTest`, `TeamControllerTest`, `LogbookApiIntegrationTest`) |
 
-Seluruh endpoint yang telah tercakup skenario pengujian memberikan hasil sesuai harapan. Untuk endpoint pengaturan pengguna (no. 25–26) telah ditambahkan unit test (`SettingsServiceTest`, `SettingsControllerTest`) yang berhasil lulus serta skenario integration test pada `LogbookApiIntegrationTest`; eksekusi integration test memerlukan database PostgreSQL lokal dengan skema/fixture yang sesuai. Endpoint baca anggota (no. 6, 18, 19, 27) kini mengembalikan struktur `DayDto` yang identik, termasuk `totalMinutes`, `perProject`, `range`, dan `tasks`; kesetaraan respons pemilik dan atasan diuji pada `LogbookApiIntegrationTest` serta `TeamControllerTest`. Endpoint SRS Task (no. 15–16, 28) telah memakai `DayDto`/`TaskDto`, namun pengujian spesifik untuk kontrak baru tersebut masih perlu dilengkapi.
+Seluruh endpoint yang telah tercakup skenario pengujian memberikan hasil sesuai harapan. Untuk endpoint pengaturan pengguna (no. 25–26) telah ditambahkan unit test (`SettingsServiceTest`, `SettingsControllerTest`) yang berhasil lulus serta skenario integration test pada `LogbookApiIntegrationTest`; eksekusi integration test memerlukan database PostgreSQL lokal dengan skema/fixture yang sesuai. Endpoint baca anggota (no. 6, 18, 19, 27) kini mengembalikan struktur `DayDto` yang identik, termasuk `totalMinutes`, `perProject`, `range`, dan `tasks`; kesetaraan respons pemilik dan atasan diuji pada `LogbookApiIntegrationTest` serta `TeamControllerTest`. `DayDto` juga membawa identitas dan metadata (`dailyLogId`, `userId`, `fullName`, `jenis`, `submittedAt`, `autoSubmitted`, `revisionReason`, `decidedAt`, `decidedByUserId`, `decidedByName`) secara additives tanpa mengubah kontrak lama. Endpoint SRS Task (no. 15–16, 28) telah memakai `DayDto`/`TaskDto`, namun pengujian spesifik untuk kontrak baru tersebut masih perlu dilengkapi.
 
 ## 4. Unit Testing
 
@@ -197,10 +198,14 @@ Pengujian dilakukan untuk memastikan daftar tim, status hari ini, dan perhitunga
 |---|---|---|
 | 1 | Atasan hanya mendapatkan anggota timnya; status BELUM_MULAI bila belum ada Daily Log hari ini | Lulus |
 | 2 | Admin mendapatkan seluruh pengguna aktif | Lulus |
-| 3 | Status hari ini memakai total durasi union dan jumlah hari MENUNGGU | Lulus |
-| 4 | Tim kosong mengembalikan daftar kosong | Lulus |
+| 3 | Admin yang sekaligus atasan hanya melihat timnya untuk scope `ATASAN` | Lulus |
+| 4 | Status hari ini memakai total durasi union dan jumlah hari MENUNGGU | Lulus |
+| 5 | Tim kosong mengembalikan daftar kosong | Lulus |
+| 6 | Atasan mendapat daftar hari MENUNGGU milik bawahannya beserta durasi dan metadata submit | Lulus |
+| 7 | Admin mendapat daftar hari MENUNGGU seluruh pengguna aktif | Lulus |
+| 8 | Parameter `userId` membatasi daftar hari MENUNGGU tanpa query daftar tim | Lulus |
 
-Total: **4 test, seluruhnya lulus.**
+Total: **8 test, seluruhnya lulus.**
 
 ### 4.7 AdminDailyLogServiceTest
 
@@ -526,11 +531,16 @@ Total: **9 test, seluruhnya lulus.**
 
 | No. | Skenario Pengujian | Hasil |
 |---|---|---|
-| 1 | Talent ditolak (403) saat mengakses daftar tim | Lulus |
-| 2 | Atasan mendapatkan respons 200 untuk daftar tim | Lulus |
-| 3 | Seluruh path baca anggota mengembalikan struktur `DayDto` | Lulus |
+| 1 | Atasan mendapatkan respons 200 untuk daftar tim | Lulus |
+| 2 | Scope `ADMIN` memakai otorisasi admin | Lulus |
+| 3 | Talent ditolak (403) saat mengakses daftar tim | Lulus |
+| 4 | Scope `ADMIN` menolak atasan yang bukan admin | Lulus |
+| 5 | Seluruh path baca anggota mengembalikan struktur `DayDto` | Lulus |
+| 6 | `DayDto` mengekspos identitas, metadata submit, revisi, dan keputusan | Lulus |
+| 7 | `GET /api/team/pending-days` berjalan dengan dan tanpa `userId` | Lulus |
+| 8 | `GET /api/team/pending-days` menolak talent dengan 403 | Lulus |
 
-Total: **3 test, seluruhnya lulus.**
+Total: **8 test, seluruhnya lulus.**
 
 ### 4.27 LogbookBeApplicationTests
 
@@ -674,8 +684,13 @@ Pengujian menggunakan database `logbook_test` yang terpisah dari database aplika
 | 92 | Submit check tidak menghalangi pengiriman Daily Log | Lulus |
 | 93 | Submit check tanpa login menghasilkan 401 | Lulus |
 | 94 | `PUT /api/settings` menolak `workStart` yang tidak lebih awal dari `workEnd` | Lulus |
+| 95 | `GET /api/team?scope=ADMIN` memakai otorisasi admin | Lulus |
+| 96 | `GET /api/team?scope=ADMIN` menolak atasan yang bukan admin | Lulus |
+| 97 | `DayDto` anggota tim menyertakan identitas, metadata submit, revisi, dan keputusan | Lulus |
+| 98 | Path lama `/api/daily-logs/users/{userId}` turut menyertakan `dailyLogId` dan `userId` | Lulus |
+| 99 | `GET /api/team/pending-days?userId=` mengembalikan hari MENUNGGU beserta id, tanggal, durasi, dan metadata submit | Lulus |
 
-Total: seluruh skenario pada `LogbookApiIntegrationTest` (**94 test**) lulus, termasuk pengaturan pengguna, kesetaraan kontrak `DayDto`, rotasi session, validasi DTO, request ID, `continue`, dan submit check.
+Total: seluruh skenario pada `LogbookApiIntegrationTest` (**99 test**) lulus, termasuk pengaturan pengguna, kesetaraan kontrak `DayDto`, identitas/metadata `DayDto`, daftar hari menunggu, rotasi session, validasi DTO, request ID, `continue`, dan submit check.
 
 ### 5.2 DailyLogDeadlineIntegrationTest
 
@@ -836,7 +851,7 @@ Berdasarkan hasil eksekusi pengujian otomatis backend Logbook, diperoleh hasil r
 | ApiExceptionHandlerTest | 2 | 0 | 0 | Lulus |
 | SettingsControllerTest | 4 | 0 | 0 | Lulus |
 | SummaryControllerTest | 2 | 0 | 0 | Lulus |
-| TeamControllerTest | 5 | 0 | 0 | Lulus |
+| TeamControllerTest | 8 | 0 | 0 | Lulus |
 | CsrfIntegrationTest | 6 | 0 | 0 | Lulus |
 | DailyLogDeadlineIntegrationTest | 13 | 0 | 0 | Lulus |
 | DailyLogResponseTest | 8 | 0 | 0 | Lulus |
@@ -845,7 +860,7 @@ Berdasarkan hasil eksekusi pengujian otomatis backend Logbook, diperoleh hasil r
 | GlobalExceptionHandlerTest | 12 | 0 | 0 | Lulus |
 | ApiV1NegativeIntegrationTest | 3 | 0 | 0 | Lulus |
 | PasswordResetIntegrationTest | 5 | 0 | 0 | Lulus |
-| LogbookApiIntegrationTest | 97 | 0 | 0 | Lulus |
+| LogbookApiIntegrationTest | 99 | 0 | 0 | Lulus |
 | LogbookBeApplicationTests | 1 | 0 | 0 | Lulus |
 | LoggingTest | 6 | 0 | 0 | Lulus |
 | ProductionSessionCookieTest | 1 | 0 | 0 | Lulus |
@@ -866,22 +881,23 @@ Berdasarkan hasil eksekusi pengujian otomatis backend Logbook, diperoleh hasil r
 | SubmitCheckServiceTest | 10 | 0 | 0 | Lulus |
 | SummaryServiceTest | 5 | 0 | 0 | Lulus |
 | TaskDurationUtilTest | 3 | 0 | 0 | Lulus |
-| TeamServiceTest | 5 | 0 | 0 | Lulus |
+| TeamServiceTest | 8 | 0 | 0 | Lulus |
 | SessionSecurityIntegrationTest | 5 | 0 | 0 | Lulus |
 | SummaryIntegrationTest | 4 | 0 | 0 | Lulus |
-| **Total** | **392** | **0** | **0** | **Lulus** |
+| **Total** | **400** | **0** | **0** | **Lulus** |
 
 Catatan: test memakai database `logbook_test` yang diisi dari fixture `logbook.sql` beserta migrasi Flyway. Isolasi ini mencegah perubahan pada database aplikasi (`logbook`), misalnya oleh tugas berkala yang mengubah DRAF menjadi `MENUNGGU`, sehingga hasil pengujian tidak lagi bergantung pada kondisi DB aplikasi. Konfigurasi test juga mendeklarasikan ulang nama dan atribut cookie sesi agar pengujian keamanan tidak bergantung pada pengaturan di file konfigurasi utama.
 
 ### 7.1 Kesimpulan Hasil Pengujian
 
 Berdasarkan pengujian yang telah dilakukan, diperoleh hasil:
-- Eksekusi terbaru menjalankan **392 test** dengan **0 failure**, **0 error**, dan **0 skipped**; rincian per kelas tercantum pada tabel di atas.
-- Sebanyak 29 endpoint API tersedia; 10 endpoint diuji secara manual menggunakan Postman, 13 endpoint diverifikasi melalui integration test, endpoint pengaturan pengguna (`GET/PUT /api/settings`) telah dilengkapi unit test dan integration test untuk pembuatan baris `user_settings` pada pengguna baru, dan `GET /api/summary` telah dilengkapi `SummaryServiceTest`, `SummaryControllerTest`, serta `SummaryIntegrationTest` (seluruhnya lulus).
+- Eksekusi terbaru menjalankan **400 test** dengan **0 failure**, **0 error**, dan **0 skipped**; rincian per kelas tercantum pada tabel di atas.
+- Sebanyak 30 endpoint API tersedia; 10 endpoint diuji secara manual menggunakan Postman, 13 endpoint diverifikasi melalui integration test, endpoint pengaturan pengguna (`GET/PUT /api/settings`) telah dilengkapi unit test dan integration test untuk pembuatan baris `user_settings` pada pengguna baru, dan `GET /api/summary` telah dilengkapi `SummaryServiceTest`, `SummaryControllerTest`, serta `SummaryIntegrationTest` (seluruhnya lulus).
 - Seluruh unit test (termasuk validasi DTO, handler galat, konfigurasi & keluaran logging, autentikasi dan rotasi session, zona waktu Asia/Jakarta, otorisasi peran Atasan/Admin, keputusan Daily Log, batas hari & deadline, kalender, `continue`, submit check, otomatisasi Daily Log, impor CSV, serta pengelolaan libur & cuti) dan integration test berhasil dilewati.
 - Tidak ditemukan failures maupun errors pada eksekusi pengujian otomatis.
 - Otorisasi berbasis peran (talent, atasan, admin) telah diuji pada level unit maupun integrasi.
 - Cakupan daftar Tim kini eksplisit melalui `GET /api/team?scope=ATASAN|ADMIN`: `ATASAN` hanya mengembalikan bawahan langsung berdasarkan `email_atasan`, `ADMIN` mengembalikan seluruh talent aktif. Pengguna yang sekaligus berperan sebagai admin dan atasan diuji untuk memastikan halaman Tim atasan tidak menampilkan seluruh talent.
+- Kontrak `DayDto` diperluas secara additif dengan `dailyLogId`, `userId`, identitas pemilik, waktu submit, status submit otomatis, alasan revisi, dan metadata keputusan. `GET /api/team/pending-days` diuji tanpa `userId` (sesuai cakupan atasan/admin) dan dengan `userId` (membatasi satu anggota yang masih dapat dilihat); talent ditolak dengan 403.
 - Keamanan request dan session telah diuji: CSRF `X-Requested-With`, request ID, rotasi session ID saat login/ganti kata sandi, session paralel, logout, serta atribut cookie `Secure`/`HttpOnly`/`SameSite`.
 - Pengamanan reset password dan rate limit telah diuji: token disimpan sebagai hash SHA-256 dan tidak dicatat ke log, token lama/terpakai/kedaluwarsa ditolak, kata sandi tidak berubah saat token gagal, serta lima percobaan memicu 429 untuk aksi `login`, `forgot-password`, dan `reset-password` dengan bucket terpisah. Header proxy hanya dipercaya saat dikonfigurasi.
 - Alur persetujuan Daily Log (setujui, tolak, ajukan perbaikan, setujui perbaikan), aturan alasan wajib, larangan memutuskan Daily Log sendiri, dan pencatatan log INFO setiap keputusan telah diuji.
@@ -896,12 +912,12 @@ Berdasarkan laporan JaCoCo (`target/site/jacoco/index.html` dan `target/site/jac
 
 | Metrik | Ter-cakup | Total | Cakupan |
 |---|---:|---:|---:|
-| Instruction | 10.252 | 11.947 | 85,8% |
-| Branch | 564 | 793 | 71,1% |
-| Line | 2.287 | 2.670 | 85,7% |
-| Complexity | 748 | 1.051 | 71,2% |
-| Method | 536 | 652 | 82,2% |
-| Class | 112 | 117 | 95,7% |
+| Instruction | 10.492 | 12.209 | 85,9% |
+| Branch | 577 | 809 | 71,3% |
+| Line | 2.333 | 2.720 | 85,8% |
+| Complexity | 758 | 1.064 | 71,2% |
+| Method | 541 | 657 | 82,3% |
+| Class | 113 | 118 | 95,8% |
 
 - **Komponen Handler Galat, Filter Logging, & Fitur Atasan/Admin:**
   - `GlobalExceptionHandler`: **99,4%** instruction, **88,5%** branch, **100%** line, dan **100%** method coverage.
@@ -911,14 +927,14 @@ Berdasarkan laporan JaCoCo (`target/site/jacoco/index.html` dan `target/site/jac
   - `SecurityConfig`: **96,1%** instruction, **50%** branch, **97%** line, dan **91,7%** method coverage.
   - `AdminController`: **97,5%** line coverage; seluruh endpoint impor CSV, daftar pengguna, libur nasional, dan cuti telah tercakup unit test.
   - `RoleService`: **94,8%** line dan **93,2%** branch coverage untuk aturan hak akses serta `canDecideTalent` / `requireCanDecideTalent` / `requireSupervisor`.
-- **Komponen dengan cakupan penuh:** `TimeConfig`, `SettingsService`, `TeamService`, dan `AdminDailyLogService` mencapai **100%** untuk instruction, branch, line, dan method. `SubmitCheckService` dan `ContinueService` mencapai **100%** line dan method coverage.
+- **Komponen dengan cakupan penuh:** `TimeConfig`, `SettingsService`, `TeamController`, `DayDto`, dan `AdminDailyLogService` mencapai **100%** line coverage (komponen layanan/configuration juga penuh untuk instruction, branch, dan method). `TeamService` mencapai **97,2%** line dan **91,7%** branch, `DayDtoMapper` **92,5%** line dan **58,8%** branch, sedangkan `SubmitCheckService` dan `ContinueService` tetap mencapai **100%** line dan method coverage.
 - **Komponen lain yang relevan:** `AuthService` **92,4%** line / **77,8%** branch, `DeadlineService` **94,6%** line / **88,6%** branch, `DailyLogService` **89,4%** line / **80,8%** branch, dan `SummaryService` **95,5%** line / **70,7%** branch.
 - **Komponen keamanan reset password & rate limit:** `PasswordResetService` **96,2%** instruction, **80%** branch, **96,6%** line, dan **100%** method; `RateLimitService` **88,3%** instruction, **65%** branch, **91%** line, dan **91,7%** method; `AuthController` **100%** instruction/line/method dan **75%** branch. Entity `PasswordResetToken` mencapai **77,8%** instruction / **78,9%** line, sedangkan `RateLimitAttempt` **81,6%** instruction / **81,2%** line.
 
-Cakupan branch masih menjadi area yang dapat ditingkatkan (71,1%), meskipun seluruh skenario yang dirancang telah lulus.
+Cakupan branch masih menjadi area yang dapat ditingkatkan (71,3%), meskipun seluruh skenario yang dirancang telah lulus.
 
 ## 8. Kesimpulan
 
-Pengujian backend Logbook telah dilakukan melalui tiga pendekatan, yaitu manual testing, unit testing, dan integration testing, serta dilengkapi pengukuran cakupan kode menggunakan JaCoCo. Pengujian manual terhadap 10 endpoint API berhasil dilakukan menggunakan Postman, 13 endpoint tambahan diverifikasi melalui integration test, endpoint pengaturan pengguna (`GET/PUT /api/settings`) telah dilengkapi unit test dan integration test untuk pembuatan baris `user_settings` pada pengguna baru, dan `GET /api/summary` telah dilengkapi unit test serta integration test khusus (`SummaryServiceTest`, `SummaryControllerTest`, `SummaryIntegrationTest`) yang seluruhnya lulus. Seluruh **392 test** lulus tanpa failure maupun error setelah test diisolasi ke database `logbook_test`, termasuk kesetaraan kontrak `DayDto` antara pemilik dan atasan, pengamanan reset password dan rate limit, serta pemisahan cakupan daftar Tim atasan/admin. Laporan JaCoCo terbaru menunjukkan cakupan **85,7% line**, **85,8% instruction**, dan **71,1% branch**.
+Pengujian backend Logbook telah dilakukan melalui tiga pendekatan, yaitu manual testing, unit testing, dan integration testing, serta dilengkapi pengukuran cakupan kode menggunakan JaCoCo. Pengujian manual terhadap 10 endpoint API berhasil dilakukan menggunakan Postman, 13 endpoint tambahan diverifikasi melalui integration test, endpoint pengaturan pengguna (`GET/PUT /api/settings`) telah dilengkapi unit test dan integration test untuk pembuatan baris `user_settings` pada pengguna baru, dan `GET /api/summary` telah dilengkapi unit test serta integration test khusus (`SummaryServiceTest`, `SummaryControllerTest`, `SummaryIntegrationTest`) yang seluruhnya lulus. Seluruh **400 test** lulus tanpa failure maupun error setelah test diisolasi ke database `logbook_test`, termasuk kesetaraan kontrak `DayDto` antara pemilik dan atasan, identitas/metadata `DayDto`, daftar hari menunggu pada halaman Tim, pengamanan reset password dan rate limit, serta pemisahan cakupan daftar Tim atasan/admin. Laporan JaCoCo terbaru menunjukkan cakupan **85,8% line**, **85,9% instruction**, dan **71,3% branch**.
 
 Hasil tersebut menunjukkan bahwa komponen backend yang telah diuji berjalan sesuai dengan skenario pengujian yang tersedia. Meskipun demikian, hasil ini belum menjamin seluruh kemungkinan kondisi sistem telah diuji sehingga pengembangan cakupan pengujian tetap diperlukan.

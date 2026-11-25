@@ -1,5 +1,6 @@
 package com.logbook.service;
 
+import com.logbook.dto.PendingDayResponse;
 import com.logbook.dto.TeamMemberResponse;
 import com.logbook.dto.TeamScope;
 import com.logbook.entity.DailyLog;
@@ -14,10 +15,13 @@ import org.junit.jupiter.api.Test;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -144,6 +148,59 @@ class TeamServiceTest {
         List<TeamMemberResponse> result = service.getTeam(supervisor, TeamScope.ATASAN);
 
         assertEquals(List.of(), result);
+    }
+
+    @Test
+    void supervisorGetsPendingDaysForOwnTeam() {
+        User supervisor = user(10L, "atasan@contoh.id", "Atasan", false);
+        User member = user(1L, "rina@contoh.id", "Rina", false);
+        OffsetDateTime submittedAt = OffsetDateTime.parse("2026-11-11T10:00:00+07:00");
+        DailyLog waitingLog = dailyLog(4L, 1L, "MENUNGGU", List.of(task(540, (short) 60)));
+        when(waitingLog.getSubmittedAt()).thenReturn(submittedAt);
+        when(waitingLog.isAutoSubmitted()).thenReturn(true);
+        when(userRepository.findByEmailAtasanIgnoreCaseAndActiveTrueOrderByFullNameAsc(
+                "atasan@contoh.id"
+        )).thenReturn(List.of(member));
+        when(dailyLogRepository.findPendingByUserIds(List.of(1L), "MENUNGGU"))
+                .thenReturn(List.of(waitingLog));
+
+        List<PendingDayResponse> result = service.getPendingDays(supervisor, null);
+
+        assertEquals(1, result.size());
+        assertEquals(1L, result.get(0).userId());
+        assertEquals(4L, result.get(0).dailyLogId());
+        assertEquals(60, result.get(0).totalDurationMinutes());
+        assertEquals(submittedAt, result.get(0).submittedAt());
+        assertTrue(result.get(0).autoSubmitted());
+        verify(userRepository, never()).findByActiveTrueOrderByFullNameAsc();
+    }
+
+    @Test
+    void adminGetsPendingDaysForAllActiveUsers() {
+        User admin = user(9L, "admin@contoh.id", "Admin", true);
+        User first = user(1L, "rina@contoh.id", "Rina", false);
+        when(userRepository.findByActiveTrueOrderByFullNameAsc()).thenReturn(List.of(first));
+        when(dailyLogRepository.findPendingByUserIds(List.of(1L), "MENUNGGU"))
+                .thenReturn(List.of());
+
+        List<PendingDayResponse> result = service.getPendingDays(admin, null);
+
+        assertEquals(List.of(), result);
+        verify(userRepository).findByActiveTrueOrderByFullNameAsc();
+    }
+
+    @Test
+    void explicitMemberLimitsPendingDays() {
+        User admin = user(9L, "admin@contoh.id", "Admin", true);
+        User member = user(1L, "rina@contoh.id", "Rina", false);
+        when(dailyLogRepository.findPendingByUserIds(List.of(1L), "MENUNGGU"))
+                .thenReturn(List.of());
+
+        service.getPendingDays(admin, member);
+
+        verify(userRepository, never()).findByActiveTrueOrderByFullNameAsc();
+        verify(userRepository, never())
+                .findByEmailAtasanIgnoreCaseAndActiveTrueOrderByFullNameAsc(any());
     }
 
     private User user(Long id, String email, String fullName, boolean admin) {

@@ -1483,6 +1483,79 @@ class LogbookApiIntegrationTest {
                 .andExpect(content().json(ownerDay));
     }
 
+    @Test
+    void teamDayShouldExposeIdentityAndDecisionMetadata() throws Exception {
+        insertUser("atasan.metadata@contoh.id", "Atasan Metadata", false);
+        jdbcTemplate.update(
+                "UPDATE users SET email_atasan = ? WHERE id = 2",
+                "atasan.metadata@contoh.id"
+        );
+
+        jdbcTemplate.update("UPDATE users SET jenis = ? WHERE id = 2", "MAGANG");
+
+        long dailyLogId = insertTodayDailyLog(2L, "MENUNGGU");
+        jdbcTemplate.update(
+                "UPDATE daily_logs SET submitted_at = CURRENT_TIMESTAMP, auto_submitted = true "
+                        + "WHERE id = ?",
+                dailyLogId
+        );
+        LocalDate today = todayJakarta();
+        MockHttpSession supervisorSession = loginAs("atasan.metadata@contoh.id");
+
+        mockMvc.perform(
+                        get("/api/team/2/days/{date}", today).session(supervisorSession)
+                )
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.dailyLogId").value((int) dailyLogId))
+                .andExpect(jsonPath("$.userId").value(2))
+                .andExpect(jsonPath("$.fullName").exists())
+                .andExpect(jsonPath("$.jenis").value("MAGANG"))
+                .andExpect(jsonPath("$.submittedAt").exists())
+                .andExpect(jsonPath("$.autoSubmitted").value(true));
+
+        mockMvc.perform(
+                        get("/api/daily-logs/users/2")
+                                .param("date", today.toString())
+                                .session(supervisorSession)
+                )
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.dailyLogId").value((int) dailyLogId))
+                .andExpect(jsonPath("$.userId").value(2));
+    }
+
+    @Test
+    void pendingDaysShouldListWaitingDayWithIdAndDate() throws Exception {
+        insertUser("atasan.pending.hari@contoh.id", "Atasan Pending Hari", false);
+        jdbcTemplate.update(
+                "UPDATE users SET email_atasan = ? WHERE id = 2",
+                "atasan.pending.hari@contoh.id"
+        );
+
+        LocalDate date = LocalDate.of(2026, 12, 12);
+        long dailyLogId = insertDailyLog(2L, date, "MENUNGGU");
+        insertTask(dailyLogId, 540, 60, "Task menunggu");
+        jdbcTemplate.update(
+                "UPDATE daily_logs SET submitted_at = CURRENT_TIMESTAMP, auto_submitted = true "
+                        + "WHERE id = ?",
+                dailyLogId
+        );
+
+        MockHttpSession supervisorSession = loginAs("atasan.pending.hari@contoh.id");
+
+        mockMvc.perform(
+                        get("/api/team/pending-days")
+                                .param("userId", "2")
+                                .session(supervisorSession)
+                )
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[*].userId", hasItem(2)))
+                .andExpect(jsonPath("$[*].dailyLogId", hasItem((int) dailyLogId)))
+                .andExpect(jsonPath("$[*].date", hasItem("2026-12-12")))
+                .andExpect(jsonPath("$[*].totalDurationMinutes", hasItem(60)))
+                .andExpect(jsonPath("$[*].submittedAt").exists())
+                .andExpect(jsonPath("$[*].autoSubmitted", hasItem(true)));
+    }
+
     // ==========================================
     // ADMIN DAILY LOG LIST TESTING
     // ==========================================

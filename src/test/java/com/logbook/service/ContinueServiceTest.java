@@ -8,6 +8,7 @@ import com.logbook.project.ProjectDto;
 import com.logbook.project.ProjectRepository;
 import com.logbook.repository.LogTaskRepository;
 import com.logbook.repository.TaskTypeRepository;
+import com.logbook.repository.UserRepository;
 import com.logbook.repository.UserSettingsRepository;
 import com.logbook.repository.WorkStatusRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -57,7 +58,8 @@ class ContinueServiceTest {
                 mock(UserSettingsRepository.class),
                 projectRepository,
                 taskTypeRepository,
-                workStatusRepository
+                workStatusRepository,
+                mock(UserRepository.class)
         );
         service = new ContinueService(logTaskRepository, workStatusRepository, dayDtoMapper, deadlineService);
     }

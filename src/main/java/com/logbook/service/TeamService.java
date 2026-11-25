@@ -1,6 +1,7 @@
 package com.logbook.service;
 
 import com.logbook.dto.DailyLogResponse;
+import com.logbook.dto.PendingDayResponse;
 import com.logbook.dto.TeamMemberResponse;
 import com.logbook.dto.TeamScope;
 import com.logbook.entity.DailyLog;
@@ -91,6 +92,45 @@ public class TeamService {
 
         log.info("Berhasil menyusun {} anggota tim (scope {}) untuk User ID {} ({})",
                 responses.size(), scope, actor.getId(), actor.getEmail());
+        return responses;
+    }
+
+    /**
+     * Daftar hari menunggu persetujuan. Bila {@code member} diberikan, hanya
+     * anggota itu yang diambil; jika tidak, atasan mendapat bawahannya dan admin
+     * mendapat seluruh pengguna aktif.
+     */
+    @Transactional(readOnly = true)
+    public List<PendingDayResponse> getPendingDays(User actor, User member) {
+        List<User> members = member != null
+                ? List.of(member)
+                : (actor.isAdmin()
+                        ? userRepository.findByActiveTrueOrderByFullNameAsc()
+                        : userRepository.findByEmailAtasanIgnoreCaseAndActiveTrueOrderByFullNameAsc(
+                                actor.getEmail()
+                        ));
+
+        if (members.isEmpty()) {
+            log.info("Tidak ada hari menunggu untuk User ID {} ({})", actor.getId(), actor.getEmail());
+            return List.of();
+        }
+
+        List<Long> memberIds = members.stream().map(User::getId).toList();
+        List<PendingDayResponse> responses = dailyLogRepository
+                .findPendingByUserIds(memberIds, STATUS_WAITING)
+                .stream()
+                .map(log -> new PendingDayResponse(
+                        log.getUserId(),
+                        log.getId(),
+                        log.getLogDate(),
+                        DailyLogResponse.calculateUnionDuration(log.getTasks()),
+                        log.getSubmittedAt(),
+                        log.isAutoSubmitted()
+                ))
+                .toList();
+
+        log.info("Berhasil menyusun {} hari menunggu untuk User ID {} ({})",
+                responses.size(), actor.getId(), actor.getEmail());
         return responses;
     }
 

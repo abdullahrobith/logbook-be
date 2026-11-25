@@ -73,6 +73,23 @@ public interface DailyLogRepository extends JpaRepository<DailyLog, Long> {
             @Param("status") String status
     );
 
+    /**
+     * Seluruh Daily Log menunggu milik sekumpulan pengguna, lengkap dengan task
+     * untuk menghitung durasi union. Dipakai daftar hari menunggu pada halaman Tim.
+     */
+    @EntityGraph(attributePaths = "tasks")
+    @Query("""
+            select distinct dl
+            from DailyLog dl
+            where dl.userId in :userIds
+              and upper(dl.status) = upper(:status)
+            order by dl.logDate desc, dl.id desc
+            """)
+    List<DailyLog> findPendingByUserIds(
+            @Param("userIds") Collection<Long> userIds,
+            @Param("status") String status
+    );
+
     @Modifying
     @Query(value = """
             INSERT INTO daily_logs (
