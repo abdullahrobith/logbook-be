@@ -137,6 +137,21 @@ public class RoleService {
     }
 
     @Transactional(readOnly = true)
+    public User requireSupervisor(HttpSession session) {
+        User user = requireCurrentUser(session);
+
+        if (!isSupervisor(user)) {
+            log.warn("Akses atasan ditolak untuk User ID {} ({})", user.getId(), user.getEmail());
+            throw new ResponseStatusException(
+                    HttpStatus.FORBIDDEN,
+                    "Hanya atasan yang dapat mengakses fitur ini"
+            );
+        }
+
+        return user;
+    }
+
+    @Transactional(readOnly = true)
     public User requireSupervisorOrAdmin(HttpSession session) {
         User user = requireCurrentUser(session);
 

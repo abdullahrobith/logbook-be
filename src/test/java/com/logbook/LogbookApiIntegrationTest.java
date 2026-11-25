@@ -1308,7 +1308,7 @@ class LogbookApiIntegrationTest {
 
     @Test
     void talentCannotAccessTeamList() throws Exception {
-        mockMvc.perform(get("/api/team").session(session))
+        mockMvc.perform(get("/api/team").param("scope", "ATASAN").session(session))
                 .andExpect(status().isForbidden());
     }
 
@@ -1323,7 +1323,7 @@ class LogbookApiIntegrationTest {
 
         MockHttpSession supervisorSession = loginAs("atasan.tim.api@contoh.id");
 
-        mockMvc.perform(get("/api/team").session(supervisorSession))
+        mockMvc.perform(get("/api/team").param("scope", "ATASAN").session(supervisorSession))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(1))
                 .andExpect(jsonPath("$[0].userId").value(2))
@@ -1346,7 +1346,7 @@ class LogbookApiIntegrationTest {
 
         MockHttpSession supervisorSession = loginAs("atasan.union@contoh.id");
 
-        mockMvc.perform(get("/api/team").session(supervisorSession))
+        mockMvc.perform(get("/api/team").param("scope", "ATASAN").session(supervisorSession))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].dailyLogId").value(dailyLogId))
                 .andExpect(jsonPath("$[0].status").value("MENUNGGU"))
@@ -1360,7 +1360,27 @@ class LogbookApiIntegrationTest {
 
         MockHttpSession adminSession = loginAs("admin.tim.api@contoh.id");
 
-        mockMvc.perform(get("/api/team").session(adminSession))
+        mockMvc.perform(get("/api/team").param("scope", "ADMIN").session(adminSession))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[*].userId", hasItems(1, 2, 3)));
+    }
+
+    @Test
+    void adminWhoIsAlsoSupervisorSeesDifferentListsPerScope() throws Exception {
+        insertUser("admin.atasan.tim@contoh.id", "Admin Atasan Tim", true);
+        jdbcTemplate.update(
+                "UPDATE users SET email_atasan = ? WHERE id = 2",
+                "admin.atasan.tim@contoh.id"
+        );
+
+        MockHttpSession session = loginAs("admin.atasan.tim@contoh.id");
+
+        mockMvc.perform(get("/api/team").param("scope", "ATASAN").session(session))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].userId").value(2));
+
+        mockMvc.perform(get("/api/team").param("scope", "ADMIN").session(session))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[*].userId", hasItems(1, 2, 3)));
     }

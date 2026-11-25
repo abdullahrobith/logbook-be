@@ -2,6 +2,7 @@ package com.logbook.service;
 
 import com.logbook.dto.DailyLogResponse;
 import com.logbook.dto.TeamMemberResponse;
+import com.logbook.dto.TeamScope;
 import com.logbook.entity.DailyLog;
 import com.logbook.entity.User;
 import com.logbook.repository.DailyLogRepository;
@@ -21,10 +22,11 @@ import java.util.stream.Collectors;
 /**
  * Menyusun daftar Tim untuk atasan/admin.
  *
- * <p>Atasan hanya melihat pengguna aktif yang email_atasan-nya adalah email
- * dirinya; admin melihat seluruh pengguna aktif. Status dan total jam berasal
- * dari Daily Log hari ini, sedangkan pendingDays menghitung seluruh Daily Log
- * berstatus MENUNGGU.</p>
+ * <p>Cakupan ATASAN hanya melihat pengguna aktif yang email_atasan-nya adalah
+ * email dirinya; cakupan ADMIN melihat seluruh pengguna aktif. Cakupan diberikan
+ * eksplisit oleh pemanggil agar pengguna berperan ganda tidak tertukar. Status
+ * dan total jam berasal dari Daily Log hari ini, sedangkan pendingDays
+ * menghitung seluruh Daily Log berstatus MENUNGGU.</p>
  */
 @Slf4j
 @Service
@@ -48,8 +50,8 @@ public class TeamService {
     }
 
     @Transactional(readOnly = true)
-    public List<TeamMemberResponse> getTeam(User actor) {
-        List<User> members = actor.isAdmin()
+    public List<TeamMemberResponse> getTeam(User actor, TeamScope scope) {
+        List<User> members = scope == TeamScope.ADMIN
                 ? userRepository.findByActiveTrueOrderByFullNameAsc()
                 : userRepository.findByEmailAtasanIgnoreCaseAndActiveTrueOrderByFullNameAsc(
                         actor.getEmail()
@@ -87,8 +89,8 @@ public class TeamService {
                 ))
                 .toList();
 
-        log.info("Berhasil menyusun {} anggota tim untuk User ID {} ({})",
-                responses.size(), actor.getId(), actor.getEmail());
+        log.info("Berhasil menyusun {} anggota tim (scope {}) untuk User ID {} ({})",
+                responses.size(), scope, actor.getId(), actor.getEmail());
         return responses;
     }
 

@@ -3,6 +3,7 @@ package com.logbook.controller;
 import com.logbook.config.TimeConfig;
 import com.logbook.dto.DayDto;
 import com.logbook.dto.TaskDto;
+import com.logbook.dto.TeamScope;
 import com.logbook.entity.User;
 import com.logbook.service.DailyLogService;
 import com.logbook.service.RoleService;
@@ -51,8 +52,8 @@ class TeamControllerTest {
         supervisor.setId(2L);
         supervisor.setEmail("atasan@contoh.id");
 
-        when(roleService.requireSupervisorOrAdmin(any())).thenReturn(supervisor);
-        when(teamService.getTeam(supervisor)).thenReturn(List.of());
+        when(roleService.requireSupervisor(any())).thenReturn(supervisor);
+        when(teamService.getTeam(supervisor, TeamScope.ATASAN)).thenReturn(List.of());
 
         MockHttpSession session = new MockHttpSession();
         session.setAttribute("USER_ID", 2L);
@@ -62,14 +63,42 @@ class TeamControllerTest {
     }
 
     @Test
+    void getTeamWithAdminScopeShouldUseAdminRequirement() throws Exception {
+        User admin = new User();
+        admin.setId(9L);
+        admin.setEmail("admin@contoh.id");
+
+        when(roleService.requireAdmin(any())).thenReturn(admin);
+        when(teamService.getTeam(admin, TeamScope.ADMIN)).thenReturn(List.of());
+
+        MockHttpSession session = new MockHttpSession();
+        session.setAttribute("USER_ID", 9L);
+
+        mockMvc.perform(get("/api/team").param("scope", "ADMIN").session(session))
+                .andExpect(status().isOk());
+    }
+
+    @Test
     void getTeamShouldReturnForbiddenForTalent() throws Exception {
-        when(roleService.requireSupervisorOrAdmin(any()))
-                .thenThrow(new ResponseStatusException(HttpStatus.FORBIDDEN, "Hanya atasan atau admin"));
+        when(roleService.requireSupervisor(any()))
+                .thenThrow(new ResponseStatusException(HttpStatus.FORBIDDEN, "Hanya atasan"));
 
         MockHttpSession session = new MockHttpSession();
         session.setAttribute("USER_ID", 1L);
 
         mockMvc.perform(get("/api/team").session(session))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void getTeamAdminScopeShouldReturnForbiddenForSupervisorOnly() throws Exception {
+        when(roleService.requireAdmin(any()))
+                .thenThrow(new ResponseStatusException(HttpStatus.FORBIDDEN, "Hanya admin"));
+
+        MockHttpSession session = new MockHttpSession();
+        session.setAttribute("USER_ID", 2L);
+
+        mockMvc.perform(get("/api/team").param("scope", "ADMIN").session(session))
                 .andExpect(status().isForbidden());
     }
 

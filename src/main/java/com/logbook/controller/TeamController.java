@@ -2,6 +2,7 @@ package com.logbook.controller;
 
 import com.logbook.dto.DayDto;
 import com.logbook.dto.TeamMemberResponse;
+import com.logbook.dto.TeamScope;
 import com.logbook.entity.User;
 import com.logbook.service.DailyLogService;
 import com.logbook.service.RoleService;
@@ -12,6 +13,7 @@ import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.time.LocalDate;
@@ -40,10 +42,16 @@ public class TeamController {
     }
 
     @GetMapping
-    public List<TeamMemberResponse> getTeam(HttpSession session) {
-        User actor = roleService.requireSupervisorOrAdmin(session);
-        log.info("Menerima request GET daftar tim oleh User ID {} ({})", actor.getId(), actor.getEmail());
-        return teamService.getTeam(actor);
+    public List<TeamMemberResponse> getTeam(
+            @RequestParam(name = "scope", defaultValue = "ATASAN") TeamScope scope,
+            HttpSession session
+    ) {
+        User actor = scope == TeamScope.ADMIN
+                ? roleService.requireAdmin(session)
+                : roleService.requireSupervisor(session);
+        log.info("Menerima request GET daftar tim (scope {}) oleh User ID {} ({})",
+                scope, actor.getId(), actor.getEmail());
+        return teamService.getTeam(actor, scope);
     }
 
     /**

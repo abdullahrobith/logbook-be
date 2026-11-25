@@ -1,6 +1,7 @@
 package com.logbook.service;
 
 import com.logbook.dto.TeamMemberResponse;
+import com.logbook.dto.TeamScope;
 import com.logbook.entity.DailyLog;
 import com.logbook.entity.LogTask;
 import com.logbook.entity.User;
@@ -53,7 +54,7 @@ class TeamServiceTest {
         when(dailyLogRepository.countByUserIdInAndStatus(List.of(1L), "MENUNGGU"))
                 .thenReturn(List.of());
 
-        List<TeamMemberResponse> result = service.getTeam(supervisor);
+        List<TeamMemberResponse> result = service.getTeam(supervisor, TeamScope.ATASAN);
 
         assertEquals(1, result.size());
         assertEquals(1L, result.get(0).userId());
@@ -80,10 +81,30 @@ class TeamServiceTest {
                 "MENUNGGU"
         )).thenReturn(List.of());
 
-        List<TeamMemberResponse> result = service.getTeam(admin);
+        List<TeamMemberResponse> result = service.getTeam(admin, TeamScope.ADMIN);
 
         assertEquals(2, result.size());
         verify(userRepository).findByActiveTrueOrderByFullNameAsc();
+    }
+
+    @Test
+    void adminWhoIsAlsoSupervisorGetsOnlyOwnTeamForAtasanScope() {
+        User adminSupervisor = user(9L, "atasan.admin@contoh.id", "Admin Atasan", true);
+        User member = user(1L, "rina@contoh.id", "Rina", false);
+
+        when(userRepository.findByEmailAtasanIgnoreCaseAndActiveTrueOrderByFullNameAsc(
+                "atasan.admin@contoh.id"
+        )).thenReturn(List.of(member));
+        when(dailyLogRepository.findByUserIdInAndLogDate(List.of(1L), LocalDate.now(clock)))
+                .thenReturn(List.of());
+        when(dailyLogRepository.countByUserIdInAndStatus(List.of(1L), "MENUNGGU"))
+                .thenReturn(List.of());
+
+        List<TeamMemberResponse> result = service.getTeam(adminSupervisor, TeamScope.ATASAN);
+
+        assertEquals(1, result.size());
+        assertEquals(1L, result.get(0).userId());
+        verify(userRepository, never()).findByActiveTrueOrderByFullNameAsc();
     }
 
     @Test
@@ -104,7 +125,7 @@ class TeamServiceTest {
         when(dailyLogRepository.countByUserIdInAndStatus(List.of(1L), "MENUNGGU"))
                 .thenReturn(List.of(pending));
 
-        TeamMemberResponse response = service.getTeam(supervisor).get(0);
+        TeamMemberResponse response = service.getTeam(supervisor, TeamScope.ATASAN).get(0);
 
         assertEquals(4L, response.dailyLogId());
         assertEquals("MENUNGGU", response.status());
@@ -120,7 +141,7 @@ class TeamServiceTest {
                 "atasan@contoh.id"
         )).thenReturn(List.of());
 
-        List<TeamMemberResponse> result = service.getTeam(supervisor);
+        List<TeamMemberResponse> result = service.getTeam(supervisor, TeamScope.ATASAN);
 
         assertEquals(List.of(), result);
     }

@@ -836,7 +836,7 @@ Berdasarkan hasil eksekusi pengujian otomatis backend Logbook, diperoleh hasil r
 | ApiExceptionHandlerTest | 2 | 0 | 0 | Lulus |
 | SettingsControllerTest | 4 | 0 | 0 | Lulus |
 | SummaryControllerTest | 2 | 0 | 0 | Lulus |
-| TeamControllerTest | 3 | 0 | 0 | Lulus |
+| TeamControllerTest | 5 | 0 | 0 | Lulus |
 | CsrfIntegrationTest | 6 | 0 | 0 | Lulus |
 | DailyLogDeadlineIntegrationTest | 13 | 0 | 0 | Lulus |
 | DailyLogResponseTest | 8 | 0 | 0 | Lulus |
@@ -845,7 +845,7 @@ Berdasarkan hasil eksekusi pengujian otomatis backend Logbook, diperoleh hasil r
 | GlobalExceptionHandlerTest | 12 | 0 | 0 | Lulus |
 | ApiV1NegativeIntegrationTest | 3 | 0 | 0 | Lulus |
 | PasswordResetIntegrationTest | 5 | 0 | 0 | Lulus |
-| LogbookApiIntegrationTest | 96 | 0 | 0 | Lulus |
+| LogbookApiIntegrationTest | 97 | 0 | 0 | Lulus |
 | LogbookBeApplicationTests | 1 | 0 | 0 | Lulus |
 | LoggingTest | 6 | 0 | 0 | Lulus |
 | ProductionSessionCookieTest | 1 | 0 | 0 | Lulus |
@@ -866,21 +866,22 @@ Berdasarkan hasil eksekusi pengujian otomatis backend Logbook, diperoleh hasil r
 | SubmitCheckServiceTest | 10 | 0 | 0 | Lulus |
 | SummaryServiceTest | 5 | 0 | 0 | Lulus |
 | TaskDurationUtilTest | 3 | 0 | 0 | Lulus |
-| TeamServiceTest | 4 | 0 | 0 | Lulus |
+| TeamServiceTest | 5 | 0 | 0 | Lulus |
 | SessionSecurityIntegrationTest | 5 | 0 | 0 | Lulus |
 | SummaryIntegrationTest | 4 | 0 | 0 | Lulus |
-| **Total** | **388** | **0** | **0** | **Lulus** |
+| **Total** | **392** | **0** | **0** | **Lulus** |
 
 Catatan: test memakai database `logbook_test` yang diisi dari fixture `logbook.sql` beserta migrasi Flyway. Isolasi ini mencegah perubahan pada database aplikasi (`logbook`), misalnya oleh tugas berkala yang mengubah DRAF menjadi `MENUNGGU`, sehingga hasil pengujian tidak lagi bergantung pada kondisi DB aplikasi. Konfigurasi test juga mendeklarasikan ulang nama dan atribut cookie sesi agar pengujian keamanan tidak bergantung pada pengaturan di file konfigurasi utama.
 
 ### 7.1 Kesimpulan Hasil Pengujian
 
 Berdasarkan pengujian yang telah dilakukan, diperoleh hasil:
-- Eksekusi terbaru menjalankan **388 test** dengan **0 failure**, **0 error**, dan **0 skipped**; rincian per kelas tercantum pada tabel di atas.
+- Eksekusi terbaru menjalankan **392 test** dengan **0 failure**, **0 error**, dan **0 skipped**; rincian per kelas tercantum pada tabel di atas.
 - Sebanyak 29 endpoint API tersedia; 10 endpoint diuji secara manual menggunakan Postman, 13 endpoint diverifikasi melalui integration test, endpoint pengaturan pengguna (`GET/PUT /api/settings`) telah dilengkapi unit test dan integration test untuk pembuatan baris `user_settings` pada pengguna baru, dan `GET /api/summary` telah dilengkapi `SummaryServiceTest`, `SummaryControllerTest`, serta `SummaryIntegrationTest` (seluruhnya lulus).
 - Seluruh unit test (termasuk validasi DTO, handler galat, konfigurasi & keluaran logging, autentikasi dan rotasi session, zona waktu Asia/Jakarta, otorisasi peran Atasan/Admin, keputusan Daily Log, batas hari & deadline, kalender, `continue`, submit check, otomatisasi Daily Log, impor CSV, serta pengelolaan libur & cuti) dan integration test berhasil dilewati.
 - Tidak ditemukan failures maupun errors pada eksekusi pengujian otomatis.
 - Otorisasi berbasis peran (talent, atasan, admin) telah diuji pada level unit maupun integrasi.
+- Cakupan daftar Tim kini eksplisit melalui `GET /api/team?scope=ATASAN|ADMIN`: `ATASAN` hanya mengembalikan bawahan langsung berdasarkan `email_atasan`, `ADMIN` mengembalikan seluruh talent aktif. Pengguna yang sekaligus berperan sebagai admin dan atasan diuji untuk memastikan halaman Tim atasan tidak menampilkan seluruh talent.
 - Keamanan request dan session telah diuji: CSRF `X-Requested-With`, request ID, rotasi session ID saat login/ganti kata sandi, session paralel, logout, serta atribut cookie `Secure`/`HttpOnly`/`SameSite`.
 - Pengamanan reset password dan rate limit telah diuji: token disimpan sebagai hash SHA-256 dan tidak dicatat ke log, token lama/terpakai/kedaluwarsa ditolak, kata sandi tidak berubah saat token gagal, serta lima percobaan memicu 429 untuk aksi `login`, `forgot-password`, dan `reset-password` dengan bucket terpisah. Header proxy hanya dipercaya saat dikonfigurasi.
 - Alur persetujuan Daily Log (setujui, tolak, ajukan perbaikan, setujui perbaikan), aturan alasan wajib, larangan memutuskan Daily Log sendiri, dan pencatatan log INFO setiap keputusan telah diuji.
@@ -895,12 +896,12 @@ Berdasarkan laporan JaCoCo (`target/site/jacoco/index.html` dan `target/site/jac
 
 | Metrik | Ter-cakup | Total | Cakupan |
 |---|---:|---:|---:|
-| Instruction | 10.189 | 11.884 | 85,7% |
-| Branch | 560 | 789 | 71,0% |
-| Line | 2.276 | 2.659 | 85,6% |
-| Complexity | 744 | 1.047 | 71,1% |
-| Method | 534 | 650 | 82,2% |
-| Class | 111 | 116 | 95,7% |
+| Instruction | 10.252 | 11.947 | 85,8% |
+| Branch | 564 | 793 | 71,1% |
+| Line | 2.287 | 2.670 | 85,7% |
+| Complexity | 748 | 1.051 | 71,2% |
+| Method | 536 | 652 | 82,2% |
+| Class | 112 | 117 | 95,7% |
 
 - **Komponen Handler Galat, Filter Logging, & Fitur Atasan/Admin:**
   - `GlobalExceptionHandler`: **99,4%** instruction, **88,5%** branch, **100%** line, dan **100%** method coverage.
@@ -909,15 +910,15 @@ Berdasarkan laporan JaCoCo (`target/site/jacoco/index.html` dan `target/site/jac
   - `RequestIdFilter`: **100%** instruction, branch, line, dan method coverage.
   - `SecurityConfig`: **96,1%** instruction, **50%** branch, **97%** line, dan **91,7%** method coverage.
   - `AdminController`: **97,5%** line coverage; seluruh endpoint impor CSV, daftar pengguna, libur nasional, dan cuti telah tercakup unit test.
-  - `RoleService`: **94,4%** line dan **92,9%** branch coverage untuk aturan hak akses serta `canDecideTalent` / `requireCanDecideTalent`.
+  - `RoleService`: **94,8%** line dan **93,2%** branch coverage untuk aturan hak akses serta `canDecideTalent` / `requireCanDecideTalent` / `requireSupervisor`.
 - **Komponen dengan cakupan penuh:** `TimeConfig`, `SettingsService`, `TeamService`, dan `AdminDailyLogService` mencapai **100%** untuk instruction, branch, line, dan method. `SubmitCheckService` dan `ContinueService` mencapai **100%** line dan method coverage.
 - **Komponen lain yang relevan:** `AuthService` **92,4%** line / **77,8%** branch, `DeadlineService` **94,6%** line / **88,6%** branch, `DailyLogService` **89,4%** line / **80,8%** branch, dan `SummaryService` **95,5%** line / **70,7%** branch.
 - **Komponen keamanan reset password & rate limit:** `PasswordResetService` **96,2%** instruction, **80%** branch, **96,6%** line, dan **100%** method; `RateLimitService` **88,3%** instruction, **65%** branch, **91%** line, dan **91,7%** method; `AuthController` **100%** instruction/line/method dan **75%** branch. Entity `PasswordResetToken` mencapai **77,8%** instruction / **78,9%** line, sedangkan `RateLimitAttempt` **81,6%** instruction / **81,2%** line.
 
-Cakupan branch masih menjadi area yang dapat ditingkatkan (71,0%), meskipun seluruh skenario yang dirancang telah lulus.
+Cakupan branch masih menjadi area yang dapat ditingkatkan (71,1%), meskipun seluruh skenario yang dirancang telah lulus.
 
 ## 8. Kesimpulan
 
-Pengujian backend Logbook telah dilakukan melalui tiga pendekatan, yaitu manual testing, unit testing, dan integration testing, serta dilengkapi pengukuran cakupan kode menggunakan JaCoCo. Pengujian manual terhadap 10 endpoint API berhasil dilakukan menggunakan Postman, 13 endpoint tambahan diverifikasi melalui integration test, endpoint pengaturan pengguna (`GET/PUT /api/settings`) telah dilengkapi unit test dan integration test untuk pembuatan baris `user_settings` pada pengguna baru, dan `GET /api/summary` telah dilengkapi unit test serta integration test khusus (`SummaryServiceTest`, `SummaryControllerTest`, `SummaryIntegrationTest`) yang seluruhnya lulus. Seluruh **388 test** lulus tanpa failure maupun error setelah test diisolasi ke database `logbook_test`, termasuk kesetaraan kontrak `DayDto` antara pemilik dan atasan serta pengamanan reset password dan rate limit. Laporan JaCoCo terbaru menunjukkan cakupan **85,6% line**, **85,7% instruction**, dan **71,0% branch**.
+Pengujian backend Logbook telah dilakukan melalui tiga pendekatan, yaitu manual testing, unit testing, dan integration testing, serta dilengkapi pengukuran cakupan kode menggunakan JaCoCo. Pengujian manual terhadap 10 endpoint API berhasil dilakukan menggunakan Postman, 13 endpoint tambahan diverifikasi melalui integration test, endpoint pengaturan pengguna (`GET/PUT /api/settings`) telah dilengkapi unit test dan integration test untuk pembuatan baris `user_settings` pada pengguna baru, dan `GET /api/summary` telah dilengkapi unit test serta integration test khusus (`SummaryServiceTest`, `SummaryControllerTest`, `SummaryIntegrationTest`) yang seluruhnya lulus. Seluruh **392 test** lulus tanpa failure maupun error setelah test diisolasi ke database `logbook_test`, termasuk kesetaraan kontrak `DayDto` antara pemilik dan atasan, pengamanan reset password dan rate limit, serta pemisahan cakupan daftar Tim atasan/admin. Laporan JaCoCo terbaru menunjukkan cakupan **85,7% line**, **85,8% instruction**, dan **71,1% branch**.
 
 Hasil tersebut menunjukkan bahwa komponen backend yang telah diuji berjalan sesuai dengan skenario pengujian yang tersedia. Meskipun demikian, hasil ini belum menjamin seluruh kemungkinan kondisi sistem telah diuji sehingga pengembangan cakupan pengujian tetap diperlukan.
