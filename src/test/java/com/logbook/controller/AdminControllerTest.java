@@ -1,13 +1,11 @@
 package com.logbook.controller;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.logbook.dto.AdminImportResponse;
 import com.logbook.dto.AdminLeaveResponse;
-import com.logbook.dto.UserResponse;
+import com.logbook.dto.AdminTalentOption;
 import com.logbook.entity.Holiday;
-import com.logbook.entity.User;
 import com.logbook.exception.ApiException;
-import com.logbook.repository.UserRepository;
-import com.logbook.security.Role;
 import com.logbook.service.AdminService;
 import com.logbook.service.RoleService;
 import jakarta.servlet.http.HttpSession;
@@ -25,7 +23,6 @@ import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
@@ -42,9 +39,6 @@ class AdminControllerTest {
 
     @Mock
     private RoleService roleService;
-
-    @Mock
-    private UserRepository userRepository;
 
     @Mock
     private HttpSession session;
@@ -177,18 +171,23 @@ class AdminControllerTest {
     }
 
     @Test
-    void testGetUsersReturnsUserResponsesWithoutPasswordHash() {
-        User user = new User();
-        when(userRepository.findAll()).thenReturn(List.of(user));
-        when(roleService.rolesOf(user)).thenReturn(Set.of(Role.values()[0]));
+    void testGetTalentOptionsReturnsActiveNonAdminUsers() throws Exception {
+        List<AdminTalentOption> options = List.of(new AdminTalentOption(1L, "Rina Talent"));
+        when(adminService.getTalentOptions()).thenReturn(options);
 
-        ResponseEntity<List<UserResponse>> response = adminController.getUsers(session);
+        ResponseEntity<List<AdminTalentOption>> response = adminController.getTalentOptions(session);
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertNotNull(response.getBody());
         assertEquals(1, response.getBody().size());
+        assertEquals("Rina Talent", response.getBody().get(0).fullName());
+
+        String json = new ObjectMapper().writeValueAsString(response.getBody());
+        assertTrue(json.contains("\"full_name\":\"Rina Talent\""),
+                "Nama talent harus diserialisasi sebagai full_name untuk frontend");
+
         verify(roleService).requireAdmin(session);
-        verify(userRepository).findAll();
+        verify(adminService).getTalentOptions();
     }
 
     @Test

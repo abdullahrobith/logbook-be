@@ -372,7 +372,7 @@ Pengujian dilakukan untuk memastikan fitur khusus Admin (otorisasi akses admin, 
 | 14 | Penambahan cuti ditolak (400 Bad Request) jika tanggal mulai (`fromDate`) melebihi tanggal selesai (`toDate`) | Lulus |
 | 15 | Admin berhasil menghapus data cuti yang terdaftar (`DELETE /api/admin/leaves/{id}`) | Lulus |
 | 16 | Penghapusan cuti mengembalikan 404 Not Found jika ID cuti tidak ditemukan | Lulus |
-| 17 | `GET /api/admin/users` mengembalikan daftar pengguna tanpa `passwordHash` | Lulus |
+| 17 | `GET /api/admin/users` mengembalikan opsi talent aktif non-admin sebagai `id` dan `full_name` | Lulus |
 | 18 | Penambahan hari libur dengan format tanggal tidak valid ditolak (400 Bad Request) | Lulus |
 | 19 | Penambahan cuti dengan format tanggal tidak valid ditolak (400 Bad Request) | Lulus |
 
@@ -912,12 +912,12 @@ Berdasarkan laporan JaCoCo (`target/site/jacoco/index.html` dan `target/site/jac
 
 | Metrik | Ter-cakup | Total | Cakupan |
 |---|---:|---:|---:|
-| Instruction | 10.536 | 12.261 | 85,9% |
+| Instruction | 10.524 | 12.240 | 86,0% |
 | Branch | 584 | 821 | 71,1% |
-| Line | 2.344 | 2.733 | 85,8% |
-| Complexity | 760 | 1.070 | 71,0% |
-| Method | 541 | 657 | 82,3% |
-| Class | 113 | 118 | 95,8% |
+| Line | 2.338 | 2.726 | 85,8% |
+| Complexity | 760 | 1.069 | 71,1% |
+| Method | 541 | 656 | 82,5% |
+| Class | 114 | 118 | 96,6% |
 
 - **Komponen Handler Galat, Filter Logging, & Fitur Atasan/Admin:**
   - `GlobalExceptionHandler`: **99,4%** instruction, **88,5%** branch, **100%** line, dan **100%** method coverage.
@@ -935,6 +935,6 @@ Cakupan branch masih menjadi area yang dapat ditingkatkan (71,1%), meskipun selu
 
 ## 8. Kesimpulan
 
-Pengujian backend Logbook telah dilakukan melalui tiga pendekatan, yaitu manual testing, unit testing, dan integration testing, serta dilengkapi pengukuran cakupan kode menggunakan JaCoCo. Pengujian manual terhadap 10 endpoint API berhasil dilakukan menggunakan Postman, 13 endpoint tambahan diverifikasi melalui integration test, endpoint pengaturan pengguna (`GET/PUT /api/settings`) telah dilengkapi unit test dan integration test untuk pembuatan baris `user_settings` pada pengguna baru, dan `GET /api/summary` telah dilengkapi unit test serta integration test khusus (`SummaryServiceTest`, `SummaryControllerTest`, `SummaryIntegrationTest`) yang seluruhnya lulus. Seluruh **400 test** lulus tanpa failure maupun error setelah test diisolasi ke database `logbook_test`, termasuk kesetaraan kontrak `DayDto` antara pemilik dan atasan, identitas/metadata `DayDto`, daftar hari menunggu pada halaman Tim, pengamanan reset password dan rate limit, serta pemisahan cakupan daftar Tim atasan/admin. Laporan JaCoCo terbaru menunjukkan cakupan **85,8% line**, **85,9% instruction**, dan **71,1% branch**.
+Pengujian backend Logbook telah dilakukan melalui tiga pendekatan, yaitu manual testing, unit testing, dan integration testing, serta dilengkapi pengukuran cakupan kode menggunakan JaCoCo. Pengujian manual terhadap 10 endpoint API berhasil dilakukan menggunakan Postman, 13 endpoint tambahan diverifikasi melalui integration test, endpoint pengaturan pengguna (`GET/PUT /api/settings`) telah dilengkapi unit test dan integration test untuk pembuatan baris `user_settings` pada pengguna baru, dan `GET /api/summary` telah dilengkapi unit test serta integration test khusus (`SummaryServiceTest`, `SummaryControllerTest`, `SummaryIntegrationTest`) yang seluruhnya lulus. Seluruh **400 test** lulus tanpa failure maupun error setelah test diisolasi ke database `logbook_test`, termasuk kesetaraan kontrak `DayDto` antara pemilik dan atasan, identitas/metadata `DayDto`, daftar hari menunggu pada halaman Tim, pengamanan reset password dan rate limit, serta pemisahan cakupan daftar Tim atasan/admin. Laporan JaCoCo terbaru menunjukkan cakupan **85,8% line**, **86,0% instruction**, dan **71,1% branch**.
 
 Hasil tersebut menunjukkan bahwa komponen backend yang telah diuji berjalan sesuai dengan skenario pengujian yang tersedia. Meskipun demikian, hasil ini belum menjamin seluruh kemungkinan kondisi sistem telah diuji sehingga pengembangan cakupan pengujian tetap diperlukan.

@@ -3,8 +3,10 @@ package com.logbook.logging;
 import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.LoggerContext;
+import ch.qos.logback.classic.joran.JoranConfigurator;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.read.ListAppender;
+import ch.qos.logback.core.joran.spi.JoranException;
 import com.logbook.controller.AdminController;
 import com.logbook.exception.ApiException;
 import com.logbook.filter.RequestIdFilter;
@@ -17,6 +19,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -32,6 +35,7 @@ import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.io.IOException;
+import java.net.URL;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
@@ -63,6 +67,22 @@ class LoggingTest {
 
     private ListAppender<ILoggingEvent> listAppender;
     private Logger applicationLogger;
+
+    @BeforeAll
+    static void configureLogback() throws JoranException {
+        LoggerContext context = (LoggerContext) LoggerFactory.getILoggerFactory();
+        if (context.getLogger("com.logbook").getAppender("CONSOLE_APP") != null) {
+            return;
+        }
+
+        URL config = LoggingTest.class.getClassLoader().getResource("logback-spring.xml");
+        assertNotNull(config, "logback-spring.xml harus tersedia di classpath");
+        context.reset();
+
+        JoranConfigurator configurator = new JoranConfigurator();
+        configurator.setContext(context);
+        configurator.doConfigure(config);
+    }
 
     @BeforeEach
     void setUp() {
@@ -186,7 +206,7 @@ class LoggingTest {
 
     @Test
     void testAdminControllerLogsInfoAndWarn() {
-        AdminController adminController = new AdminController(adminService, roleService, userRepository);
+        AdminController adminController = new AdminController(adminService, roleService);
         when(adminService.importUsers(any(), any()))
                 .thenThrow(new ResponseStatusException(HttpStatus.BAD_REQUEST, "File CSV tidak boleh kosong"));
 

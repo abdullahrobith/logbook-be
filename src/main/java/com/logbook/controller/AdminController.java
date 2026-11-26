@@ -2,12 +2,9 @@ package com.logbook.controller;
 
 import com.logbook.dto.AdminImportResponse;
 import com.logbook.dto.AdminLeaveResponse;
-import com.logbook.dto.UserResponse;
+import com.logbook.dto.AdminTalentOption;
 import com.logbook.entity.Holiday;
-import com.logbook.entity.User;
 import com.logbook.exception.ApiException;
-import com.logbook.repository.UserRepository;
-import com.logbook.security.Role;
 import com.logbook.service.AdminService;
 import com.logbook.service.RoleService;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -20,7 +17,6 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
-import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
@@ -32,16 +28,10 @@ public class AdminController {
 
     private final AdminService adminService;
     private final RoleService roleService;
-    private final UserRepository userRepository;
 
-    public AdminController(
-            AdminService adminService,
-            RoleService roleService,
-            UserRepository userRepository
-    ) {
+    public AdminController(AdminService adminService, RoleService roleService) {
         this.adminService = adminService;
         this.roleService = roleService;
-        this.userRepository = userRepository;
     }
 
     private LocalDate parseIsoDate(String rawDate, String fieldName) {
@@ -91,21 +81,11 @@ public class AdminController {
         return ResponseEntity.ok(response);
     }
 
-    // ==================== 2. API USERS (DTO TANPA PASSWORD HASH) ====================
+    // ==================== 2. API OPTIONS TALENT UNTUK FORM ADMIN ====================
     @GetMapping("/users")
-    public ResponseEntity<List<UserResponse>> getUsers(HttpSession session) {
+    public ResponseEntity<List<AdminTalentOption>> getTalentOptions(HttpSession session) {
         roleService.requireAdmin(session);
-
-        List<User> users = userRepository.findAll();
-
-        List<UserResponse> userResponses = users.stream()
-                .map(user -> {
-                    Collection<Role> userRoles = roleService.rolesOf(user);
-                    return UserResponse.from(user, userRoles);
-                })
-                .toList();
-
-        return ResponseEntity.ok(userResponses);
+        return ResponseEntity.ok(adminService.getTalentOptions());
     }
 
     // ==================== 3. API CRUD LIBUR NASIONAL (HOLIDAYS) ====================
