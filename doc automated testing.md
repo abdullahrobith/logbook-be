@@ -24,7 +24,7 @@ Pengamanan alur reset kata sandi dan pembatasan laju permintaan juga menjadi bag
 | Automated testing | JUnit 5, Spring Boot Test, Mockito, MockMvc, Logback ListAppender |
 | Code coverage | JaCoCo Maven Plugin 0.8.12 |
 
-Database `logbook_test` dibuat sekali dengan skema dan fixture yang sama seperti `logbook` (dari `logbook.sql` dan migrasi Flyway). Kredensial bawaan adalah `postgres`/`postgres`; apabila berbeda, timpa lewat `-Dtest.datasource.url=...`, `-Dtest.datasource.username=...`, dan `-Dtest.datasource.password=...` saat menjalankan Maven.
+Database `logbook_test` dibuat sekali dengan skema dan fixture yang sama seperti `logbook` (dari `logbook.sql` dan migrasi Flyway). Kredensial bawaan adalah `postgres`/`postgres`; apabila berbeda, timpa URL dan username lewat `-Dtest.datasource.url=...` serta `-Dtest.datasource.username=...`. Password tidak disimpan di `pom.xml`: nilainya dibaca dari `spring.datasource.password` pada `application.properties` dan dapat ditimpa lewat `-Dspring.datasource.password=...` saat menjalankan Maven.
 
 ## 3. Manual Testing API
 
@@ -584,7 +584,7 @@ Total: **9 test, seluruhnya lulus.**
 
 Integration testing dilakukan menggunakan Spring Boot Test dan MockMvc untuk menguji interaksi antara endpoint API, komponen aplikasi, session autentikasi, otorisasi berbasis peran, dan database PostgreSQL.
 
-Pengujian menggunakan database `logbook_test` yang terpisah dari database aplikasi (`logbook`). Koneksi test diatur oleh `maven-surefire-plugin` di `pom.xml` dan dapat ditimpa lewat properti `test.datasource.url`, `test.datasource.username`, dan `test.datasource.password`. Konfigurasi transaksi `@Transactional` membantu melakukan rollback perubahan data setelah setiap test selesai. Kelas integration test memakai konfigurasi aturan batas hari yang berbeda agar dapat berjalan di database yang sama.
+Pengujian menggunakan database `logbook_test` yang terpisah dari database aplikasi (`logbook`). `maven-surefire-plugin` di `pom.xml` mengarahkan URL dan username test ke `logbook_test` dan keduanya dapat ditimpa lewat properti `test.datasource.url` serta `test.datasource.username`. Password sengaja tidak dideklarasikan di `pom.xml`; test memakai `spring.datasource.password` dari `application.properties` atau nilai `-Dspring.datasource.password=...` yang diberikan saat menjalankan Maven. Konfigurasi transaksi `@Transactional` membantu melakukan rollback perubahan data setelah setiap test selesai. Kelas integration test memakai konfigurasi aturan batas hari yang berbeda agar dapat berjalan di database yang sama.
 
 ### 5.1 LogbookApiIntegrationTest
 

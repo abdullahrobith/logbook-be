@@ -31,7 +31,6 @@
 		<!-- Database khusus test agar fixture tidak berubah saat aplikasi berjalan. -->
 		<test.datasource.url>jdbc:postgresql://localhost:5432/logbook_test</test.datasource.url>
 		<test.datasource.username>postgres</test.datasource.username>
-		<test.datasource.password>@Ilhamfh015</test.datasource.password>
 	</properties>
 	<dependencies>
 		<dependency>
@@ -130,7 +129,6 @@
 					<systemPropertyVariables>
 						<spring.datasource.url>${test.datasource.url}</spring.datasource.url>
 						<spring.datasource.username>${test.datasource.username}</spring.datasource.username>
-						<spring.datasource.password>${test.datasource.password}</spring.datasource.password>
 					</systemPropertyVariables>
 				</configuration>
 			</plugin>
