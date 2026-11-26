@@ -1,6 +1,7 @@
 package com.logbook.service;
 
 import com.logbook.dto.PendingDayResponse;
+import com.logbook.dto.PendingDayStatus;
 import com.logbook.dto.TeamMemberResponse;
 import com.logbook.dto.TeamScope;
 import com.logbook.entity.DailyLog;

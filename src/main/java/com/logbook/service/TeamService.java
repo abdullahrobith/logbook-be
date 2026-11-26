@@ -2,6 +2,7 @@ package com.logbook.service;
 
 import com.logbook.dto.DailyLogResponse;
 import com.logbook.dto.PendingDayResponse;
+import com.logbook.dto.PendingDayStatus;
 import com.logbook.dto.TeamMemberResponse;
 import com.logbook.dto.TeamScope;
 import com.logbook.entity.DailyLog;
@@ -102,6 +103,15 @@ public class TeamService {
      */
     @Transactional(readOnly = true)
     public List<PendingDayResponse> getPendingDays(User actor, User member) {
+        return getPendingDays(actor, member, PendingDayStatus.MENUNGGU);
+    }
+
+    /**
+     * Daftar hari berdasarkan status persetujuan. Bila {@code member} diberikan,
+     * hanya anggota itu yang diambil.
+     */
+    @Transactional(readOnly = true)
+    public List<PendingDayResponse> getPendingDays(User actor, User member, PendingDayStatus status) {
         List<User> members = member != null
                 ? List.of(member)
                 : (actor.isAdmin()
@@ -111,13 +121,13 @@ public class TeamService {
                         ));
 
         if (members.isEmpty()) {
-            log.info("Tidak ada hari menunggu untuk User ID {} ({})", actor.getId(), actor.getEmail());
+            log.info("Tidak ada hari berstatus {} untuk User ID {} ({})", status, actor.getId(), actor.getEmail());
             return List.of();
         }
 
         List<Long> memberIds = members.stream().map(User::getId).toList();
         List<PendingDayResponse> responses = dailyLogRepository
-                .findPendingByUserIds(memberIds, STATUS_WAITING)
+                .findPendingByUserIds(memberIds, status.name())
                 .stream()
                 .map(log -> new PendingDayResponse(
                         log.getUserId(),
@@ -129,8 +139,8 @@ public class TeamService {
                 ))
                 .toList();
 
-        log.info("Berhasil menyusun {} hari menunggu untuk User ID {} ({})",
-                responses.size(), actor.getId(), actor.getEmail());
+        log.info("Berhasil menyusun {} hari berstatus {} untuk User ID {} ({})",
+                responses.size(), status, actor.getId(), actor.getEmail());
         return responses;
     }
 

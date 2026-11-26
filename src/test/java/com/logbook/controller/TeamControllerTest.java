@@ -3,6 +3,7 @@ package com.logbook.controller;
 import com.logbook.config.TimeConfig;
 import com.logbook.dto.DayDto;
 import com.logbook.dto.PendingDayResponse;
+import com.logbook.dto.PendingDayStatus;
 import com.logbook.dto.TaskDto;
 import com.logbook.dto.TeamScope;
 import com.logbook.entity.User;
@@ -224,7 +225,7 @@ class TeamControllerTest {
 
         OffsetDateTime submittedAt = OffsetDateTime.parse("2026-11-24T17:00:00+07:00");
         when(roleService.requireSupervisorOrAdmin(any())).thenReturn(supervisor);
-        when(teamService.getPendingDays(eq(supervisor), any())).thenReturn(List.of(
+        when(teamService.getPendingDays(eq(supervisor), any(), eq(PendingDayStatus.MENUNGGU))).thenReturn(List.of(
                 new PendingDayResponse(
                         3L, 77L, LocalDate.of(2026, 11, 24), 90, submittedAt, true
                 )
@@ -243,11 +244,55 @@ class TeamControllerTest {
                 .andExpect(jsonPath("$[0].autoSubmitted").value(true));
 
         when(roleService.requireCanViewTalent(supervisor, 3L)).thenReturn(member);
-        when(teamService.getPendingDays(supervisor, member)).thenReturn(List.of());
+        when(teamService.getPendingDays(supervisor, member, PendingDayStatus.MENUNGGU)).thenReturn(List.of());
 
         mockMvc.perform(get("/api/team/pending-days").param("userId", "3").session(session))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(0));
+    }
+
+    @Test
+    void pendingDaysShouldAcceptRevisionRequestedStatus() throws Exception {
+        User supervisor = new User();
+        supervisor.setId(2L);
+        supervisor.setEmail("atasan@contoh.id");
+
+        OffsetDateTime submittedAt = OffsetDateTime.parse("2026-11-24T17:00:00+07:00");
+        when(roleService.requireSupervisorOrAdmin(any())).thenReturn(supervisor);
+        when(teamService.getPendingDays(eq(supervisor), any(), eq(PendingDayStatus.PERBAIKAN_DIAJUKAN))).thenReturn(List.of(
+                new PendingDayResponse(
+                        3L, 88L, LocalDate.of(2026, 11, 25), 120, submittedAt, false
+                )
+        ));
+
+        MockHttpSession session = new MockHttpSession();
+        session.setAttribute("USER_ID", 2L);
+
+        mockMvc.perform(get("/api/team/pending-days")
+                        .param("status", "PERBAIKAN_DIAJUKAN")
+                        .session(session))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].dailyLogId").value(88))
+                .andExpect(jsonPath("$[0].totalDurationMinutes").value(120));
+    }
+
+    @Test
+    void pendingDaysShouldRejectUnknownStatusWithBadRequest() throws Exception {
+        User supervisor = new User();
+        supervisor.setId(2L);
+        supervisor.setEmail("atasan@contoh.id");
+
+        when(roleService.requireSupervisorOrAdmin(any())).thenReturn(supervisor);
+
+        MockHttpSession session = new MockHttpSession();
+        session.setAttribute("USER_ID", 2L);
+
+        mockMvc.perform(get("/api/team/pending-days")
+                        .param("status", "DRAF")
+                        .session(session))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value(400))
+                .andExpect(jsonPath("$.message").value("Nilai parameter status tidak valid"));
     }
 
     @Test

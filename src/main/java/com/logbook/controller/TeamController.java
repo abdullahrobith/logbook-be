@@ -2,6 +2,7 @@ package com.logbook.controller;
 
 import com.logbook.dto.DayDto;
 import com.logbook.dto.PendingDayResponse;
+import com.logbook.dto.PendingDayStatus;
 import com.logbook.dto.TeamMemberResponse;
 import com.logbook.dto.TeamScope;
 import com.logbook.entity.User;
@@ -56,22 +57,24 @@ public class TeamController {
     }
 
     /**
-     * Daftar hari yang masih menunggu persetujuan. Parameter userId opsional:
+     * Daftar hari menurut status persetujuan. Parameter {@code userId} opsional:
      * tanpa parameter, atasan mendapat bawahannya dan admin mendapat seluruh
-     * talent aktif.
+     * talent aktif. Parameter {@code status} opsional dengan default
+     * {@code MENUNGGU}; {@code PERBAIKAN_DIAJUKAN} juga diterima.
      */
     @GetMapping("/pending-days")
     public List<PendingDayResponse> getPendingDays(
             @RequestParam(name = "userId", required = false) Long userId,
+            @RequestParam(name = "status", defaultValue = "MENUNGGU") PendingDayStatus status,
             HttpSession session
     ) {
         User actor = roleService.requireSupervisorOrAdmin(session);
         User member = userId != null
                 ? roleService.requireCanViewTalent(actor, userId)
                 : null;
-        log.info("Menerima request GET daftar hari menunggu{} oleh User ID {} ({})",
-                userId != null ? " User ID " + userId : "", actor.getId(), actor.getEmail());
-        return teamService.getPendingDays(actor, member);
+        log.info("Menerima request GET daftar hari status {}{} oleh User ID {} ({})",
+                status, userId != null ? " User ID " + userId : "", actor.getId(), actor.getEmail());
+        return teamService.getPendingDays(actor, member, status);
     }
 
     /**
