@@ -1,40 +1,72 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <configuration>
-    
-    <!-- Console: format ringkas yang mudah dibaca saat development.
-         File tetap JSON agar mudah di-grep/dianalisis. -->
-    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
-        <encoder>
-            <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} [%X{requestId}] - %msg%n</pattern>
-        </encoder>
-    </appender>
 
-    <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+    <!-- ========================================== -->
+    <!-- 1. FILE APPENDERS (Format JSON)            -->
+    <!-- ========================================== -->
+    
+    <!-- File Log Aplikasi Kita -->
+    <appender name="APP_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
         <file>logs/application.log</file>
         <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
             <fileNamePattern>logs/application-%d{yyyy-MM-dd}.log</fileNamePattern>
             <maxHistory>30</maxHistory>
         </rollingPolicy>
-        <encoder class="net.logstash.logback.encoder.LogstashEncoder" />
+        <encoder class="net.logstash.logback.encoder.LogstashEncoder"/>
     </appender>
 
-    <springProfile name="dev">
-        <logger name="com.logbook" level="DEBUG" />
-        <root level="INFO">
-            <appender-ref ref="CONSOLE" />
-            <appender-ref ref="FILE" />
-        </root>
-    </springProfile>
+    <!-- File Log Sistem (Hibernate, dll) -->
+    <appender name="SYSTEM_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>logs/system.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>logs/system-%d{yyyy-MM-dd}.log</fileNamePattern>
+            <maxHistory>7</maxHistory>
+        </rollingPolicy>
+        <encoder class="net.logstash.logback.encoder.LogstashEncoder"/>
+    </appender>
 
-    <springProfile name="prod">
-        <logger name="com.logbook" level="INFO" />
-        <root level="INFO">
-            <appender-ref ref="FILE" />
-        </root>
-    </springProfile>
 
+    <!-- ========================================== -->
+    <!-- 2. CONSOLE APPENDERS (Tampilan Terminal)   -->
+    <!-- ========================================== -->
+    
+    <!-- Console: Log Aplikasi Kita -->
+    <appender name="CONSOLE_APP" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <!-- %X{requestId} dan %X{email} ini ngambil dari MDC -->
+            <pattern>[APP] %d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} [ReqID: %X{requestId}] [Email: %X{email}] - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <!-- Console: Log Sistem -->
+    <appender name="CONSOLE_SYS" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <!-- Sistem biasanya gak butuh email, cukup ReqID aja -->
+            <pattern>[SYS] %d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} [ReqID: %X{requestId}] - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+
+    <!-- ========================================== -->
+    <!-- 3. LOGGER CONFIGURATION (Pemisah Log)      -->
+    <!-- ========================================== -->
+
+    <!-- 
+      LOG KITA (com.logbook)
+      additivity="false" = Jangan diteruskan ke ROOT (biar gak dobel/campur)
+    -->
+    <logger name="com.logbook" level="DEBUG" additivity="false">
+        <appender-ref ref="APP_FILE"/>
+        <appender-ref ref="CONSOLE_APP"/>
+    </logger>
+
+    <!-- 
+      LOG SISTEM (Root)
+      Semua framework (Hibernate, Spring, Tomcat, dll) otomatis masuk ke sini
+    -->
     <root level="INFO">
-        <appender-ref ref="CONSOLE" />
-        <appender-ref ref="FILE" />
+        <appender-ref ref="SYSTEM_FILE"/>
+        <appender-ref ref="CONSOLE_SYS"/>
     </root>
+
 </configuration>
