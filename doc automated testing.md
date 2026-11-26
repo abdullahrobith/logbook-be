@@ -341,7 +341,7 @@ Pengujian dilakukan untuk memverifikasi konfigurasi `logback-spring.xml`, injeks
 
 | No. | Skenario Pengujian | Hasil |
 |---|---|---|
-| 1 | Memastikan konfigurasi Logback memiliki appender `CONSOLE` dan `FILE` (`logs/application.log`) dengan pola `[ReqID: %X{requestId}]` serta level root `INFO` | Lulus |
+| 1 | Memastikan konfigurasi Logback memisahkan logger aplikasi (`CONSOLE_APP`, `APP_FILE`, level `DEBUG`) dan logger sistem (`CONSOLE_SYS`, `SYSTEM_FILE`, level `INFO`) | Lulus |
 | 2 | Memastikan `RequestIdFilter` mengisi MDC `requestId` (8 karakter), meneruskannya ke event log, dan membersihkannya setelah request selesai | Lulus |
 | 3 | Memastikan `RequestIdFilter` tetap membersihkan MDC `requestId` pada blok `finally` ketika `FilterChain` melempar exception | Lulus |
 | 4 | Memastikan `AdminController` menghasilkan keluaran log `INFO` dan `WARN` sesuai alur eksekusi | Lulus |
@@ -912,10 +912,10 @@ Berdasarkan laporan JaCoCo (`target/site/jacoco/index.html` dan `target/site/jac
 
 | Metrik | Ter-cakup | Total | Cakupan |
 |---|---:|---:|---:|
-| Instruction | 10.492 | 12.209 | 85,9% |
-| Branch | 577 | 809 | 71,3% |
-| Line | 2.333 | 2.720 | 85,8% |
-| Complexity | 758 | 1.064 | 71,2% |
+| Instruction | 10.536 | 12.261 | 85,9% |
+| Branch | 584 | 821 | 71,1% |
+| Line | 2.344 | 2.733 | 85,8% |
+| Complexity | 760 | 1.070 | 71,0% |
 | Method | 541 | 657 | 82,3% |
 | Class | 113 | 118 | 95,8% |
 
@@ -923,7 +923,7 @@ Berdasarkan laporan JaCoCo (`target/site/jacoco/index.html` dan `target/site/jac
   - `GlobalExceptionHandler`: **99,4%** instruction, **88,5%** branch, **100%** line, dan **100%** method coverage.
   - `ApiException`: **100%** instruction, line, dan method coverage.
   - `ApiExceptionHandler`: **75,4%** instruction, **62,5%** branch, **78,6%** line, dan **75%** method coverage; cabang handler galat lainnya diuji melalui `GlobalExceptionHandlerTest`.
-  - `RequestIdFilter`: **100%** instruction, branch, line, dan method coverage.
+  - `RequestIdFilter`: **94,4%** instruction, **72,2%** branch, **93,5%** line, dan **100%** method coverage.
   - `SecurityConfig`: **96,1%** instruction, **50%** branch, **97%** line, dan **91,7%** method coverage.
   - `AdminController`: **97,5%** line coverage; seluruh endpoint impor CSV, daftar pengguna, libur nasional, dan cuti telah tercakup unit test.
   - `RoleService`: **94,8%** line dan **93,2%** branch coverage untuk aturan hak akses serta `canDecideTalent` / `requireCanDecideTalent` / `requireSupervisor`.
@@ -931,10 +931,10 @@ Berdasarkan laporan JaCoCo (`target/site/jacoco/index.html` dan `target/site/jac
 - **Komponen lain yang relevan:** `AuthService` **92,4%** line / **77,8%** branch, `DeadlineService` **94,6%** line / **88,6%** branch, `DailyLogService` **89,4%** line / **80,8%** branch, dan `SummaryService` **95,5%** line / **70,7%** branch.
 - **Komponen keamanan reset password & rate limit:** `PasswordResetService` **96,2%** instruction, **80%** branch, **96,6%** line, dan **100%** method; `RateLimitService` **88,3%** instruction, **65%** branch, **91%** line, dan **91,7%** method; `AuthController` **100%** instruction/line/method dan **75%** branch. Entity `PasswordResetToken` mencapai **77,8%** instruction / **78,9%** line, sedangkan `RateLimitAttempt` **81,6%** instruction / **81,2%** line.
 
-Cakupan branch masih menjadi area yang dapat ditingkatkan (71,3%), meskipun seluruh skenario yang dirancang telah lulus.
+Cakupan branch masih menjadi area yang dapat ditingkatkan (71,1%), meskipun seluruh skenario yang dirancang telah lulus.
 
 ## 8. Kesimpulan
 
-Pengujian backend Logbook telah dilakukan melalui tiga pendekatan, yaitu manual testing, unit testing, dan integration testing, serta dilengkapi pengukuran cakupan kode menggunakan JaCoCo. Pengujian manual terhadap 10 endpoint API berhasil dilakukan menggunakan Postman, 13 endpoint tambahan diverifikasi melalui integration test, endpoint pengaturan pengguna (`GET/PUT /api/settings`) telah dilengkapi unit test dan integration test untuk pembuatan baris `user_settings` pada pengguna baru, dan `GET /api/summary` telah dilengkapi unit test serta integration test khusus (`SummaryServiceTest`, `SummaryControllerTest`, `SummaryIntegrationTest`) yang seluruhnya lulus. Seluruh **400 test** lulus tanpa failure maupun error setelah test diisolasi ke database `logbook_test`, termasuk kesetaraan kontrak `DayDto` antara pemilik dan atasan, identitas/metadata `DayDto`, daftar hari menunggu pada halaman Tim, pengamanan reset password dan rate limit, serta pemisahan cakupan daftar Tim atasan/admin. Laporan JaCoCo terbaru menunjukkan cakupan **85,8% line**, **85,9% instruction**, dan **71,3% branch**.
+Pengujian backend Logbook telah dilakukan melalui tiga pendekatan, yaitu manual testing, unit testing, dan integration testing, serta dilengkapi pengukuran cakupan kode menggunakan JaCoCo. Pengujian manual terhadap 10 endpoint API berhasil dilakukan menggunakan Postman, 13 endpoint tambahan diverifikasi melalui integration test, endpoint pengaturan pengguna (`GET/PUT /api/settings`) telah dilengkapi unit test dan integration test untuk pembuatan baris `user_settings` pada pengguna baru, dan `GET /api/summary` telah dilengkapi unit test serta integration test khusus (`SummaryServiceTest`, `SummaryControllerTest`, `SummaryIntegrationTest`) yang seluruhnya lulus. Seluruh **400 test** lulus tanpa failure maupun error setelah test diisolasi ke database `logbook_test`, termasuk kesetaraan kontrak `DayDto` antara pemilik dan atasan, identitas/metadata `DayDto`, daftar hari menunggu pada halaman Tim, pengamanan reset password dan rate limit, serta pemisahan cakupan daftar Tim atasan/admin. Laporan JaCoCo terbaru menunjukkan cakupan **85,8% line**, **85,9% instruction**, dan **71,1% branch**.
 
 Hasil tersebut menunjukkan bahwa komponen backend yang telah diuji berjalan sesuai dengan skenario pengujian yang tersedia. Meskipun demikian, hasil ini belum menjamin seluruh kemungkinan kondisi sistem telah diuji sehingga pengembangan cakupan pengujian tetap diperlukan.

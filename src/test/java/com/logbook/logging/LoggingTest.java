@@ -1,9 +1,9 @@
 package com.logbook.logging;
 
+import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.LoggerContext;
 import ch.qos.logback.classic.spi.ILoggingEvent;
-import ch.qos.logback.core.Appender;
 import ch.qos.logback.core.read.ListAppender;
 import com.logbook.controller.AdminController;
 import com.logbook.exception.ApiException;
@@ -62,21 +62,21 @@ class LoggingTest {
     private HttpSession session;
 
     private ListAppender<ILoggingEvent> listAppender;
-    private Logger rootLogger;
+    private Logger applicationLogger;
 
     @BeforeEach
     void setUp() {
         LoggerContext context = (LoggerContext) LoggerFactory.getILoggerFactory();
-        rootLogger = context.getLogger(Logger.ROOT_LOGGER_NAME);
+        applicationLogger = context.getLogger("com.logbook");
         listAppender = new ListAppender<>();
         listAppender.setContext(context);
         listAppender.start();
-        rootLogger.addAppender(listAppender);
+        applicationLogger.addAppender(listAppender);
     }
 
     @AfterEach
     void tearDown() {
-        rootLogger.detachAppender(listAppender);
+        applicationLogger.detachAppender(listAppender);
         listAppender.stop();
         MDC.clear();
     }
@@ -85,9 +85,18 @@ class LoggingTest {
     void testLogbackConfigurationAppenders() {
         LoggerContext context = (LoggerContext) LoggerFactory.getILoggerFactory();
         Logger root = context.getLogger(Logger.ROOT_LOGGER_NAME);
+        Logger application = context.getLogger("com.logbook");
 
-        Appender<ILoggingEvent> consoleAppender = root.getAppender("CONSOLE");
-        assertNotNull(consoleAppender, "Appender CONSOLE harus terdaftar pada root logger");
+        assertNotNull(application.getAppender("CONSOLE_APP"),
+                "Appender CONSOLE_APP harus terdaftar pada logger aplikasi");
+        assertNotNull(application.getAppender("APP_FILE"),
+                "Appender APP_FILE harus terdaftar pada logger aplikasi");
+        assertNotNull(root.getAppender("CONSOLE_SYS"),
+                "Appender CONSOLE_SYS harus terdaftar pada root logger");
+        assertNotNull(root.getAppender("SYSTEM_FILE"),
+                "Appender SYSTEM_FILE harus terdaftar pada root logger");
+        assertEquals(Level.DEBUG, application.getLevel(), "Logger aplikasi harus berada pada level DEBUG");
+        assertEquals(Level.INFO, root.getLevel(), "Root logger harus berada pada level INFO");
     }
 
     @Test

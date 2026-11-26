@@ -6,6 +6,7 @@ import com.logbook.dto.PendingDayResponse;
 import com.logbook.dto.TaskDto;
 import com.logbook.dto.TeamScope;
 import com.logbook.entity.User;
+import com.logbook.repository.UserRepository;
 import com.logbook.service.DailyLogService;
 import com.logbook.service.RoleService;
 import com.logbook.service.TeamService;
@@ -47,6 +48,9 @@ class TeamControllerTest {
 
     @MockitoBean
     private DailyLogService dailyLogService;
+
+    @MockitoBean
+    private UserRepository userRepository;
 
     @Test
     void getTeamShouldReturnOkForSupervisor() throws Exception {
